@@ -1,0 +1,275 @@
+/* ========================================
+   FILE: 10-modals.css
+   DESCRIPTION: Sign In Modal & Popups
+   ======================================== */
+
+.modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 999999 !important;
+    align-items: center;
+    justify-content: center;
+    animation: fadeIn 0.3s ease;
+}
+
+.modal.active {
+    display: flex;
+    z-index: 999999 !important;
+}
+
+.modal-content {
+    background: white;
+    border-radius: 20px;
+    padding: 40px;
+    max-width: 400px;
+    width: 90%;
+    position: relative;
+    animation: modalSlideIn 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    z-index: 999999 !important;
+    box-shadow: 0 30px 60px rgba(0, 0, 0, 0.3);
+}
+
+@keyframes modalSlideIn {
+    from {
+        transform: translateY(-50px) scale(0.9);
+        opacity: 0;
+    }
+
+    to {
+        transform: translateY(0) scale(1);
+        opacity: 1;
+    }
+}
+
+.modal-close {
+    position: absolute;
+    top: 15px;
+    right: 20px;
+    font-size: 28px;
+    cursor: pointer;
+    color: #666;
+    transition: all 0.3s ease;
+}
+
+.modal-close:hover {
+    color: #003580;
+    transform: rotate(90deg);
+}
+
+.modal h2 {
+    color: #003580;
+    margin-bottom: 10px;
+    font-size: 24px;
+    animation: slideInDown 0.5s ease;
+}
+
+.modal-subtitle {
+    color: #666;
+    margin-bottom: 25px;
+    font-size: 14px;
+    animation: fadeIn 0.5s ease 0.1s both;
+}
+
+/* Social Login Buttons */
+.social-login {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-bottom: 25px;
+}
+
+.social-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    padding: 12px;
+    border: 1px solid #ddd;
+    border-radius: 10px;
+    background: white;
+    font-size: 16px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    width: 100%;
+    animation: slideInRight 0.5s ease;
+    animation-fill-mode: both;
+}
+
+.social-btn:nth-child(1) {
+    animation-delay: 0.1s;
+}
+
+.social-btn:nth-child(2) {
+    animation-delay: 0.2s;
+}
+
+.social-btn:nth-child(3) {
+    animation-delay: 0.3s;
+}
+
+.social-btn:hover {
+    background: #f5f5f5;
+    transform: translateY(-3px);
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+}
+
+.social-btn.google {
+    color: #DB4437;
+}
+
+.social-btn.apple {
+    color: #000;
+}
+
+.social-btn.facebook {
+    color: #4267B2;
+}
+
+.divider {
+    display: flex;
+    align-items: center;
+    text-align: center;
+    color: #999;
+    margin: 15px 0;
+    animation: fadeIn 0.5s ease 0.4s both;
+}
+
+.divider::before,
+.divider::after {
+    content: '';
+    flex: 1;
+    border-bottom: 1px solid #ddd;
+}
+
+.divider span {
+    margin: 0 10px;
+    font-size: 14px;
+}
+
+/* Email Form */
+.email-form {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-bottom: 15px;
+}
+
+.email-form input {
+    padding: 14px;
+    border: 1px solid #ddd;
+    border-radius: 10px;
+    font-size: 15px;
+    transition: all 0.3s ease;
+    width: 100%;
+    animation: fadeIn 0.5s ease 0.5s both;
+}
+
+.email-form input:focus {
+    outline: none;
+    border-color: #003580;
+    box-shadow: 0 5px 15px rgba(0, 53, 128, 0.1);
+    transform: translateY(-2px);
+}
+
+.signin-btn {
+    background: linear-gradient(135deg, #003580, #1a4b8c);
+    color: white;
+    border: none;
+    padding: 14px;
+    border-radius: 12px;
+    font-size: 16px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    width: 100%;
+    animation: fadeIn 0.5s ease 0.6s both;
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 10px 25px rgba(0, 53, 128, 0.2);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.signin-btn::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 0;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.3);
+    transform: translate(-50%, -50%);
+    transition: width 0.6s, height 0.6s;
+}
+
+.signin-btn:hover::before {
+    width: 300px;
+    height: 300px;
+}
+
+.signin-btn:hover {
+    background: #ff9800;
+    transform: translateY(-2px);
+    box-shadow: 0 10px 20px rgba(255, 152, 0, 0.3);
+}
+
+.create-account-link {
+    text-align: center;
+    margin-top: 20px;
+    padding-top: 20px;
+    border-top: 1px solid #eee;
+    animation: fadeIn 0.5s ease 0.7s both;
+}
+
+.create-account-link a {
+    color: #003580;
+    text-decoration: none;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.create-account-link a:hover {
+    color: #ff9800;
+    text-decoration: underline;
+}
+
+.terms {
+    font-size: 12px;
+    color: #999;
+    text-align: center;
+    margin-top: 15px;
+    animation: fadeIn 0.5s ease 0.8s both;
+}
+
+/* Promo Highlights for Flatpickr */
+.flatpickr-day.promo-range-red {
+    background: #ff5252 !important;
+    border-color: #ff5252 !important;
+    color: white !important;
+    border-radius: 4px;
+}
+
+.flatpickr-day.promo-pale {
+    opacity: 0.4 !important;
+    background: #f5f5f5 !important;
+    color: #999 !important;
+}
+
+.flatpickr-day.promo-range-red.selected {
+    background: #d32f2f !important;
+    border-color: #d32f2f !important;
+    font-weight: bold;
+}
+
+/* Fix flatpickr z-index to appear above ALL modals (which use 99999999) */
+.flatpickr-calendar {
+    z-index: 999999999 !important;
+}

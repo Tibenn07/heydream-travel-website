@@ -1,0 +1,834 @@
+2026-04-10 05:27:30 - === Admin API Request Started ===
+2026-04-10 05:27:30 - Request Method: GET
+2026-04-10 05:27:30 - POST Data: Array
+(
+)
+
+2026-04-10 05:27:30 - GET Data: Array
+(
+    [action] => get_pending_requests
+)
+
+2026-04-10 05:27:30 - Admin logged in: superadmin
+2026-04-10 05:27:30 - Database connection successful
+2026-04-10 05:27:30 - Action: get_pending_requests
+2026-04-10 05:27:30 - Admin Role: super_admin
+2026-04-10 05:27:30 - Processing get_pending_requests
+2026-04-10 05:27:30 - Found 0 pending requests
+2026-04-10 05:27:30 - === Admin API Request Completed ===
+
+2026-04-10 04:01:07 - === Admin API Request Started ===
+2026-04-10 04:01:07 - Request Method: GET
+2026-04-10 04:01:07 - POST Data: Array
+(
+)
+
+2026-04-10 04:01:07 - GET Data: Array
+(
+    [action] => get_pending_requests
+)
+
+2026-04-10 04:01:07 - Admin logged in: superadmin
+2026-04-10 04:01:07 - Database connection successful
+2026-04-10 04:01:07 - Action: get_pending_requests
+2026-04-10 04:01:07 - Admin Role: super_admin
+2026-04-10 04:01:07 - Processing get_pending_requests
+2026-04-10 04:01:07 - Found 0 pending requests
+2026-04-10 04:01:07 - === Admin API Request Completed ===
+
+2026-04-10 21:07:01 - === Admin API Request Started ===
+2026-04-10 21:07:01 - Request Method: GET
+2026-04-10 21:07:01 - POST Data: Array
+(
+)
+
+2026-04-10 21:07:01 - GET Data: Array
+(
+    [action] => get_pending_requests
+)
+
+2026-04-10 21:07:01 - Admin logged in: superadmin
+2026-04-10 21:07:01 - Database connection successful
+2026-04-10 21:07:01 - Action: get_pending_requests
+2026-04-10 21:07:01 - Admin Role: super_admin
+2026-04-10 21:07:01 - Processing get_pending_requests
+2026-04-10 21:07:01 - Found 0 pending requests
+2026-04-10 21:07:01 - === Admin API Request Completed ===
+
+2026-04-10 21:24:26 - === Admin API Request Started ===
+2026-04-10 21:24:26 - Request Method: GET
+2026-04-10 21:24:26 - POST Data: Array
+(
+)
+
+2026-04-10 21:24:26 - GET Data: Array
+(
+    [action] => get_pending_requests
+)
+
+2026-04-10 21:24:26 - Admin logged in: superadmin
+2026-04-10 21:24:26 - Database connection successful
+2026-04-10 21:24:26 - Action: get_pending_requests
+2026-04-10 21:24:26 - Admin Role: super_admin
+2026-04-10 21:24:26 - Processing get_pending_requests
+2026-04-10 21:24:26 - Found 0 pending requests
+2026-04-10 21:24:26 - === Admin API Request Completed ===
+
+2026-04-11 11:53:52 - === Admin API Request Started ===
+2026-04-11 11:53:52 - Request Method: GET
+2026-04-11 11:53:52 - POST Data: Array
+(
+)
+
+2026-04-11 11:53:52 - GET Data: Array
+(
+)
+
+2026-04-11 11:53:52 - Admin logged in: superadmin
+2026-04-11 11:53:52 - Database connection successful
+2026-04-11 11:53:52 - Action: 
+2026-04-11 11:53:52 - Admin Role: super_admin
+2026-04-11 11:53:52 - Invalid action: 
+2026-04-11 11:53:52 - === Admin API Request Completed ===
+
+2026-04-11 11:53:59 - === Admin API Request Started ===
+2026-04-11 11:53:59 - Request Method: GET
+2026-04-11 11:53:59 - POST Data: Array
+(
+)
+
+2026-04-11 11:53:59 - GET Data: Array
+(
+    [action] => get_pending_requests
+)
+
+2026-04-11 11:53:59 - Admin logged in: superadmin
+2026-04-11 11:53:59 - Database connection successful
+2026-04-11 11:53:59 - Action: get_pending_requests
+2026-04-11 11:53:59 - Admin Role: super_admin
+2026-04-11 11:53:59 - Processing get_pending_requests
+2026-04-11 11:53:59 - Found 0 pending requests
+2026-04-11 11:53:59 - === Admin API Request Completed ===
+
+2026-04-11 11:55:30 - === Admin API Request Started ===
+2026-04-11 11:55:30 - Request Method: GET
+2026-04-11 11:55:30 - POST Data: Array
+(
+)
+
+2026-04-11 11:55:30 - GET Data: Array
+(
+    [action] => get_pending_requests
+)
+
+2026-04-11 11:55:30 - Admin logged in: superadmin
+2026-04-11 11:55:30 - Database connection successful
+2026-04-11 11:55:30 - Action: get_pending_requests
+2026-04-11 11:55:30 - Admin Role: super_admin
+2026-04-11 11:55:30 - Processing get_pending_requests
+2026-04-11 11:55:30 - Found 0 pending requests
+2026-04-11 11:55:30 - === Admin API Request Completed ===
+
+2026-04-11 12:20:51 - === Admin API Request Started ===
+2026-04-11 12:20:51 - Request Method: GET
+2026-04-11 12:20:51 - POST Data: Array
+(
+)
+
+2026-04-11 12:20:51 - GET Data: Array
+(
+    [action] => get_pending_requests
+)
+
+2026-04-11 12:20:51 - Admin logged in: superadmin
+2026-04-11 12:20:51 - Database connection successful
+2026-04-11 12:20:51 - Action: get_pending_requests
+2026-04-11 12:20:51 - Admin Role: super_admin
+2026-04-11 12:20:51 - Processing get_pending_requests
+2026-04-11 12:20:51 - Found 0 pending requests
+2026-04-11 12:20:51 - === Admin API Request Completed ===
+
+2026-04-11 12:32:19 - === Admin API Request Started ===
+2026-04-11 12:32:19 - Request Method: GET
+2026-04-11 12:32:19 - POST Data: Array
+(
+)
+
+2026-04-11 12:32:19 - GET Data: Array
+(
+    [action] => get_pending_requests
+)
+
+2026-04-11 12:32:19 - Admin logged in: superadmin
+2026-04-11 12:32:19 - Database connection successful
+2026-04-11 12:32:19 - Action: get_pending_requests
+2026-04-11 12:32:19 - Admin Role: super_admin
+2026-04-11 12:32:19 - Processing get_pending_requests
+2026-04-11 12:32:19 - Found 0 pending requests
+2026-04-11 12:32:19 - === Admin API Request Completed ===
+
+2026-04-11 12:33:04 - === Admin API Request Started ===
+2026-04-11 12:33:04 - Request Method: GET
+2026-04-11 12:33:04 - POST Data: Array
+(
+)
+
+2026-04-11 12:33:04 - GET Data: Array
+(
+    [action] => get_pending_requests
+)
+
+2026-04-11 12:33:04 - Admin logged in: superadmin
+2026-04-11 12:33:04 - Database connection successful
+2026-04-11 12:33:04 - Action: get_pending_requests
+2026-04-11 12:33:04 - Admin Role: super_admin
+2026-04-11 12:33:04 - Processing get_pending_requests
+2026-04-11 12:33:04 - Found 0 pending requests
+2026-04-11 12:33:04 - === Admin API Request Completed ===
+
+2026-04-11 12:47:43 - === Admin API Request Started ===
+2026-04-11 12:47:43 - Request Method: GET
+2026-04-11 12:47:43 - POST Data: Array
+(
+)
+
+2026-04-11 12:47:43 - GET Data: Array
+(
+    [action] => get_pending_requests
+)
+
+2026-04-11 12:47:43 - Admin logged in: superadmin
+2026-04-11 12:47:43 - Database connection successful
+2026-04-11 12:47:43 - Action: get_pending_requests
+2026-04-11 12:47:43 - Admin Role: super_admin
+2026-04-11 12:47:43 - Processing get_pending_requests
+2026-04-11 12:47:43 - Found 0 pending requests
+2026-04-11 12:47:43 - === Admin API Request Completed ===
+
+2026-04-11 13:00:32 - === Admin API Request Started ===
+2026-04-11 13:00:32 - Request Method: GET
+2026-04-11 13:00:32 - POST Data: Array
+(
+)
+
+2026-04-11 13:00:32 - GET Data: Array
+(
+    [action] => get_pending_requests
+)
+
+2026-04-11 13:00:32 - Admin logged in: superadmin
+2026-04-11 13:00:33 - Database connection successful
+2026-04-11 13:00:33 - Action: get_pending_requests
+2026-04-11 13:00:33 - Admin Role: super_admin
+2026-04-11 13:00:33 - Processing get_pending_requests
+2026-04-11 13:00:33 - Found 0 pending requests
+2026-04-11 13:00:33 - === Admin API Request Completed ===
+
+2026-04-11 13:15:10 - === Admin API Request Started ===
+2026-04-11 13:15:10 - Request Method: GET
+2026-04-11 13:15:10 - POST Data: Array
+(
+)
+
+2026-04-11 13:15:10 - GET Data: Array
+(
+    [action] => get_pending_requests
+)
+
+2026-04-11 13:15:10 - Admin logged in: superadmin
+2026-04-11 13:15:10 - Database connection successful
+2026-04-11 13:15:10 - Action: get_pending_requests
+2026-04-11 13:15:10 - Admin Role: super_admin
+2026-04-11 13:15:10 - Processing get_pending_requests
+2026-04-11 13:15:10 - Found 0 pending requests
+2026-04-11 13:15:10 - === Admin API Request Completed ===
+
+2026-04-11 13:52:08 - === Admin API Request Started ===
+2026-04-11 13:52:08 - Request Method: GET
+2026-04-11 13:52:08 - POST Data: Array
+(
+)
+
+2026-04-11 13:52:08 - GET Data: Array
+(
+    [action] => get_pending_requests
+)
+
+2026-04-11 13:52:08 - Admin logged in: superadmin
+2026-04-11 13:52:08 - Database connection successful
+2026-04-11 13:52:08 - Action: get_pending_requests
+2026-04-11 13:52:08 - Admin Role: super_admin
+2026-04-11 13:52:08 - Processing get_pending_requests
+2026-04-11 13:52:08 - Found 0 pending requests
+2026-04-11 13:52:08 - === Admin API Request Completed ===
+
+2026-04-11 14:24:41 - === Admin API Request Started ===
+2026-04-11 14:24:41 - Request Method: GET
+2026-04-11 14:24:41 - POST Data: Array
+(
+)
+
+2026-04-11 14:24:41 - GET Data: Array
+(
+    [action] => get_pending_requests
+)
+
+2026-04-11 14:24:41 - Admin logged in: superadmin
+2026-04-11 14:24:41 - Database connection successful
+2026-04-11 14:24:41 - Action: get_pending_requests
+2026-04-11 14:24:41 - Admin Role: super_admin
+2026-04-11 14:24:41 - Processing get_pending_requests
+2026-04-11 14:24:41 - Found 0 pending requests
+2026-04-11 14:24:41 - === Admin API Request Completed ===
+
+2026-04-11 14:25:11 - === Admin API Request Started ===
+2026-04-11 14:25:11 - Request Method: GET
+2026-04-11 14:25:11 - POST Data: Array
+(
+)
+
+2026-04-11 14:25:11 - GET Data: Array
+(
+    [action] => get_pending_requests
+)
+
+2026-04-11 14:25:11 - Admin logged in: superadmin
+2026-04-11 14:25:11 - Database connection successful
+2026-04-11 14:25:11 - Action: get_pending_requests
+2026-04-11 14:25:11 - Admin Role: super_admin
+2026-04-11 14:25:11 - Processing get_pending_requests
+2026-04-11 14:25:11 - Found 0 pending requests
+2026-04-11 14:25:11 - === Admin API Request Completed ===
+
+2026-04-11 14:25:41 - === Admin API Request Started ===
+2026-04-11 14:25:41 - Request Method: GET
+2026-04-11 14:25:41 - POST Data: Array
+(
+)
+
+2026-04-11 14:25:41 - GET Data: Array
+(
+    [action] => get_pending_requests
+)
+
+2026-04-11 14:25:41 - Admin logged in: superadmin
+2026-04-11 14:25:41 - Database connection successful
+2026-04-11 14:25:41 - Action: get_pending_requests
+2026-04-11 14:25:41 - Admin Role: super_admin
+2026-04-11 14:25:41 - Processing get_pending_requests
+2026-04-11 14:25:41 - Found 0 pending requests
+2026-04-11 14:25:41 - === Admin API Request Completed ===
+
+2026-04-11 14:26:11 - === Admin API Request Started ===
+2026-04-11 14:26:11 - Request Method: GET
+2026-04-11 14:26:11 - POST Data: Array
+(
+)
+
+2026-04-11 14:26:11 - GET Data: Array
+(
+    [action] => get_pending_requests
+)
+
+2026-04-11 14:26:11 - Admin logged in: superadmin
+2026-04-11 14:26:11 - Database connection successful
+2026-04-11 14:26:11 - Action: get_pending_requests
+2026-04-11 14:26:11 - Admin Role: super_admin
+2026-04-11 14:26:11 - Processing get_pending_requests
+2026-04-11 14:26:11 - Found 0 pending requests
+2026-04-11 14:26:11 - === Admin API Request Completed ===
+
+2026-04-11 14:26:41 - === Admin API Request Started ===
+2026-04-11 14:26:41 - Request Method: GET
+2026-04-11 14:26:41 - POST Data: Array
+(
+)
+
+2026-04-11 14:26:41 - GET Data: Array
+(
+    [action] => get_pending_requests
+)
+
+2026-04-11 14:26:41 - Admin logged in: superadmin
+2026-04-11 14:26:41 - Database connection successful
+2026-04-11 14:26:41 - Action: get_pending_requests
+2026-04-11 14:26:41 - Admin Role: super_admin
+2026-04-11 14:26:41 - Processing get_pending_requests
+2026-04-11 14:26:41 - Found 0 pending requests
+2026-04-11 14:26:41 - === Admin API Request Completed ===
+
+2026-04-11 14:27:11 - === Admin API Request Started ===
+2026-04-11 14:27:11 - Request Method: GET
+2026-04-11 14:27:11 - POST Data: Array
+(
+)
+
+2026-04-11 14:27:11 - GET Data: Array
+(
+    [action] => get_pending_requests
+)
+
+2026-04-11 14:27:11 - Admin logged in: superadmin
+2026-04-11 14:27:11 - Database connection successful
+2026-04-11 14:27:11 - Action: get_pending_requests
+2026-04-11 14:27:11 - Admin Role: super_admin
+2026-04-11 14:27:11 - Processing get_pending_requests
+2026-04-11 14:27:11 - Found 0 pending requests
+2026-04-11 14:27:11 - === Admin API Request Completed ===
+
+2026-04-11 14:27:41 - === Admin API Request Started ===
+2026-04-11 14:27:41 - Request Method: GET
+2026-04-11 14:27:41 - POST Data: Array
+(
+)
+
+2026-04-11 14:27:41 - GET Data: Array
+(
+    [action] => get_pending_requests
+)
+
+2026-04-11 14:27:41 - Admin logged in: superadmin
+2026-04-11 14:27:41 - Database connection successful
+2026-04-11 14:27:41 - Action: get_pending_requests
+2026-04-11 14:27:41 - Admin Role: super_admin
+2026-04-11 14:27:41 - Processing get_pending_requests
+2026-04-11 14:27:41 - Found 0 pending requests
+2026-04-11 14:27:41 - === Admin API Request Completed ===
+
+2026-04-11 14:28:20 - === Admin API Request Started ===
+2026-04-11 14:28:20 - Request Method: GET
+2026-04-11 14:28:20 - POST Data: Array
+(
+)
+
+2026-04-11 14:28:20 - GET Data: Array
+(
+    [action] => get_pending_requests
+)
+
+2026-04-11 14:28:20 - Admin logged in: superadmin
+2026-04-11 14:28:20 - Database connection successful
+2026-04-11 14:28:20 - Action: get_pending_requests
+2026-04-11 14:28:20 - Admin Role: super_admin
+2026-04-11 14:28:20 - Processing get_pending_requests
+2026-04-11 14:28:20 - Found 0 pending requests
+2026-04-11 14:28:20 - === Admin API Request Completed ===
+
+2026-04-11 14:32:36 - === Admin API Request Started ===
+2026-04-11 14:32:36 - Request Method: GET
+2026-04-11 14:32:36 - POST Data: Array
+(
+)
+
+2026-04-11 14:32:36 - GET Data: Array
+(
+    [action] => get_pending_requests
+)
+
+2026-04-11 14:32:36 - Admin logged in: superadmin
+2026-04-11 14:32:36 - Database connection successful
+2026-04-11 14:32:36 - Action: get_pending_requests
+2026-04-11 14:32:36 - Admin Role: super_admin
+2026-04-11 14:32:36 - Processing get_pending_requests
+2026-04-11 14:32:36 - Found 0 pending requests
+2026-04-11 14:32:36 - === Admin API Request Completed ===
+
+2026-04-11 14:32:38 - === Admin API Request Started ===
+2026-04-11 14:32:38 - Request Method: GET
+2026-04-11 14:32:38 - POST Data: Array
+(
+)
+
+2026-04-11 14:32:38 - GET Data: Array
+(
+    [action] => get_pending_requests
+)
+
+2026-04-11 14:32:38 - Admin logged in: superadmin
+2026-04-11 14:32:38 - Database connection successful
+2026-04-11 14:32:38 - Action: get_pending_requests
+2026-04-11 14:32:38 - Admin Role: super_admin
+2026-04-11 14:32:38 - Processing get_pending_requests
+2026-04-11 14:32:38 - Found 0 pending requests
+2026-04-11 14:32:38 - === Admin API Request Completed ===
+
+2026-04-11 14:33:02 - === Admin API Request Started ===
+2026-04-11 14:33:02 - Request Method: GET
+2026-04-11 14:33:02 - POST Data: Array
+(
+)
+
+2026-04-11 14:33:02 - GET Data: Array
+(
+    [action] => get_pending_requests
+)
+
+2026-04-11 14:33:02 - Admin logged in: superadmin
+2026-04-11 14:33:02 - Database connection successful
+2026-04-11 14:33:02 - Action: get_pending_requests
+2026-04-11 14:33:02 - Admin Role: super_admin
+2026-04-11 14:33:02 - Processing get_pending_requests
+2026-04-11 14:33:02 - Found 0 pending requests
+2026-04-11 14:33:02 - === Admin API Request Completed ===
+
+2026-04-11 14:33:33 - === Admin API Request Started ===
+2026-04-11 14:33:33 - Request Method: GET
+2026-04-11 14:33:33 - POST Data: Array
+(
+)
+
+2026-04-11 14:33:33 - GET Data: Array
+(
+    [action] => get_pending_requests
+)
+
+2026-04-11 14:33:33 - Admin logged in: superadmin
+2026-04-11 14:33:33 - Database connection successful
+2026-04-11 14:33:33 - Action: get_pending_requests
+2026-04-11 14:33:33 - Admin Role: super_admin
+2026-04-11 14:33:33 - Processing get_pending_requests
+2026-04-11 14:33:33 - Found 0 pending requests
+2026-04-11 14:33:33 - === Admin API Request Completed ===
+
+2026-04-11 14:34:03 - === Admin API Request Started ===
+2026-04-11 14:34:03 - Request Method: GET
+2026-04-11 14:34:03 - POST Data: Array
+(
+)
+
+2026-04-11 14:34:03 - GET Data: Array
+(
+    [action] => get_pending_requests
+)
+
+2026-04-11 14:34:03 - Admin logged in: superadmin
+2026-04-11 14:34:03 - Database connection successful
+2026-04-11 14:34:03 - Action: get_pending_requests
+2026-04-11 14:34:03 - Admin Role: super_admin
+2026-04-11 14:34:03 - Processing get_pending_requests
+2026-04-11 14:34:03 - Found 0 pending requests
+2026-04-11 14:34:03 - === Admin API Request Completed ===
+
+2026-04-11 14:34:33 - === Admin API Request Started ===
+2026-04-11 14:34:33 - Request Method: GET
+2026-04-11 14:34:33 - POST Data: Array
+(
+)
+
+2026-04-11 14:34:33 - GET Data: Array
+(
+    [action] => get_pending_requests
+)
+
+2026-04-11 14:34:33 - Admin logged in: superadmin
+2026-04-11 14:34:33 - Database connection successful
+2026-04-11 14:34:33 - Action: get_pending_requests
+2026-04-11 14:34:33 - Admin Role: super_admin
+2026-04-11 14:34:33 - Processing get_pending_requests
+2026-04-11 14:34:33 - Found 0 pending requests
+2026-04-11 14:34:33 - === Admin API Request Completed ===
+
+2026-04-11 14:35:03 - === Admin API Request Started ===
+2026-04-11 14:35:03 - Request Method: GET
+2026-04-11 14:35:03 - POST Data: Array
+(
+)
+
+2026-04-11 14:35:03 - GET Data: Array
+(
+    [action] => get_pending_requests
+)
+
+2026-04-11 14:35:03 - Admin logged in: superadmin
+2026-04-11 14:35:03 - Database connection successful
+2026-04-11 14:35:03 - Action: get_pending_requests
+2026-04-11 14:35:03 - Admin Role: super_admin
+2026-04-11 14:35:03 - Processing get_pending_requests
+2026-04-11 14:35:03 - Found 0 pending requests
+2026-04-11 14:35:03 - === Admin API Request Completed ===
+
+2026-04-11 14:35:33 - === Admin API Request Started ===
+2026-04-11 14:35:33 - Request Method: GET
+2026-04-11 14:35:33 - POST Data: Array
+(
+)
+
+2026-04-11 14:35:33 - GET Data: Array
+(
+    [action] => get_pending_requests
+)
+
+2026-04-11 14:35:33 - Admin logged in: superadmin
+2026-04-11 14:35:33 - Database connection successful
+2026-04-11 14:35:33 - Action: get_pending_requests
+2026-04-11 14:35:33 - Admin Role: super_admin
+2026-04-11 14:35:33 - Processing get_pending_requests
+2026-04-11 14:35:33 - Found 0 pending requests
+2026-04-11 14:35:33 - === Admin API Request Completed ===
+
+2026-04-11 14:36:03 - === Admin API Request Started ===
+2026-04-11 14:36:03 - Request Method: GET
+2026-04-11 14:36:03 - POST Data: Array
+(
+)
+
+2026-04-11 14:36:03 - GET Data: Array
+(
+    [action] => get_pending_requests
+)
+
+2026-04-11 14:36:03 - Admin logged in: superadmin
+2026-04-11 14:36:03 - Database connection successful
+2026-04-11 14:36:03 - Action: get_pending_requests
+2026-04-11 14:36:03 - Admin Role: super_admin
+2026-04-11 14:36:03 - Processing get_pending_requests
+2026-04-11 14:36:03 - Found 0 pending requests
+2026-04-11 14:36:03 - === Admin API Request Completed ===
+
+2026-04-11 14:36:33 - === Admin API Request Started ===
+2026-04-11 14:36:33 - Request Method: GET
+2026-04-11 14:36:33 - POST Data: Array
+(
+)
+
+2026-04-11 14:36:33 - GET Data: Array
+(
+    [action] => get_pending_requests
+)
+
+2026-04-11 14:36:33 - Admin logged in: superadmin
+2026-04-11 14:36:33 - Database connection successful
+2026-04-11 14:36:33 - Action: get_pending_requests
+2026-04-11 14:36:33 - Admin Role: super_admin
+2026-04-11 14:36:33 - Processing get_pending_requests
+2026-04-11 14:36:33 - Found 0 pending requests
+2026-04-11 14:36:33 - === Admin API Request Completed ===
+
+2026-04-11 14:37:29 - === Admin API Request Started ===
+2026-04-11 14:37:29 - Request Method: GET
+2026-04-11 14:37:29 - POST Data: Array
+(
+)
+
+2026-04-11 14:37:29 - GET Data: Array
+(
+    [action] => get_pending_requests
+)
+
+2026-04-11 14:37:29 - Admin logged in: superadmin
+2026-04-11 14:37:29 - Database connection successful
+2026-04-11 14:37:29 - Action: get_pending_requests
+2026-04-11 14:37:29 - Admin Role: super_admin
+2026-04-11 14:37:29 - Processing get_pending_requests
+2026-04-11 14:37:29 - Found 0 pending requests
+2026-04-11 14:37:29 - === Admin API Request Completed ===
+
+2026-04-11 14:38:29 - === Admin API Request Started ===
+2026-04-11 14:38:29 - Request Method: GET
+2026-04-11 14:38:29 - POST Data: Array
+(
+)
+
+2026-04-11 14:38:29 - GET Data: Array
+(
+    [action] => get_pending_requests
+)
+
+2026-04-11 14:38:29 - Admin logged in: superadmin
+2026-04-11 14:38:29 - Database connection successful
+2026-04-11 14:38:29 - Action: get_pending_requests
+2026-04-11 14:38:29 - Admin Role: super_admin
+2026-04-11 14:38:29 - Processing get_pending_requests
+2026-04-11 14:38:29 - Found 0 pending requests
+2026-04-11 14:38:29 - === Admin API Request Completed ===
+
+2026-04-11 14:39:29 - === Admin API Request Started ===
+2026-04-11 14:39:29 - Request Method: GET
+2026-04-11 14:39:29 - POST Data: Array
+(
+)
+
+2026-04-11 14:39:29 - GET Data: Array
+(
+    [action] => get_pending_requests
+)
+
+2026-04-11 14:39:29 - Admin logged in: superadmin
+2026-04-11 14:39:29 - Database connection successful
+2026-04-11 14:39:29 - Action: get_pending_requests
+2026-04-11 14:39:29 - Admin Role: super_admin
+2026-04-11 14:39:29 - Processing get_pending_requests
+2026-04-11 14:39:29 - Found 0 pending requests
+2026-04-11 14:39:29 - === Admin API Request Completed ===
+
+2026-04-11 14:40:29 - === Admin API Request Started ===
+2026-04-11 14:40:29 - Request Method: GET
+2026-04-11 14:40:29 - POST Data: Array
+(
+)
+
+2026-04-11 14:40:29 - GET Data: Array
+(
+    [action] => get_pending_requests
+)
+
+2026-04-11 14:40:29 - Admin logged in: superadmin
+2026-04-11 14:40:29 - Database connection successful
+2026-04-11 14:40:29 - Action: get_pending_requests
+2026-04-11 14:40:29 - Admin Role: super_admin
+2026-04-11 14:40:29 - Processing get_pending_requests
+2026-04-11 14:40:29 - Found 0 pending requests
+2026-04-11 14:40:29 - === Admin API Request Completed ===
+
+2026-04-11 14:41:22 - === Admin API Request Started ===
+2026-04-11 14:41:22 - Request Method: GET
+2026-04-11 14:41:22 - POST Data: Array
+(
+)
+
+2026-04-11 14:41:22 - GET Data: Array
+(
+    [action] => get_pending_requests
+)
+
+2026-04-11 14:41:22 - Admin logged in: superadmin
+2026-04-11 14:41:22 - Database connection successful
+2026-04-11 14:41:22 - Action: get_pending_requests
+2026-04-11 14:41:22 - Admin Role: super_admin
+2026-04-11 14:41:22 - Processing get_pending_requests
+2026-04-11 14:41:22 - Found 0 pending requests
+2026-04-11 14:41:22 - === Admin API Request Completed ===
+
+2026-04-11 14:41:23 - === Admin API Request Started ===
+2026-04-11 14:41:23 - Request Method: GET
+2026-04-11 14:41:23 - POST Data: Array
+(
+)
+
+2026-04-11 14:41:23 - GET Data: Array
+(
+    [action] => get_pending_requests
+)
+
+2026-04-11 14:41:23 - Admin logged in: superadmin
+2026-04-11 14:41:23 - Database connection successful
+2026-04-11 14:41:23 - Action: get_pending_requests
+2026-04-11 14:41:23 - Admin Role: super_admin
+2026-04-11 14:41:23 - Processing get_pending_requests
+2026-04-11 14:41:23 - Found 0 pending requests
+2026-04-11 14:41:23 - === Admin API Request Completed ===
+
+2026-04-11 14:41:23 - === Admin API Request Started ===
+2026-04-11 14:41:23 - Request Method: GET
+2026-04-11 14:41:23 - POST Data: Array
+(
+)
+
+2026-04-11 14:41:23 - GET Data: Array
+(
+    [action] => get_pending_requests
+)
+
+2026-04-11 14:41:23 - Admin logged in: superadmin
+2026-04-11 14:41:23 - Database connection successful
+2026-04-11 14:41:23 - Action: get_pending_requests
+2026-04-11 14:41:23 - Admin Role: super_admin
+2026-04-11 14:41:23 - Processing get_pending_requests
+2026-04-11 14:41:23 - Found 0 pending requests
+2026-04-11 14:41:23 - === Admin API Request Completed ===
+
+2026-04-11 14:41:38 - === Admin API Request Started ===
+2026-04-11 14:41:38 - Request Method: GET
+2026-04-11 14:41:38 - POST Data: Array
+(
+)
+
+2026-04-11 14:41:38 - GET Data: Array
+(
+    [action] => get_pending_requests
+)
+
+2026-04-11 14:41:38 - Admin logged in: superadmin
+2026-04-11 14:41:38 - Database connection successful
+2026-04-11 14:41:38 - Action: get_pending_requests
+2026-04-11 14:41:38 - Admin Role: super_admin
+2026-04-11 14:41:38 - Processing get_pending_requests
+2026-04-11 14:41:38 - Found 0 pending requests
+2026-04-11 14:41:38 - === Admin API Request Completed ===
+
+2026-04-11 14:42:00 - === Admin API Request Started ===
+2026-04-11 14:42:00 - Request Method: GET
+2026-04-11 14:42:00 - POST Data: Array
+(
+)
+
+2026-04-11 14:42:00 - GET Data: Array
+(
+    [action] => get_pending_requests
+)
+
+2026-04-11 14:42:00 - Admin logged in: superadmin
+2026-04-11 14:42:00 - Database connection successful
+2026-04-11 14:42:00 - Action: get_pending_requests
+2026-04-11 14:42:00 - Admin Role: super_admin
+2026-04-11 14:42:00 - Processing get_pending_requests
+2026-04-11 14:42:00 - Found 0 pending requests
+2026-04-11 14:42:00 - === Admin API Request Completed ===
+
+2026-04-11 14:42:08 - === Admin API Request Started ===
+2026-04-11 14:42:08 - Request Method: GET
+2026-04-11 14:42:08 - POST Data: Array
+(
+)
+
+2026-04-11 14:42:08 - GET Data: Array
+(
+    [action] => get_pending_requests
+)
+
+2026-04-11 14:42:08 - Admin logged in: superadmin
+2026-04-11 14:42:08 - Database connection successful
+2026-04-11 14:42:08 - Action: get_pending_requests
+2026-04-11 14:42:08 - Admin Role: super_admin
+2026-04-11 14:42:08 - Processing get_pending_requests
+2026-04-11 14:42:08 - Found 0 pending requests
+2026-04-11 14:42:08 - === Admin API Request Completed ===
+
+2026-04-11 14:43:26 - === Admin API Request Started ===
+2026-04-11 14:43:26 - Request Method: GET
+2026-04-11 14:43:26 - POST Data: Array
+(
+)
+
+2026-04-11 14:43:26 - GET Data: Array
+(
+    [action] => get_pending_requests
+)
+
+2026-04-11 14:43:26 - Admin logged in: superadmin
+2026-04-11 14:43:26 - Database connection successful
+2026-04-11 14:43:26 - Action: get_pending_requests
+2026-04-11 14:43:26 - Admin Role: super_admin
+2026-04-11 14:43:26 - Processing get_pending_requests
+2026-04-11 14:43:26 - Found 0 pending requests
+2026-04-11 14:43:26 - === Admin API Request Completed ===
+
+2026-04-11 14:49:26 - === Admin API Request Started ===
+2026-04-11 14:49:26 - Request Method: GET
+2026-04-11 14:49:26 - POST Data: Array
+(
+)
+
+2026-04-11 14:49:26 - GET Data: Array
+(
+    [action] => get_pending_requests
+)
+
+2026-04-11 14:49:26 - Admin logged in: superadmin
+2026-04-11 14:49:26 - Database connection successful
+2026-04-11 14:49:26 - Action: get_pending_requests
+2026-04-11 14:49:26 - Admin Role: super_admin
+2026-04-11 14:49:26 - Processing get_pending_requests
+2026-04-11 14:49:26 - Found 0 pending requests
+2026-04-11 14:49:26 - === Admin API Request Completed ===
+

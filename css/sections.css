@@ -1,0 +1,269 @@
+/* ========================================
+   FILE: 6-sections.css
+   DESCRIPTION: Flash Deals & Favorite Cards Section
+   ======================================== */
+
+.favorites-section {
+    padding: 20px 5% 0px 5%;
+    background: transparent !important;
+    position: relative;
+    z-index: 300;
+}
+
+.favorites-section .container {
+    max-width: 1400px;
+    margin: 0 auto;
+}
+
+.favorites-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    background: transparent !important;
+    /* Remove red background */
+}
+
+.favorites-title, .flash-title {
+    font-size: 1.8rem !important;
+    font-weight: 800 !important;
+    font-style: italic !important; /* Made italic as requested */
+    margin: 0;
+    color: #FF6B6B !important; 
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+
+@keyframes blinkRedText {
+    0% {
+        color: #ff0000;
+        opacity: 1;
+    }
+
+    50% {
+        color: #ff0000;
+        opacity: 0.4;
+    }
+
+    100% {
+        color: #ff0000;
+        opacity: 1;
+    }
+}
+
+
+.view-all-link {
+    text-decoration: none;
+    color: #ff9800 !important; /* Orange like the image */
+    font-weight: 800;
+    font-size: 1rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.3s ease;
+    text-transform: uppercase;
+}
+
+.view-all-link i {
+    font-size: 12px;
+    transition: transform 0.3s ease;
+}
+
+.view-all-link:hover {
+    color: #ff9800;
+    transform: translateX(10px);
+}
+
+.view-all-link:hover i {
+    transform: translateX(5px) scale(1.2);
+}
+
+.favorites-scroll-container {
+    overflow-x: auto;
+    padding-bottom: 10px;
+}
+
+.favorites-grid {
+    display: flex;
+    gap: 10px;
+    min-width: min-content;
+}
+
+/* Favorite Cards */
+.favorite-card {
+    width: 190px;
+    background: white;
+    border-radius: 12px;
+    padding: 12px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    position: relative;
+}
+
+.favorite-badge {
+    position: absolute;
+    top: 25px;
+    left: 25px;
+    background: #ff4444;
+    color: white;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: bold;
+    z-index: 1;
+}
+
+.favorite-image-collage {
+    width: 100%;
+    height: 130px;
+    overflow: hidden;
+    border-radius: 8px;
+    margin-bottom: 8px;
+}
+
+/* Collage Layout */
+.collage-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    grid-template-rows: repeat(2, 1fr);
+    gap: 2px;
+    height: 100%;
+}
+
+.collage-grid img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.collage-grid-right {
+    display: flex;
+    gap: 2px;
+    height: 100%;
+    width: 100%;
+}
+
+.collage-left-portrait {
+    flex: 1.8;
+    height: 100%;
+}
+
+.collage-left-portrait img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.collage-right-landscape {
+    flex: 1.5;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    height: 100%;
+}
+
+.collage-right-landscape img {
+    width: 100%;
+    height: calc(90% - 1px);
+    object-fit: cover;
+}
+
+.collage-grid img:first-child {
+    grid-column: span 2;
+}
+
+.favorite-category {
+    color: #666;
+    font-size: 12px;
+    margin-bottom: 2px;
+}
+
+.favorite-location {
+    color: #666;
+    font-size: 12px;
+    margin-bottom: 4px;
+}
+
+.favorite-location i {
+    margin-right: 4px;
+    color: #ff4444;
+}
+
+.favorite-title {
+    font-size: 14px;
+    font-weight: 600;
+    margin: 5px 0;
+    line-height: 1.3;
+}
+
+.favorite-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-bottom: 8px;
+}
+
+.badge {
+    background: #f0f0f0;
+    padding: 2px 4px;
+    border-radius: 4px;
+    font-size: 9px;
+    color: #666;
+}
+
+.favorite-rating {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 11px;
+    margin-bottom: 5px;
+}
+
+.stars {
+    color: #ffd700;
+}
+
+.rating-text {
+    color: #666;
+}
+
+.booked {
+    color: #999;
+}
+
+.favorite-price-section {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 12px;
+    margin-top: 5px;
+}
+
+.price-label {
+    color: #666;
+}
+
+.price-value {
+    font-size: 15px;
+    font-weight: bold;
+    color: #0066cc;
+}
+
+@media (max-width: 768px) {
+    .favorites-section {
+        padding: 15px 0px 0px 0px !important;
+        position: relative;
+        z-index: 300;
+    }
+}
+
+/* ===== POPULAR DESTINATIONS SECTION FIX =====
+   Ensures all clickable links inside popular/local sections
+   sit above hero overflow and icon-button stacking contexts */
+.popular-destinations-section {
+    position: relative;
+    z-index: 300;
+}

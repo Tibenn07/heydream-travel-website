@@ -1,0 +1,40 @@
+/* ========================================
+   FILE: 1-base.css
+   DESCRIPTION: Reset & Base Styles
+   ======================================== */
+
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap');
+
+:root {
+    --rich-black: #1A1A1A;
+    --dark-charcoal: #2C2C2C;
+    --soft-dark-gray: #555555;
+    --muted-dark-gray: #666666;
+    --luxury-blue: #003580;
+    --accent-orange: #ff9800;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    font-family: 'Outfit', 'Segoe UI', Arial, sans-serif;
+    background: #ffffff;
+    color: var(--dark-charcoal);
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, h4, h5, h6 {
+    color: var(--rich-black);
+    font-weight: 700;
+}
+
+a {
+    text-decoration: none;
+    color: inherit;
+}

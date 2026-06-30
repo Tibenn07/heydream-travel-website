@@ -1,0 +1,46 @@
+/* ========================================
+   HEYDREAM TRAVEL & TOURS - MAIN STYLESHEET
+   ========================================
+   This file imports all modular CSS files
+   ======================================== */
+
+/* Base & Reset */
+@import url('css/base.css');
+
+/* Navbar & Header */
+@import url('css/navbar.css');
+
+/* Hamburger Menu & Side Panel */
+@import url('css/sidepanel.css');
+
+/* Hero Section & Search */
+@import url('css/hero.css');
+
+/* Icon Buttons */
+@import url('css/buttons.css');
+
+/* Flash Deals & Favorite Cards */
+@import url('css/sections.css');
+
+/* Popular Destinations */
+@import url('css/destinations.css');
+
+/* Flight & Hotel Booking */
+@import url('css/booking.css');
+
+/* Footer */
+@import url('css/footer.css');
+
+/* Modals */
+@import url('css/modals.css');
+
+/* Animations */
+@import url('css/animations.css');
+
+/* Responsive Media Queries */
+@import url('css/responsive.css');
+
+/* Utility Classes & Misc */
+@import url('css/utilities.css');
+
+@import url('css/login_modal.css');

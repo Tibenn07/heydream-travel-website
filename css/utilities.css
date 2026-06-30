@@ -1,0 +1,740 @@
+/* ========================================
+   FILE: 13-utilities.css
+   DESCRIPTION: Utility Classes & Miscellaneous Styles
+   ======================================== */
+
+/* ===== SAVED PAGE STYLES ===== */
+.saved-page-section {
+    padding: 120px 5% 60px;
+    min-height: 60vh;
+    background: #f8f9fa;
+}
+
+.saved-page-header {
+    text-align: center;
+    margin-bottom: 40px;
+}
+
+.saved-page-title {
+    font-size: 2.5rem;
+    color: #003580;
+    font-family: 'Poppins', sans-serif;
+    margin-bottom: 10px;
+}
+
+.saved-page-subtitle {
+    color: #666;
+    font-size: 1.1rem;
+}
+
+.saved-items-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 25px;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.saved-item-card {
+    background: white;
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+    transition: all 0.3s ease;
+    position: relative;
+    border: 1px solid #e0e0e0;
+}
+
+.saved-item-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 15px 30px rgba(0, 53, 128, 0.15);
+    border-color: #003580;
+}
+
+.remove-saved-btn {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: white;
+    border: none;
+    width: 35px;
+    height: 35px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    z-index: 10;
+    transition: all 0.3s ease;
+    color: #ff4757;
+}
+
+.remove-saved-btn:hover {
+    background: #ff4757;
+    color: white;
+    transform: scale(1.1);
+}
+
+.saved-item-image {
+    width: 100%;
+    height: 180px;
+    overflow: hidden;
+}
+
+.saved-item-image img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.4s ease;
+}
+
+.saved-item-card:hover .saved-item-image img {
+    transform: scale(1.05);
+}
+
+.saved-item-content {
+    padding: 20px;
+}
+
+.saved-item-category {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #ff9800;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 5px;
+}
+
+.saved-item-location {
+    font-size: 0.85rem;
+    color: #003580;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.saved-item-location i {
+    font-size: 0.8rem;
+    color: #ff9800;
+}
+
+.saved-item-title {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 15px;
+    line-height: 1.4;
+    font-family: 'Poppins', sans-serif;
+}
+
+.saved-item-price {
+    display: flex;
+    align-items: baseline;
+    gap: 5px;
+    margin-bottom: 15px;
+    padding-top: 10px;
+    border-top: 1px solid #f0f0f0;
+}
+
+.saved-item-price .price-label {
+    font-size: 0.8rem;
+    color: #666;
+}
+
+.saved-item-price .price-value {
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: #003580;
+    font-family: 'Poppins', sans-serif;
+}
+
+.saved-item-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.saved-date {
+    font-size: 0.75rem;
+    color: #999;
+}
+
+.view-btn {
+    background: #003580;
+    color: white;
+    border: none;
+    padding: 8px 20px;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.view-btn:hover {
+    background: #ff9800;
+    transform: translateY(-2px);
+}
+
+/* ===== EMPTY STATE ===== */
+.empty-saved-state {
+    text-align: center;
+    padding: 60px 20px;
+    max-width: 500px;
+    margin: 0 auto;
+}
+
+.empty-state-icon {
+    font-size: 5rem;
+    margin-bottom: 20px;
+    animation: bounce 2s infinite;
+}
+
+.empty-saved-state h2 {
+    font-size: 2rem;
+    color: #003580;
+    margin-bottom: 15px;
+    font-family: 'Poppins', sans-serif;
+}
+
+.empty-saved-state p {
+    color: #666;
+    margin-bottom: 30px;
+    font-size: 1.1rem;
+}
+
+.browse-btn {
+    display: inline-block;
+    background: #003580;
+    color: white;
+    padding: 15px 40px;
+    border-radius: 30px;
+    text-decoration: none;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    border: 2px solid #003580;
+}
+
+.browse-btn:hover {
+    background: #ff9800;
+    border-color: #ff9800;
+    transform: translateY(-3px);
+    box-shadow: 0 10px 20px rgba(255, 152, 0, 0.3);
+}
+
+/* ===== LOADING STATE ===== */
+.loading-saved {
+    text-align: center;
+    padding: 60px;
+    color: #666;
+    font-size: 1.1rem;
+    grid-column: 1 / -1;
+}
+
+/* ===== SAVE BUTTON ON CARDS ===== */
+.save-btn {
+    position: absolute;
+    top: 15px;
+    right: 15px;
+    background: white;
+    border: none;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+    z-index: 10;
+    transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    color: #003580;
+    border: 2px solid rgba(255, 255, 255, 0.8);
+}
+
+/* Ensure any badge on the card elegantly sits beside the top-left heart icon */
+.card-badge,
+.destination-badge,
+.foreign-card-badge,
+.flash-deal-badge,
+.flash-deal-badge-red,
+.deal-badge,
+.deal-badge-red,
+.favorite-badge,
+.category-badge {
+    left: 15px !important;
+    right: auto !important;
+    max-width: 120px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.save-btn:hover {
+    transform: scale(1.15);
+    background: #003580;
+    color: white;
+    box-shadow: 0 8px 25px rgba(0, 53, 128, 0.4);
+    border-color: #ff9800;
+}
+
+.save-btn i {
+    font-size: 1.3rem;
+    transition: all 0.3s ease;
+}
+
+.save-btn.saved {
+    background: #ff9800;
+    color: white;
+    border-color: #003580;
+}
+
+.save-btn.saved i {
+    color: white;
+}
+
+.save-btn.saved:hover {
+    background: #dc3545;
+    color: white;
+    transform: scale(1.15);
+}
+
+.save-btn.saved:hover i {
+    color: white;
+}
+
+.save-btn:active {
+    animation: savePulse 0.3s ease;
+}
+
+/* Tooltip */
+.save-btn::before {
+    content: "Save for later";
+    position: absolute;
+    top: -30px;
+    left: 0;
+    background: #333;
+    color: white;
+    padding: 5px 10px;
+    border-radius: 5px;
+    font-size: 0.7rem;
+    white-space: nowrap;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.3s ease;
+    pointer-events: none;
+}
+
+.save-btn.saved::before {
+    content: "Remove from saved";
+}
+
+.save-btn:hover::before {
+    opacity: 1;
+    visibility: visible;
+    top: -40px;
+}
+
+/* ===== NOTIFICATION ===== */
+.saved-notification {
+    position: fixed;
+    top: 80px;
+    right: 20px;
+    background: #003580;
+    color: white;
+    padding: 15px 25px;
+    border-radius: 50px;
+    box-shadow: 0 5px 20px rgba(0, 0, 0, 0.2);
+    z-index: 2000;
+    transform: translateX(400px);
+    transition: transform 0.3s ease;
+    font-weight: 500;
+}
+
+.saved-notification.show {
+    transform: translateX(0);
+}
+
+.saved-notification.success {
+    background: #28a745;
+}
+
+.saved-notification.error {
+    background: #dc3545;
+}
+
+/* ===== BACK BUTTON ===== */
+.back-button-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 30px 20px 50px 20px;
+    background: #f8f9fa;
+    width: 100%;
+}
+
+.back-button {
+    background: linear-gradient(135deg, #003580, #1a4b8c);
+    color: white;
+    border: none;
+    padding: 16px 40px;
+    border-radius: 50px;
+    font-size: 1.2rem;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    box-shadow: 0 8px 25px rgba(0, 53, 128, 0.3);
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    min-width: 250px;
+    position: relative;
+    overflow: hidden;
+    animation: backButtonPulse 2s infinite;
+}
+
+.back-button::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 0;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.2);
+    transform: translate(-50%, -50%);
+    transition: width 0.6s, height 0.6s;
+    z-index: 1;
+}
+
+.back-button:hover::before {
+    width: 300px;
+    height: 300px;
+}
+
+.back-button:hover {
+    background: linear-gradient(135deg, #ff9800, #f57c00);
+    transform: translateY(-5px) scale(1.05);
+    box-shadow: 0 15px 35px rgba(255, 152, 0, 0.4);
+    border-color: rgba(255, 255, 255, 0.4);
+}
+
+.back-button i {
+    font-size: 1.3rem;
+    transition: transform 0.3s ease;
+    position: relative;
+    z-index: 2;
+}
+
+.back-button span {
+    position: relative;
+    z-index: 2;
+}
+
+.back-button:hover i {
+    transform: translateX(-8px);
+}
+
+/* ===== FADE IN CLASSES ===== */
+.fade-in {
+    opacity: 0;
+    transform: translateY(20px);
+    transition: all 0.8s ease;
+}
+
+.fade-in.show {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.slide-left {
+    opacity: 0;
+    transform: translateX(50px);
+    transition: all 0.8s ease;
+}
+
+.slide-left.show {
+    opacity: 1;
+    transform: translateX(0);
+}
+
+.slide-right {
+    opacity: 0;
+    transform: translateX(-50px);
+    transition: all 0.8s ease;
+}
+
+.slide-right.show {
+    opacity: 1;
+    transform: translateX(0);
+}
+
+/* ===== ZOOM HOVER ===== */
+.tour-card,
+.service-card,
+.gallery img {
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.tour-card:hover,
+.service-card:hover,
+.gallery img:hover {
+    transform: scale(1.05);
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+}
+
+/* ===== BUTTON HOVER ===== */
+button {
+    transition: all 0.3s ease;
+}
+
+button:hover {
+    transform: scale(1.1);
+    background: #ff9800;
+}
+
+/* ===== NAVBAR SCROLL EFFECT ===== */
+.navbar.scrolled {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    transition: 0.3s;
+}
+
+/* ===== NAV LINKS FIXES ===== */
+.nav-links a[href="tours.html"] {
+    color: #ffffff !important;
+    text-decoration: none !important;
+}
+
+.navbar.scrolled .nav-links a[href="tours.html"] {
+    color: #003580 !important;
+}
+
+.nav-links a[href="tours.html"]:hover {
+    color: #ff9800 !important;
+    text-decoration: none !important;
+}
+
+.nav-links a.active[href="tours.html"] {
+    color: #ff9800 !important;
+    border-bottom: none !important;
+    text-decoration: none !important;
+}
+
+.nav-links a {
+    color: #ffffff;
+    text-decoration: none;
+    margin-left: 20px;
+    font-weight: 600;
+    position: relative;
+}
+
+.nav-links a:hover {
+    color: #ff9800 !important;
+    text-decoration: none;
+}
+
+.navbar.scrolled .nav-links a {
+    color: #003580 !important;
+}
+
+.navbar.scrolled .nav-links a:hover {
+    color: #ff9800 !important;
+}
+
+.nav-left h2 {
+    color: white;
+}
+
+.navbar.scrolled .nav-left h2 {
+    color: #003580;
+}
+
+/* ===== HIDE OLD SEARCH BOXES ===== */
+.search-box {
+    display: none;
+}
+
+/* ===== HIDE OLD TOUR GRID ===== */
+#tours .tour-grid {
+    display: none;
+}
+
+/* ===== BADGE VARIANTS ===== */
+.badge.popular {
+    background: #ff9800;
+    color: white;
+}
+
+.badge.bestseller {
+    background: #003580;
+    color: white;
+}
+
+.badge.sale {
+    background: #dc3545;
+    color: white;
+}
+
+.badge.hot {
+    background: #ff6b6b;
+    color: white;
+}
+
+.badge.value {
+    background: #28a745;
+    color: white;
+}
+
+.badge.budget {
+    background: #6c757d;
+    color: white;
+}
+
+.badge.family {
+    background: #17a2b8;
+    color: white;
+}
+
+.badge.adventure {
+    background: #fd7e14;
+    color: white;
+}
+
+.badge.surf {
+    background: #20c997;
+    color: white;
+}
+
+.badge.cultural {
+    background: #6610f2;
+    color: white;
+}
+
+/* ===== FUN EMOJI ===== */
+.fun-emoji {
+    position: absolute;
+    bottom: 10px;
+    right: 10px;
+    font-size: 2rem;
+    background: white;
+    width: 45px;
+    height: 45px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+}
+
+
+/* ========================================
+   FILE: 13-utilities.css
+   DESCRIPTION: Utility Classes & Miscellaneous Styles
+   ======================================== */
+
+/* ... all your existing CSS ... */
+
+/* ===== LOGOUT SUCCESS MESSAGE ===== */
+/* ===== LOGOUT SUCCESS MESSAGE ===== */
+@keyframes fadeInOut {
+    0% {
+        opacity: 0;
+        transform: translateX(100px);
+    }
+
+    10% {
+        opacity: 1;
+        transform: translateX(0);
+    }
+
+    90% {
+        opacity: 1;
+        transform: translateX(0);
+    }
+
+    100% {
+        opacity: 0;
+        transform: translateX(100px);
+        display: none;
+    }
+}
+
+.logout-success-message {
+    position: fixed;
+    top: 80px;
+    right: 20px;
+    background: #28a745;
+    color: white;
+    padding: 12px 20px;
+    border-radius: 8px;
+    z-index: 2000;
+    animation: fadeInOut 3s ease;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-weight: 500;
+    font-family: 'Poppins', sans-serif;
+}
+
+.logout-success-message i {
+    font-size: 1.2rem;
+}
+
+@media (max-width: 768px) {
+    .logout-success-message {
+        top: 70px;
+        right: 10px;
+        left: 10px;
+        text-align: center;
+        justify-content: center;
+    }
+}
+
+
+
+
+/* ========================================
+   FILE: 13-utilities.css
+   DESCRIPTION: Utility Classes & Miscellaneous Styles
+   ======================================== */
+
+/* ... all your existing CSS ... */
+
+/* Logout success message styling */
+.logout-success-message {
+    position: fixed;
+    top: 80px;
+    right: 20px;
+    background: #28a745;
+    color: white;
+    padding: 12px 20px;
+    border-radius: 8px;
+    z-index: 2000;
+    animation: fadeInOut 3s ease;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-weight: 500;
+    font-family: 'Poppins', sans-serif;
+}
+
+.logout-success-message i {
+    font-size: 1.2rem;
+}
+
+@media (max-width: 768px) {
+    .logout-success-message {
+        top: 70px;
+        right: 10px;
+        left: 10px;
+        text-align: center;
+        justify-content: center;
+    }
+}

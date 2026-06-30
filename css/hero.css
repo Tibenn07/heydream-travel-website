@@ -1,0 +1,334 @@
+/* ========================================
+   DESCRIPTION: Hero Section, Sliding Images & Search Bar
+   ======================================== */
+
+/* Hero Section */
+.hero {
+    position: relative;
+    height: 40vh !important;
+    min-height: 300px !important;
+    width: 100%;
+    overflow: visible;
+    display: flex;
+    align-items: center !important;
+    justify-content: center !important;
+    text-align: center !important;
+    margin-top: 0;
+}
+
+/* Sliding Images Container */
+.sliding-images-container {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 0;
+    overflow: hidden;
+}
+
+.sliding-images-container img {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    opacity: 0;
+    transition: opacity 1.5s ease-in-out;
+    z-index: 0;
+}
+
+.sliding-images-container img.active {
+    opacity: 1;
+    z-index: 1;
+}
+
+/* Hero Overlay */
+.hero-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    /* Slightly darker for better visibility */
+    z-index: 2;
+}
+
+/* Hero Content */
+.hero-content {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    height: 100%;
+    width: 100%;
+    max-width: 1200px;
+    padding: 0 20px;
+    margin: 0 auto;
+}
+
+/* Rotating Title - CENTERED MIDDLE ABOVE SEARCH BAR */
+.hero-main-title {
+    font-size: 2.8rem !important;
+    font-weight: 800;
+    margin: 0 0 25px 0 !important;
+    text-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    transition: opacity 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+    color: #ffffff;
+    text-align: center;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 2.5em; /* Space for 2 lines */
+    line-height: 1.1;
+    letter-spacing: -1px;
+}
+
+/* Transparent Search Bar */
+.transparent-search-wrapper {
+    width: 100%;
+    max-width: 700px;
+    margin: 0 auto;
+    padding: 0 15px;
+    position: relative;
+}
+
+.transparent-search-container {
+    display: flex;
+    align-items: center;
+    background: rgba(0, 0, 0, 0.25);
+    /* Frosted dark glass */
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-radius: 80px;
+    /* Pill shape */
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    overflow: hidden;
+    transition: all 0.4s cubic-bezier(0.165, 0.84, 0.44, 1);
+    padding: 8px 10px;
+    min-height: 64px;
+}
+
+.transparent-search-container:hover,
+.transparent-search-container:focus-within {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.5);
+    box-shadow: 0 15px 40px rgba(0, 0, 0, 0.2);
+    transform: translateY(-2px);
+}
+
+.search-icon {
+    color: white;
+    font-size: 1.3rem;
+    padding-left: 20px;
+}
+
+.transparent-search-input {
+    flex: 1;
+    min-width: 0;
+    border: none;
+    padding: 10px 20px;
+    font-size: 1.1rem;
+    outline: none;
+    background: transparent;
+    color: #ffffff;
+    font-family: 'Outfit', sans-serif;
+}
+
+.transparent-search-input::placeholder {
+    color: rgba(255, 255, 255, 0.8);
+    font-weight: 400;
+}
+
+.transparent-search-btn {
+    background: #ffffff;
+    color: #003580;
+    border: none;
+    padding: 0 30px;
+    height: 48px;
+    border-radius: 30px;
+    font-size: 1.1rem;
+    font-weight: 800;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-family: 'Outfit', sans-serif;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+}
+
+.transparent-search-btn:hover {
+    background: #f8f9fa;
+    color: #003580;
+    transform: scale(1.05);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+}
+
+.transparent-search-btn:active {
+    transform: scale(0.98);
+}
+
+/* Hero Responsive */
+@media (max-width: 1024px) {
+    .hero-main-title {
+        font-size: 2.2rem !important;
+    }
+}
+
+@media (max-width: 768px) {
+    .hero {
+        height: 30vh !important;
+        min-height: 220px !important;
+    }
+
+    .hero-main-title {
+        font-size: 1.8rem !important;
+        margin: 0 0 12px 0 !important;
+    }
+
+    .transparent-search-wrapper {
+        max-width: 90%;
+    }
+
+    .transparent-search-container {
+        min-height: 54px;
+        padding: 5px 8px;
+    }
+
+    .transparent-search-input {
+        padding: 8px 12px;
+        font-size: 1rem;
+    }
+
+    .transparent-search-btn {
+        padding: 0 20px;
+        font-size: 0.95rem;
+        height: 44px;
+    }
+}
+
+@media (max-width: 480px) {
+    .hero {
+        height: 35vh !important;
+        min-height: 280px !important;
+        padding-top: 60px !important;
+        border-bottom-left-radius: 30px;
+        border-bottom-right-radius: 30px;
+        overflow: hidden !important; /* To clip the sliding images to the border radius */
+    }
+
+    /* Important: Need to make sure the sliding images and overlay also respect the border radius */
+    .sliding-images-container, .hero-overlay {
+        border-bottom-left-radius: 30px;
+        border-bottom-right-radius: 30px;
+    }
+
+    .hero-main-title {
+        font-size: 2.2rem !important;
+        margin: 0 0 15px 0 !important;
+        text-align: left;
+        padding-left: 10px;
+        line-height: 1.1;
+        letter-spacing: -0.5px;
+        justify-content: flex-start;
+    }
+
+    .transparent-search-wrapper {
+        max-width: 100%;
+        padding: 0 10px;
+    }
+
+    .transparent-search-container {
+        min-height: 54px;
+        padding: 6px 6px 6px 15px;
+        background: linear-gradient(90deg, rgba(10, 35, 66, 0.9) 0%, rgba(20, 80, 150, 0.8) 100%);
+        border: none;
+        border-radius: 40px;
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+    }
+
+    .search-icon {
+        padding-left: 0;
+        font-size: 1.2rem;
+    }
+
+    .transparent-search-input {
+        padding: 0 10px;
+        font-size: 0.95rem;
+    }
+
+    .transparent-search-input::placeholder {
+        color: rgba(255, 255, 255, 0.9);
+    }
+
+    .transparent-search-btn {
+        padding: 0 20px;
+        font-size: 0.95rem;
+        height: 42px;
+        border-radius: 30px;
+        background: #ffffff;
+        color: #003580;
+    }
+}
+
+@media (max-width: 360px) {
+    .hero-main-title {
+        font-size: 1.8rem !important;
+    }
+
+    .transparent-search-container {
+        min-height: 48px;
+        padding: 4px 4px 4px 10px;
+    }
+
+    .transparent-search-input {
+        font-size: 0.85rem;
+    }
+
+    .transparent-search-btn {
+        padding: 0 15px;
+        font-size: 0.85rem;
+        height: 40px;
+    }
+}
+
+/* Large Desktop Enhancements */
+@media (min-width: 1200px) {
+    .hero {
+        height: 40vh !important;
+        min-height: 350px !important;
+    }
+
+    .hero-main-title {
+        font-size: 4rem !important;
+        letter-spacing: -1.5px;
+        margin-bottom: 30px !important;
+    }
+
+    .transparent-search-wrapper {
+        max-width: 850px;
+    }
+
+    .transparent-search-container {
+        min-height: 76px;
+        padding: 8px 12px;
+        background: rgba(0, 0, 0, 0.2);
+    }
+
+    .transparent-search-input {
+        font-size: 1.2rem;
+        padding: 0 20px;
+    }
+
+    .transparent-search-btn {
+        padding: 0 45px;
+        height: 60px;
+        border-radius: 40px;
+        font-size: 1.1rem;
+        font-weight: 800;
+    }
+}

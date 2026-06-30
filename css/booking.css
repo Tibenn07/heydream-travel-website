@@ -1,0 +1,285 @@
+/* ========================================
+   FILE: 8-booking.css
+   DESCRIPTION: Flight & Hotel Booking Sections
+   ======================================== */
+
+.booking-time-section {
+    padding: 40px 5%;
+    background: #fff;
+    font-family: 'Poppins', sans-serif;
+}
+
+.booking-time-title {
+    text-align: left;
+    font-size: 1.4rem;
+    color: #003580;
+    margin-bottom: 25px;
+    font-weight: 600;
+    letter-spacing: -0.3px;
+}
+
+.destinations-row-container {
+    overflow-x: auto;
+    margin-bottom: 30px;
+    padding-bottom: 5px;
+}
+
+.destinations-row {
+    display: flex;
+    gap: 20px;
+    flex-wrap: nowrap;
+    justify-content: flex-start;
+    min-width: min-content;
+}
+
+.destination-item {
+    padding: 6px 0;
+    background: transparent;
+    border-radius: 0;
+    cursor: pointer;
+    font-weight: 500;
+    transition: all 0.2s ease;
+    border: none;
+    color: #666;
+    font-size: 1rem;
+    position: relative;
+    white-space: nowrap;
+}
+
+.destination-item:hover {
+    color: #003580;
+}
+
+.destination-item.active {
+    color: #003580;
+    font-weight: 600;
+    border-bottom: 2px solid #003580;
+}
+
+/* Pricing Box */
+.pricing-scrollable-box {
+    background: white;
+    overflow: hidden;
+    border: none;
+}
+
+.pricing-header {
+    display: flex;
+    justify-content: space-between;
+    padding: 15px 0 10px 0;
+    background: white;
+    color: #999;
+    font-weight: 500;
+    border-bottom: 1px solid #e0e0e0;
+    font-size: 0.85rem;
+}
+
+.header-month {
+    width: 80px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.header-price {
+    flex: 1;
+    text-align: right;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.pricing-items-container {
+    max-height: 280px;
+    overflow-y: auto;
+    scrollbar-width: thin;
+}
+
+.pricing-items-container::-webkit-scrollbar {
+    width: 4px;
+}
+
+.pricing-items-container::-webkit-scrollbar-track {
+    background: #f0f0f0;
+    border-radius: 10px;
+}
+
+.pricing-items-container::-webkit-scrollbar-thumb {
+    background: #003580;
+    border-radius: 10px;
+}
+
+.price-row {
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.price-row:hover {
+    background: #f8f9fa;
+    transform: translateX(5px);
+}
+
+.month-name {
+    font-weight: 600;
+    width: 80px;
+    color: #333;
+    font-size: 1rem;
+}
+
+.price-range {
+    flex: 1;
+    text-align: right;
+}
+
+/* Price Colors */
+.price-low {
+    color: #dc3545 !important;
+    font-weight: 500;
+}
+
+.price-high {
+    color: #28a745 !important;
+    font-weight: 500;
+}
+
+.airline-tag,
+.hotel-tag {
+    display: block;
+    font-size: 0.7rem;
+    color: #999;
+    margin-top: 4px;
+    font-weight: normal;
+}
+
+.pricing-footer {
+    padding: 15px 0 5px 0;
+    text-align: left;
+    background: white;
+    border-top: none;
+}
+
+.scroll-indicator {
+    font-size: 0.7rem;
+    color: #999;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.scroll-indicator i {
+    font-size: 0.65rem;
+    animation: bounceArrow 1s infinite;
+}
+
+@keyframes bounceArrow {
+    0%, 100% {
+        transform: translateY(0);
+    }
+    50% {
+        transform: translateY(3px);
+    }
+}
+
+/* Separator */
+.separator-icon-mini {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 15px;
+    padding: 30px 0;
+    background: #fff;
+}
+
+.separator-line-left,
+.separator-line-right {
+    flex: 1;
+    height: 1px;
+    background: #e0e0e0;
+    max-width: 150px;
+}
+
+.separator-icon-center {
+    display: flex;
+    gap: 12px;
+    font-size: 1rem;
+    color: #003580;
+}
+
+.separator-icon-center i {
+    background: white;
+    padding: 6px;
+    border-radius: 50%;
+}
+
+/* Booking Responsive */
+@media (max-width: 768px) {
+    .booking-time-title {
+        font-size: 1.2rem;
+    }
+    
+    .destination-item {
+        font-size: 0.9rem;
+        padding: 5px 0;
+        margin-right: 15px;
+    }
+    
+    .destinations-row {
+        gap: 15px;
+    }
+    
+    .pricing-header {
+        padding: 12px 0 8px 0;
+        font-size: 0.75rem;
+    }
+    
+    .header-month,
+    .month-name {
+        width: 70px;
+        font-size: 0.9rem;
+    }
+    
+    .price-row {
+        padding: 12px 0;
+    }
+    
+    .price-low,
+    .price-high {
+        font-size: 0.85rem;
+    }
+    
+    .airline-tag,
+    .hotel-tag {
+        font-size: 0.65rem;
+    }
+    
+    .pricing-items-container {
+        max-height: 240px;
+    }
+}
+
+@media (max-width: 480px) {
+    .booking-time-section {
+        padding: 30px 4%;
+    }
+    
+    .booking-time-title {
+        font-size: 1.1rem;
+    }
+    
+    .destination-item {
+        font-size: 0.8rem;
+    }
+    
+    .header-month,
+    .month-name {
+        width: 65px;
+        font-size: 0.85rem;
+    }
+    
+    .price-low,
+    .price-high {
+        font-size: 0.8rem;
+    }
+    
+    .pricing-items-container {
+        max-height: 220px;
+    }
+}

@@ -1,0 +1,195 @@
+/* ========================================
+   FILE: 11-animations.css
+   DESCRIPTION: All Keyframes & Animations
+   ======================================== */
+
+/* Fade Animations */
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes fadeInDown {
+    from {
+        opacity: 0;
+        transform: translateY(-30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes fadeInLeft {
+    from {
+        opacity: 0;
+        transform: translateX(-30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+@keyframes fadeInRight {
+    from {
+        opacity: 0;
+        transform: translateX(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+@keyframes fadeInScale {
+    from {
+        opacity: 0;
+        transform: scale(0.9);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+/* Slide Animations */
+@keyframes slideInDown {
+    from {
+        transform: translateY(-50px);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+@keyframes slideInUp {
+    from {
+        transform: translateY(50px);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+@keyframes slideInLeft {
+    from {
+        transform: translateX(-50px);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+@keyframes slideInRight {
+    from {
+        transform: translateX(50px);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+/* Rotate & Shimmer */
+@keyframes rotate {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+@keyframes shimmer {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
+}
+
+@keyframes expandWidth {
+    from { width: 0; }
+    to { width: 50px; }
+}
+
+/* Pulse & Bounce */
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.8; }
+}
+
+@keyframes bounce {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-10px); }
+}
+
+/* Save Button Pulse */
+@keyframes savePulse {
+    0% {
+        transform: scale(1);
+        box-shadow: 0 4px 15px rgba(0,53,128,0.2);
+    }
+    50% {
+        transform: scale(1.2);
+        box-shadow: 0 8px 25px rgba(255,152,0,0.5);
+    }
+    100% {
+        transform: scale(1);
+        box-shadow: 0 4px 15px rgba(0,53,128,0.2);
+    }
+}
+
+/* Back Button Pulse */
+@keyframes backButtonPulse {
+    0% {
+        box-shadow: 0 8px 25px rgba(0,53,128,0.3);
+    }
+    50% {
+        box-shadow: 0 15px 35px rgba(255,152,0,0.5);
+    }
+    100% {
+        box-shadow: 0 8px 25px rgba(0,53,128,0.3);
+    }
+}
+
+/* Blink Red for Flash Deals */
+@keyframes blinkRed {
+    0% {
+        color: #ff0000;
+        opacity: 1;
+        text-shadow: 0 0 5px rgba(255, 0, 0, 0.5);
+    }
+    50% {
+        color: #ff4444;
+        opacity: 0.7;
+        text-shadow: 0 0 15px rgba(255, 0, 0, 0.8);
+    }
+    100% {
+        color: #ff0000;
+        opacity: 1;
+        text-shadow: 0 0 5px rgba(255, 0, 0, 0.5);
+    }
+}
+
+/* Bounce Arrow for Scroll Indicator */
+@keyframes bounceArrow {
+    0%, 100% {
+        transform: translateY(0);
+    }
+    50% {
+        transform: translateY(3px);
+    }
+}

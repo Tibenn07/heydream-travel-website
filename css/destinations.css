@@ -1,0 +1,303 @@
+/* ========================================
+   FILE: 7-destinations.css
+   DESCRIPTION: Popular Destinations (Local & Foreign)
+   ======================================== */
+
+.popular-destinations-section {
+    padding: 0px 5% 40px 5%;
+    background: transparent !important;
+}
+
+.popular-destinations-section .container {
+    max-width: 1400px;
+    margin: 0 auto;
+}
+
+.destinations-grid-section {
+    margin-bottom: 0px;
+    padding-bottom: 15px;
+}
+
+.section-header-wrapper {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    padding: 0 5px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    border-radius: 8px;
+}
+
+.section-header-wrapper:hover {
+    background: rgba(0, 53, 128, 0.05);
+}
+
+.section-header-wrapper:hover .foreign-title,
+.section-header-wrapper:hover .local-title {
+    color: #ff9800 !important;
+}
+
+.section-title-popular {
+    font-size: 24px;
+    font-weight: 700;
+    margin: 0;
+    color: var(--dark-charcoal); /* Dark Charcoal */
+    opacity: 0.9; /* Slight opacity softness */
+    font-family: 'Outfit', sans-serif;
+    transition: all 0.3s ease;
+    display: inline-block;
+    cursor: pointer;
+    padding: 0 5px;
+    border-radius: 6px;
+    letter-spacing: -0.5px;
+}
+
+.foreign-title:hover,
+.local-title:hover {
+    color: #ff9800 !important;
+    background: rgba(255, 152, 0, 0.05);
+}
+
+.foreign-title.active,
+.local-title.active {
+    transform: scale(0.9);
+    color: #ff9800 !important;
+    text-shadow: 0 5px 15px rgba(255, 152, 0, 0.3);
+    background: rgba(255, 152, 0, 0.1);
+    padding: 0 8px;
+    border-radius: 8px;
+}
+
+.popular-scroll-container {
+    overflow-x: auto;
+    overflow-y: visible;
+    padding-bottom: 15px;
+    -webkit-overflow-scrolling: touch;
+    /* Show scrollbar thin on mobile too */
+    scrollbar-width: thin;
+    scrollbar-color: #ff9800 #e0e0e0;
+}
+
+.popular-scroll-container::-webkit-scrollbar {
+    height: 4px;
+}
+
+.popular-scroll-container::-webkit-scrollbar-track {
+    background: #f0f0f0;
+    border-radius: 10px;
+}
+
+.popular-scroll-container::-webkit-scrollbar-thumb {
+    background: #003580;
+    border-radius: 10px;
+}
+
+.popular-grid {
+    display: flex;
+    gap: 20px;
+    padding: 0;
+    min-width: min-content;
+}
+
+/* Popular Cards */
+.popular-card {
+    width: 280px;
+    background: white;
+    border-radius: 16px;
+    padding: 12px;
+    box-shadow: 0 5px 20px rgba(0, 0, 0, 0.05);
+    position: relative;
+    transition: all 0.3s ease;
+    border: none;
+    flex: 0 0 auto;
+    display: flex;
+    flex-direction: column;
+    height: 430px;
+}
+
+.popular-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 15px rgba(0, 53, 128, 0.15);
+}
+
+.card-badge {
+    position: absolute;
+    top: 15px;
+    left: 15px;
+    background: #ff9800; /* Orange background */
+    color: white;
+    padding: 6px 15px;
+    border-radius: 50px; /* Pill shape */
+    font-size: 12px;
+    font-weight: 800;
+    z-index: 1;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+    text-transform: capitalize;
+}
+
+.save-btn {
+    position: absolute;
+    top: 15px;
+    right: 15px;
+    width: 38px;
+    height: 38px;
+    background: white;
+    border: none;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #003580;
+    font-size: 1.1rem;
+    cursor: pointer;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+    z-index: 2;
+    transition: all 0.3s ease;
+}
+
+.save-btn:hover {
+    transform: scale(1.1);
+    color: #ff4444;
+}
+
+.card-image {
+    width: 100%;
+    height: 210px;
+    overflow: hidden;
+    border-radius: 8px;
+    margin-bottom: 10px;
+    flex-shrink: 0;
+}
+
+.card-image img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.4s ease;
+}
+
+.popular-card:hover .card-image img {
+    transform: scale(1.05);
+}
+
+.card-content {
+    padding: 0;
+}
+
+.destination-name-popular {
+    font-size: 16px;
+    font-weight: 600;
+    color: #333;
+    margin: 5px 0 2px;
+    line-height: 1.3;
+}
+
+.destination-desc {
+    font-size: 12px;
+    color: #666;
+    margin-bottom: 8px;
+}
+
+.package-info {
+    margin: 8px 0;
+    padding: 0;
+    background: transparent;
+}
+
+.package-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 13px;
+    margin-bottom: 4px;
+}
+
+.package-row span:first-child {
+    color: #666;
+}
+
+.price {
+    font-size: 16px;
+    font-weight: bold;
+    color: #0066cc;
+}
+
+.view-package-btn {
+    width: 100%;
+    background: #003580;
+    color: white;
+    border: none;
+    padding: 10px 15px;
+    border-radius: 25px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    margin-top: 8px;
+    box-shadow: 0 4px 15px rgba(0, 53, 128, 0.2);
+    text-transform: uppercase;
+}
+
+.view-package-btn:hover {
+    background: #ff9800;
+    transform: translateY(-3px);
+    box-shadow: 0 8px 20px rgba(255, 152, 0, 0.3);
+}
+
+.view-package-btn:hover i {
+    transform: translateX(5px) scale(1.2);
+}
+
+/* Destinations Responsive */
+@media (max-width: 768px) {
+    .popular-destinations-section {
+        padding: 15px 0px 0px 0px !important;
+    }
+
+    .popular-card {
+        width: 260px;
+        min-width: 260px;
+        padding: 10px;
+    }
+
+    .card-image {
+        height: 130px;
+    }
+
+    .destination-name-popular {
+        font-size: 14px;
+    }
+
+    .destination-desc {
+        font-size: 11px;
+    }
+
+    .package-row {
+        font-size: 12px;
+    }
+
+    .price {
+        font-size: 14px;
+    }
+}
+
+@media (max-width: 480px) {
+    .popular-card {
+        width: 240px;
+        min-width: 240px;
+    }
+
+    .card-image {
+        height: 100px;
+    }
+
+    .section-title-popular {
+        font-size: 1.5rem;
+        letter-spacing: -0.8px;
+    }
+}
