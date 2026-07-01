@@ -22,16 +22,18 @@ window.initVoucherCheckoutInline = function(prefix, totalAmount, targetType, con
     const container = document.getElementById(containerId);
     if (!container) return;
 
-    window._vcTotalAmount  = window._vcTotalAmount  || {};
-    window._vcTargetType   = window._vcTargetType   || {};
-    window._vcPackageId    = window._vcPackageId    || {};
-    window._vcTotalAmount[prefix]  = totalAmount;
-    window._vcTargetType[prefix]   = targetType || '';
-    window._vcPackageId[prefix]    = packageId || 0;
-    window._vcTotalElId    = window._vcTotalElId    || {};
-    window._vcCurrencyFn   = window._vcCurrencyFn   || {};
-    window._vcTotalElId[prefix]  = totalElId;
-    window._vcCurrencyFn[prefix] = currencyFn || (() => '₱');
+    window._vcTotalAmount     = window._vcTotalAmount     || {};
+    window._vcRawTotalAmount  = window._vcRawTotalAmount  || {};
+    window._vcTargetType      = window._vcTargetType      || {};
+    window._vcPackageId       = window._vcPackageId       || {};
+    window._vcTotalAmount[prefix]     = totalAmount;
+    window._vcRawTotalAmount[prefix]  = totalAmount;
+    window._vcTargetType[prefix]      = targetType || '';
+    window._vcPackageId[prefix]       = packageId || 0;
+    window._vcTotalElId      = window._vcTotalElId      || {};
+    window._vcCurrencyFn     = window._vcCurrencyFn     || {};
+    window._vcTotalElId[prefix]       = totalElId;
+    window._vcCurrencyFn[prefix]      = currencyFn || (() => '₱');
 
     // Render panel (always refresh so traveler count changes are reflected)
     container.innerHTML = _vcBuildInlineHTML(prefix, totalAmount);
@@ -116,7 +118,11 @@ function _vcLoadInlineVouchers(prefix) {
 }
 
 window.applyInlineVoucher = function(prefix, voucherId, voucherCode, optionalTotal) {
-    const total      = (optionalTotal !== undefined) ? optionalTotal : (window._vcTotalAmount[prefix] || 0);
+    const total      = (optionalTotal !== undefined)
+        ? optionalTotal
+        : (window._vcRawTotalAmount && typeof window._vcRawTotalAmount[prefix] !== 'undefined')
+            ? window._vcRawTotalAmount[prefix]
+            : (window._vcTotalAmount[prefix] || 0);
     const targetType = window._vcTargetType[prefix]  || '';
     const msgEl      = document.getElementById(prefix + 'VcInlineMsg');
     if (msgEl) msgEl.innerHTML = `<div class="vc-msg info"><i class="fas fa-spinner fa-spin"></i> Validating...</div>`;
@@ -125,6 +131,7 @@ window.applyInlineVoucher = function(prefix, voucherId, voucherCode, optionalTot
     fd.append('action',       'validate_voucher');
     fd.append('voucher_id',   voucherId);
     fd.append('total_amount', total);
+    fd.append('travelers',    _vcGetTravelerCount(prefix));
     fd.append('target_type',  targetType);
     fd.append('package_id',   window._vcPackageId && window._vcPackageId[prefix] ? window._vcPackageId[prefix] : 0);
 
@@ -134,33 +141,40 @@ window.applyInlineVoucher = function(prefix, voucherId, voucherCode, optionalTot
             if (!res.success) {
                 if (msgEl) msgEl.innerHTML = `<div class="vc-msg error">${res.message || 'Voucher cannot be applied.'}</div>`;
                 if (optionalTotal !== undefined) {
-                    removeCheckoutVoucherInline(prefix);
+                    removeCheckoutVoucherInline(prefix, total);
                 }
                 return;
             }
             const d = res.data;
             window._appliedVoucher[prefix] = {
-                id:             d.voucher_id,
-                code:           d.voucher_code,
-                name:           d.voucher_name,
-                discountAmount: d.discount_amount,
-                finalTotal:     d.final_amount,
-                originalTotal:  total
+                id:                     d.voucher_id,
+                code:                   d.voucher_code,
+                name:                   d.voucher_name,
+                discountAmount:         d.discount_amount,
+                finalTotal:             d.final_amount,
+                originalTotal:          total,
+                eligibleTravelers:      d.eligible_travelers || 0,
+                maxDiscountedTravelers: d.max_discounted_travelers || 0
             };
             if (window._vcTotalAmount) window._vcTotalAmount[prefix] = d.final_amount;
+            if (window._vcRawTotalAmount) window._vcRawTotalAmount[prefix] = total;
 
-            // Update the live total display in Step 2 summary
-            const sym = (window._vcCurrencyFn && window._vcCurrencyFn[prefix]) ? window._vcCurrencyFn[prefix]() : '₱';
+            if (msgEl) msgEl.innerHTML = `<div class="vc-msg success">✅ Voucher "${d.voucher_code}" applied! You save ₱${_vcFormatMoney(d.discount_amount)}.</div>`;
+
             const totalElId = window._vcTotalElId && window._vcTotalElId[prefix];
+            const sym = (window._vcCurrencyFn && window._vcCurrencyFn[prefix]) ? window._vcCurrencyFn[prefix]() : '₱';
             if (totalElId) {
                 const totalEl = document.getElementById(totalElId);
-                if (totalEl) totalEl.innerHTML = `${sym}${_vcFormatMoney(d.final_amount)} <span style="text-decoration:line-through;color:#94a3b8;font-size:0.8em;">${sym}${_vcFormatMoney(total)}</span>`;
+                if (totalEl) {
+                    totalEl.innerHTML = `${sym}${_vcFormatMoney(d.final_amount)} <span style="text-decoration:line-through;color:#94a3b8;font-size:0.8em;">${sym}${_vcFormatMoney(total)}</span>`;
+                }
             }
 
-            // Rebuild inline panel to show savings bar
             const containerId = prefix + 'Step2VoucherArea';
             const container = document.getElementById(containerId);
             if (container) container.innerHTML = _vcBuildInlineHTML(prefix, d.final_amount);
+            _vcUpdateVoucherDisplays(prefix, d.final_amount, total);
+            _vcShowPriceSummary(prefix, total, d.discount_amount, d.final_amount, d.eligible_travelers, d.max_discounted_travelers);
             _vcLoadInlineVouchers(prefix);
         })
         .catch(() => {
@@ -170,11 +184,15 @@ window.applyInlineVoucher = function(prefix, voucherId, voucherCode, optionalTot
 
 window.updateVoucherTotalInline = function(prefix, newTotal) {
     if (!window._vcTotalAmount) return;
+    window._vcTotalAmount[prefix] = newTotal;
+    if (window._vcRawTotalAmount) window._vcRawTotalAmount[prefix] = newTotal;
     const oldApplied = window._appliedVoucher && window._appliedVoucher[prefix];
     if (oldApplied) {
-        applyInlineVoucher(prefix, oldApplied.id, oldApplied.code, newTotal);
+        const rawTotal = newTotal;
+        const msgEl = document.getElementById(prefix + 'VcInlineMsg');
+        if (msgEl) msgEl.innerHTML = `<div class="vc-msg info"><i class="fas fa-spinner fa-spin"></i> Revalidating voucher...</div>`;
+        applyInlineVoucher(prefix, oldApplied.id, oldApplied.code, rawTotal);
     } else {
-        window._vcTotalAmount[prefix] = newTotal;
         const containerId = prefix + 'Step2VoucherArea';
         const container = document.getElementById(containerId);
         if (container) {
@@ -184,10 +202,15 @@ window.updateVoucherTotalInline = function(prefix, newTotal) {
     }
 };
 
-window.removeCheckoutVoucherInline = function(prefix) {
-    const origTotal = window._appliedVoucher[prefix]?.originalTotal || window._vcTotalAmount[prefix];
+window.removeCheckoutVoucherInline = function(prefix, fallbackTotal) {
+    const origTotal = (typeof fallbackTotal !== 'undefined')
+        ? fallbackTotal
+        : (window._vcRawTotalAmount && window._vcRawTotalAmount[prefix])
+            || window._appliedVoucher[prefix]?.originalTotal
+            || window._vcTotalAmount[prefix] || 0;
     window._appliedVoucher[prefix] = null;
     if (window._vcTotalAmount) window._vcTotalAmount[prefix] = origTotal;
+    if (window._vcRawTotalAmount) window._vcRawTotalAmount[prefix] = origTotal;
 
     // Restore total display
     const sym = (window._vcCurrencyFn && window._vcCurrencyFn[prefix]) ? window._vcCurrencyFn[prefix]() : '₱';
@@ -196,6 +219,7 @@ window.removeCheckoutVoucherInline = function(prefix) {
         const totalEl = document.getElementById(totalElId);
         if (totalEl) totalEl.textContent = `${sym}${_vcFormatMoney(origTotal)}`;
     }
+    _vcUpdateVoucherDisplays(prefix, origTotal, origTotal);
 
     // Rebuild panel
     const containerId = prefix + 'Step2VoucherArea';
@@ -552,8 +576,10 @@ window.toggleVoucherCheckout = function(prefix) {
 window.initVoucherCheckout = function(prefix, totalAmount, targetType) {
     window._appliedVoucher[prefix] = null;
     window._vcTotalAmount  = window._vcTotalAmount  || {};
+    window._vcRawTotalAmount  = window._vcRawTotalAmount  || {};
     window._vcTargetType   = window._vcTargetType   || {};
     window._vcTotalAmount[prefix]  = totalAmount;
+    window._vcRawTotalAmount[prefix] = totalAmount;
     window._vcTargetType[prefix]   = targetType || '';
 
     // Inject into Step 4 (before the payment-methods div)
@@ -636,13 +662,8 @@ function isVoucherApplicable(voucher, prefix) {
     const targetType = window._vcTargetType && window._vcTargetType[prefix] ? window._vcTargetType[prefix] : 'local_destinations';
     const packageId = window._vcPackageId && window._vcPackageId[prefix] ? window._vcPackageId[prefix] : 0;
 
-    // If voucher has no explicit target restrictions, assume applicable.
-    if (!voucher.targets || voucher.targets.length === 0) {
-        return true;
-    }
-
     // If voucher restricts target types and current type doesn't match, it's not applicable.
-    if (voucher.targets.length > 0 && !voucher.targets.includes(targetType)) {
+    if (voucher.targets && voucher.targets.length > 0 && !voucher.targets.includes(targetType)) {
         return false;
     }
 
@@ -652,6 +673,23 @@ function isVoucherApplicable(voucher, prefix) {
         if (matchingPackageTargets.length > 0 && packageId > 0) {
             return matchingPackageTargets.includes(packageId);
         }
+    }
+
+    // If total is below the required minimum spend, the voucher is not currently applicable.
+    const currentTotal = window._vcRawTotalAmount && window._vcRawTotalAmount[prefix]
+        ? parseFloat(window._vcRawTotalAmount[prefix])
+        : window._vcTotalAmount && window._vcTotalAmount[prefix]
+            ? parseFloat(window._vcTotalAmount[prefix])
+            : 0;
+    if (parseFloat(voucher.minimum_spend) > 0 && currentTotal < parseFloat(voucher.minimum_spend)) {
+        return false;
+    }
+
+    // If the voucher only applies to a capped number of travelers, require at least that many travelers.
+    const currentTravelers = _vcGetTravelerCount(prefix);
+    const maxDiscountedTravelers = parseInt(voucher.max_discounted_travelers, 10) || 0;
+    if (maxDiscountedTravelers > 0 && currentTravelers > 0 && currentTravelers < maxDiscountedTravelers) {
+        return false;
     }
 
     // Otherwise, the voucher is applicable.
@@ -684,9 +722,26 @@ window.applyVoucherByCode = function(prefix) {
         .catch(() => _vcMsg(prefix, 'Server error. Please try again.', 'error'));
 };
 
+// ── Get traveler count for prefix
+function _vcGetTravelerCount(prefix) {
+    const map = {
+        home: 'homeTravelersCount',
+        foreign: 'foreignStepTravelers',
+        flash: 'flashStepTravelers',
+        local: 'localStepTravelers'
+    };
+    const inputId = map[prefix];
+    if (!inputId) return 0;
+    const input = document.getElementById(inputId);
+    const value = input ? parseInt(input.value) : 0;
+    return value > 0 ? value : 0;
+}
+
 // ── Apply by voucher ID ──────────────────────────────────────
 window.applyCheckoutVoucherById = function(prefix, voucherId, voucherCode) {
-    const total      = window._vcTotalAmount[prefix] || 0;
+    const total = (window._vcRawTotalAmount && typeof window._vcRawTotalAmount[prefix] !== 'undefined')
+        ? window._vcRawTotalAmount[prefix]
+        : (window._vcTotalAmount && window._vcTotalAmount[prefix]) || 0;
     const targetType = window._vcTargetType[prefix]  || '';
 
     _vcMsg(prefix, '<i class="fas fa-spinner fa-spin"></i> Validating voucher...', 'info');
@@ -695,6 +750,7 @@ window.applyCheckoutVoucherById = function(prefix, voucherId, voucherCode) {
     fd.append('action',      'validate_voucher');
     fd.append('voucher_id',  voucherId);
     fd.append('total_amount', total);
+    fd.append('travelers',    _vcGetTravelerCount(prefix));
     fd.append('target_type', targetType);
     fd.append('package_id', window._vcPackageId && window._vcPackageId[prefix] ? window._vcPackageId[prefix] : 0);
 
@@ -702,21 +758,36 @@ window.applyCheckoutVoucherById = function(prefix, voucherId, voucherCode) {
         .then(r => r.json())
         .then(res => {
             if (!res.success) {
+                if (window._appliedVoucher[prefix] && window._appliedVoucher[prefix].id === voucherId) {
+                    window._appliedVoucher[prefix] = null;
+                    const summary = document.getElementById(prefix + 'VcPriceSummary');
+                    if (summary) summary.style.display = 'none';
+                    _vcRefreshListUI(prefix);
+                }
                 _vcMsg(prefix, res.message || 'Voucher cannot be applied.', 'error');
                 return;
             }
             const d = res.data;
             window._appliedVoucher[prefix] = {
-                id:             d.voucher_id,
-                code:           d.voucher_code,
-                name:           d.voucher_name,
-                discountAmount: d.discount_amount,
-                finalTotal:     d.final_amount,
-                originalTotal:  d.original_amount
+                id:                     d.voucher_id,
+                code:                   d.voucher_code,
+                name:                   d.voucher_name,
+                discountAmount:         d.discount_amount,
+                finalTotal:             d.final_amount,
+                originalTotal:          d.original_amount,
+                eligibleTravelers:      d.eligible_travelers || 0,
+                maxDiscountedTravelers: d.max_discounted_travelers || 0
             };
+            if (window._vcRawTotalAmount) {
+                window._vcRawTotalAmount[prefix] = d.original_amount;
+            }
+            if (window._vcTotalAmount) {
+                window._vcTotalAmount[prefix] = d.final_amount;
+            }
 
             _vcMsg(prefix, `✅ Voucher "${d.voucher_code}" applied! You save ₱${_vcFormatMoney(d.discount_amount)}.`, 'success');
-            _vcShowPriceSummary(prefix, d.original_amount, d.discount_amount, d.final_amount);
+            _vcShowPriceSummary(prefix, d.original_amount, d.discount_amount, d.final_amount, d.eligible_travelers, d.max_discounted_travelers);
+            _vcUpdateVoucherDisplays(prefix, d.final_amount, d.original_amount);
             _vcRefreshListUI(prefix);
         })
         .catch(() => _vcMsg(prefix, 'Server error. Please try again.', 'error'));
@@ -724,10 +795,18 @@ window.applyCheckoutVoucherById = function(prefix, voucherId, voucherCode) {
 
 // ── Remove applied voucher ───────────────────────────────────
 window.removeCheckoutVoucher = function(prefix) {
+    const rawTotal = (window._vcRawTotalAmount && typeof window._vcRawTotalAmount[prefix] !== 'undefined')
+        ? window._vcRawTotalAmount[prefix]
+        : (window._vcTotalAmount && typeof window._vcTotalAmount[prefix] !== 'undefined')
+            ? window._vcTotalAmount[prefix]
+            : 0;
     window._appliedVoucher[prefix] = null;
+    if (window._vcTotalAmount) window._vcTotalAmount[prefix] = rawTotal;
+    if (window._vcRawTotalAmount) window._vcRawTotalAmount[prefix] = rawTotal;
     _vcMsg(prefix, '', '');
     const summary = document.getElementById(prefix + 'VcPriceSummary');
     if (summary) summary.style.display = 'none';
+    _vcUpdateVoucherDisplays(prefix, rawTotal, rawTotal);
     _vcRefreshListUI(prefix);
 };
 
@@ -737,7 +816,7 @@ function _vcRefreshListUI(prefix) {
 }
 
 // ── Show price breakdown ─────────────────────────────────────
-function _vcShowPriceSummary(prefix, original, discount, final) {
+function _vcShowPriceSummary(prefix, original, discount, final, eligibleTravelers = 0, maxDiscountedTravelers = 0) {
     const el = document.getElementById(prefix + 'VcPriceSummary');
     if (!el) return;
     el.style.display = 'block';
@@ -745,8 +824,32 @@ function _vcShowPriceSummary(prefix, original, discount, final) {
         <div class="vc-price-summary">
             <div class="vc-price-row"><span>Subtotal</span><span>₱${_vcFormatMoney(original)}</span></div>
             <div class="vc-price-row discount"><span>Voucher Discount</span><span>-₱${_vcFormatMoney(discount)}</span></div>
+            ${maxDiscountedTravelers > 0 ? `<div class="vc-price-row"><span>Discount applies to</span><span>${eligibleTravelers} of ${maxDiscountedTravelers} traveler${eligibleTravelers === 1 ? '' : 's'}</span></div>` : ''}
             <div class="vc-price-row final"><span>Total After Discount</span><span>₱${_vcFormatMoney(final)}</span></div>
         </div>`;
+}
+
+function _vcUpdateVoucherDisplays(prefix, finalAmount, rawAmount) {
+    const sym = (window._vcCurrencyFn && window._vcCurrencyFn[prefix]) ? window._vcCurrencyFn[prefix]() : '₱';
+    const formattedFinal = _vcFormatMoney(finalAmount);
+    const formattedRaw = _vcFormatMoney(rawAmount);
+    const amountIds = [
+        `${prefix}GcashAmount`,
+        `${prefix}PaymayaAmount`,
+        `${prefix}BankAmount`,
+        `${prefix}SummaryTotal`,
+        `${prefix}ReviewTotal`,
+        `${prefix}ConfirmTotal`
+    ];
+
+    amountIds.forEach(id => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.innerHTML = `${sym}${formattedFinal}` +
+            (rawAmount !== undefined && rawAmount !== null && rawAmount !== finalAmount
+                ? ` <span style="text-decoration:line-through;color:#94a3b8;font-size:0.8em;">${sym}${formattedRaw}</span>`
+                : '');
+    });
 }
 
 // ── Message helper ───────────────────────────────────────────

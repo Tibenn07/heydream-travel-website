@@ -4,6 +4,10 @@ let allVouchers = [];
 let loadedPackagesCache = {}; // Cache to avoid multiple redundant requests for packages
 
 document.addEventListener('DOMContentLoaded', () => {
+    if (!window.__voucherCountdownInterval) {
+        window.__voucherCountdownInterval = setInterval(updateAdminVoucherCountdowns, 1000);
+    }
+
     // If the page was loaded with #vouchers, fetch vouchers
     if (window.location.hash === '#vouchers') {
         fetchVouchers();
@@ -56,6 +60,24 @@ function fetchVouchers() {
 }
 
 // Render list with client-side filtering
+function updateAdminVoucherCountdowns() {
+    document.querySelectorAll('[data-voucher-countdown]').forEach(el => {
+        const target = Number(el.getAttribute('data-voucher-countdown'));
+        const mode = el.getAttribute('data-voucher-countdown-mode');
+        const diff = target - Date.now();
+
+        if (diff <= 0) {
+            el.innerHTML = `<i class="fas fa-clock"></i> ${mode === 'start' ? 'Started' : 'Expired'}`;
+            return;
+        }
+
+        const hrs = Math.floor(diff / (1000 * 60 * 60));
+        const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+        const secs = Math.floor((diff % (1000 * 60)) / 1000);
+        el.innerHTML = `<i class="fas fa-hourglass-half"></i> ${mode === 'start' ? 'Starts' : 'Ends'} in ${hrs}h ${mins}m ${secs}s`;
+    });
+}
+
 function renderVouchersList() {
     const tbody = document.getElementById('vouchers-list-tbody');
     if (!tbody) return;
@@ -106,6 +128,9 @@ function renderVouchersList() {
         if (v.discount_type === 'percentage' && v.maximum_discount) {
             detailsText += `<div style="font-size: 0.78rem; color: #059669; margin-top: 2px;">Max Discount: ${currencyLabel} ${parseFloat(v.maximum_discount).toLocaleString()}</div>`;
         }
+        if (parseInt(v.max_discounted_travelers) > 0) {
+            detailsText += `<div style="font-size: 0.78rem; color: #0f172a; margin-top: 2px;">Discount applies to first ${parseInt(v.max_discounted_travelers)} traveler${parseInt(v.max_discounted_travelers) === 1 ? '' : 's'}</div>`;
+        }
 
         // Format target modules
         let targetsBadges = '';
@@ -132,10 +157,18 @@ function renderVouchersList() {
 
         // Date validity
         const startDate = new Date(v.start_date).toLocaleDateString(undefined, {month: 'short', day: 'numeric', year: 'numeric'});
-        const endDate = new Date(v.end_date).toLocaleDateString(undefined, {month: 'short', day: 'numeric', year: 'numeric'});
-        const validityStatusHtml = new Date(v.end_date) < new Date() 
-            ? `<div style="font-size: 0.72rem; color: #ef4444; font-weight: 700; margin-top: 4px;"><i class="fas fa-exclamation-circle"></i> Expired</div>`
-            : '';
+        const endDate = new Date(v.end_date).toLocaleString(undefined, {month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit'});
+        const now = new Date();
+        const startTime = new Date(v.start_date);
+        const endTime = new Date(v.end_date);
+        let countdownHtml = '';
+        if (startTime > now) {
+            countdownHtml = `<div style="font-size: 0.72rem; color: #0369a1; font-weight: 700; margin-top: 4px;" data-voucher-countdown="${startTime.getTime()}" data-voucher-countdown-mode="start"><i class="fas fa-hourglass-half"></i> Starts in --</div>`;
+        } else if (endTime > now) {
+            countdownHtml = `<div style="font-size: 0.72rem; color: #059669; font-weight: 700; margin-top: 4px;" data-voucher-countdown="${endTime.getTime()}" data-voucher-countdown-mode="end"><i class="fas fa-hourglass-half"></i> Ends in --</div>`;
+        } else {
+            countdownHtml = `<div style="font-size: 0.72rem; color: #ef4444; font-weight: 700; margin-top: 4px;"><i class="fas fa-exclamation-circle"></i> Expired</div>`;
+        }
 
         // Status Badge
         const statusBadge = v.status === 'active'
@@ -177,7 +210,7 @@ function renderVouchersList() {
                 </td>
                 <td style="padding: 16px 20px; vertical-align: top;">
                     <div style="font-size: 0.8rem; color: #334155;">${startDate} - ${endDate}</div>
-                    ${validityStatusHtml}
+                    ${countdownHtml}
                 </td>
                 <td style="padding: 16px 20px; vertical-align: top;">
                     ${statusBadge}
@@ -198,6 +231,7 @@ function renderVouchersList() {
             </tr>
         `;
     }).join('');
+    updateAdminVoucherCountdowns();
 }
 
 // Filter triggers
@@ -254,11 +288,12 @@ function openEditVoucherModal(id) {
                 document.getElementById('v-max-total').value = v.max_total_redemptions;
                 document.getElementById('v-max-user').value = v.max_redemptions_per_user;
                 document.getElementById('v-start-date').value = v.start_date;
-                document.getElementById('v-end-date').value = v.end_date;
+                document.getElementById('v-end-date').value = v.end_date ? v.end_date.replace(' ', 'T').slice(0,16) : '';
                 document.getElementById('v-audience').value = v.audience;
                 document.getElementById('v-collection-method').value = v.collection_method;
                 document.getElementById('v-status').value = v.status;
                 document.getElementById('v-color').value = v.color_theme || '#003580';
+                document.getElementById('v-max-discounted-travelers').value = v.max_discounted_travelers || 0;
 
                 // Check targets
                 const checkboxes = document.querySelectorAll('input[name="targets[]"]');

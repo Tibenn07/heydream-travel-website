@@ -197,9 +197,10 @@ switch ($action) {
     case 'validate_voucher':
         if (!$userId) respond(false, null, 'You must be logged in.');
 
-        $voucherId      = intval($_POST['voucher_id'] ?? 0);
-        $totalAmount    = floatval($_POST['total_amount'] ?? 0);
-        $targetType     = $_POST['target_type'] ?? '';    // e.g. "local_destinations"
+$voucherId       = intval($_POST['voucher_id'] ?? 0);
+            $totalAmount     = floatval($_POST['total_amount'] ?? 0);
+            $travelers       = intval($_POST['travelers'] ?? 0);
+            $targetType      = $_POST['target_type'] ?? '';    // e.g. "local_destinations"
         $targetPackageId = intval($_POST['package_id'] ?? 0);
 
         if (!$voucherId) respond(false, null, 'No voucher selected.');
@@ -283,28 +284,48 @@ switch ($action) {
                 }
             }
 
-            // Calculate discount
+            // Calculate discount per traveler cap
             $discountAmount = 0;
+            $eligibleTravelers = max(0, $travelers);
+            $maxDiscountedTravelers = intval($voucher['max_discounted_travelers'] ?? 0);
+            if ($maxDiscountedTravelers > 0) {
+                if ($travelers < $maxDiscountedTravelers) {
+                    $plural = $maxDiscountedTravelers === 1 ? '' : 's';
+                    respond(false, null, "This voucher requires at least {$maxDiscountedTravelers} traveler{$plural}.");
+                }
+                $eligibleTravelers = $maxDiscountedTravelers;
+            } else {
+                if ($eligibleTravelers === 0) {
+                    $eligibleTravelers = $travelers = max(1, $travelers);
+                }
+            }
+            $ratio = ($travelers > 0) ? ($eligibleTravelers / $travelers) : 1;
+            $discountBaseAmount = $totalAmount * $ratio;
+
             if ($voucher['discount_type'] === 'percentage') {
-                $discountAmount = ($totalAmount * floatval($voucher['discount_value'])) / 100;
+                $discountAmount = ($discountBaseAmount * floatval($voucher['discount_value'])) / 100;
                 if (floatval($voucher['maximum_discount']) > 0) {
                     $discountAmount = min($discountAmount, floatval($voucher['maximum_discount']));
                 }
             } else {
                 $discountAmount = floatval($voucher['discount_value']);
+                $discountAmount = min($discountAmount, $discountBaseAmount);
             }
             $discountAmount = min($discountAmount, $totalAmount); // Can't discount more than total
             $finalAmount = $totalAmount - $discountAmount;
 
             respond(true, [
-                'voucher_id'      => $voucherId,
-                'voucher_code'    => $voucher['voucher_code'],
-                'voucher_name'    => $voucher['voucher_name'],
-                'discount_type'   => $voucher['discount_type'],
-                'discount_value'  => $voucher['discount_value'],
-                'discount_amount' => round($discountAmount, 2),
-                'final_amount'    => round($finalAmount, 2),
-                'original_amount' => $totalAmount,
+                'voucher_id'          => $voucherId,
+                'voucher_code'        => $voucher['voucher_code'],
+                'voucher_name'        => $voucher['voucher_name'],
+                'discount_type'       => $voucher['discount_type'],
+                'discount_value'      => $voucher['discount_value'],
+                'discount_amount'     => round($discountAmount, 2),
+                'final_amount'        => round($finalAmount, 2),
+                'original_amount'     => $totalAmount,
+                'eligible_travelers'  => $eligibleTravelers,
+                'total_travelers'     => $travelers,
+                'max_discounted_travelers' => $maxDiscountedTravelers,
             ], 'Voucher applied successfully!');
         } catch (PDOException $e) {
             respond(false, null, $e->getMessage());

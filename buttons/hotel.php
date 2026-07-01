@@ -475,7 +475,7 @@ try {
             height: 100%;
             background: rgba(0, 0, 0, 0.6);
             backdrop-filter: blur(8px);
-            z-index: 9999;
+            z-index: 2147483647 !important;
             align-items: center;
             justify-content: center;
             padding: 20px;
@@ -493,6 +493,8 @@ try {
             overflow: hidden;
             box-shadow: 0 25px 50px rgba(0, 0, 0, 0.2);
             animation: modalPop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            position: relative;
+            z-index: 2147483648 !important;
         }
 
         @keyframes modalPop {

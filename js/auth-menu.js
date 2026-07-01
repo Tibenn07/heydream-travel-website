@@ -175,6 +175,8 @@ function showLoginRequiredPopup(loginPath, registerPath) {
         modal = document.createElement('div');
         modal.id = 'loginRequiredModal';
         modal.className = 'login-required-modal';
+        modal.style.zIndex = '2147483647';
+        modal.style.pointerEvents = 'auto';
         modal.innerHTML = `
             <div class="login-required-modal-content">
                 <div class="login-required-header">

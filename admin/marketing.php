@@ -1800,6 +1800,13 @@ function getStatusInfo($status)
                                     <input type="number" id="v-max-discount" name="maximum_discount" min="0" step="0.01" placeholder="e.g. 1000 (Optional)" style="width: 100%; padding: 10px 14px; border-radius: 10px; border: 1.5px solid #cbd5e1; font-family: inherit; font-size: 0.88rem; outline: none;">
                                 </div>
                             </div>
+                            <div style="display: grid; grid-template-columns: 1fr; gap: 12px; margin-bottom: 12px;">
+                                <div>
+                                    <label style="display: block; font-size: 0.82rem; font-weight: 600; color: #334155; margin-bottom: 6px;">Discount applies to first N travelers</label>
+                                    <input type="number" id="v-max-discounted-travelers" name="max_discounted_travelers" min="0" value="0" placeholder="0 = no limit" style="width: 100%; padding: 10px 14px; border-radius: 10px; border: 1.5px solid #cbd5e1; font-family: inherit; font-size: 0.88rem; outline: none;">
+                                    <p style="font-size:0.78rem; color:#64748b; margin-top:6px;">Set the maximum number of travelers eligible for this voucher discount. Leave at 0 to apply to all travelers.</p>
+                                </div>
+                            </div>
                             <p style="font-size:0.78rem; color:#64748b; margin-top:6px;">Enter fixed amounts in the same currency as the targeted module. For foreign destinations, use USD values.</p>
                         </div>
 
@@ -1819,12 +1826,14 @@ function getStatusInfo($status)
 
                             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
                                 <div>
-                                    <label style="display: block; font-size: 0.82rem; font-weight: 600; color: #334155; margin-bottom: 6px;">Start Date <span style="color: #ef4444;">*</span></label>
-                                    <input type="date" id="v-start-date" name="start_date" required style="width: 100%; padding: 10px 14px; border-radius: 10px; border: 1.5px solid #cbd5e1; font-family: inherit; font-size: 0.88rem; outline: none;">
+                                    <label style="display: block; font-size: 0.82rem; font-weight: 600; color: #334155; margin-bottom: 6px;">Start Date & Time <span style="color: #ef4444;">*</span></label>
+                                    <input type="datetime-local" id="v-start-date" name="start_date" required style="width: 100%; padding: 10px 14px; border-radius: 10px; border: 1.5px solid #cbd5e1; font-family: inherit; font-size: 0.88rem; outline: none;">
+                                    <p style="font-size:0.78rem; color:#64748b; margin-top:6px;">Choose the exact date and time when this voucher becomes available.</p>
                                 </div>
                                 <div>
-                                    <label style="display: block; font-size: 0.82rem; font-weight: 600; color: #334155; margin-bottom: 6px;">End Date <span style="color: #ef4444;">*</span></label>
-                                    <input type="date" id="v-end-date" name="end_date" required style="width: 100%; padding: 10px 14px; border-radius: 10px; border: 1.5px solid #cbd5e1; font-family: inherit; font-size: 0.88rem; outline: none;">
+                                    <label style="display: block; font-size: 0.82rem; font-weight: 600; color: #334155; margin-bottom: 6px;">End Date & Time <span style="color: #ef4444;">*</span></label>
+                                    <input type="datetime-local" id="v-end-date" name="end_date" required style="width: 100%; padding: 10px 14px; border-radius: 10px; border: 1.5px solid #cbd5e1; font-family: inherit; font-size: 0.88rem; outline: none;">
+                                    <p style="font-size:0.78rem; color:#64748b; margin-top:6px;">Choose the exact date and time when this voucher expires.</p>
                                 </div>
                             </div>
                         </div>
@@ -1849,7 +1858,7 @@ function getStatusInfo($status)
                                 <div>
                                     <label style="display: block; font-size: 0.82rem; font-weight: 600; color: #334155; margin-bottom: 6px;">Collection Method</label>
                                     <select id="v-collection-method" name="collection_method" style="width: 100%; padding: 10px 14px; border-radius: 10px; border: 1.5px solid #cbd5e1; font-family: inherit; font-size: 0.88rem; outline: none; background: white; cursor: pointer;">
-                                        <option value="auto_available">Auto Available (Apply at Checkout)</option>
+                                        <option value="auto_available">Auto Available</option>
                                         <option value="user_collect">User Claimable (Save to Wallet First)</option>
                                     </select>
                                 </div>

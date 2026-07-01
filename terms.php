@@ -226,6 +226,7 @@ require_once __DIR__ . '/config/database.php';
                         <div class="user-dropdown" id="userDropdown">
                             <a href="User Account/profile.php"><i class="fas fa-user-edit"></i> My Profile</a>
                             <a href="saved.php"><i class="fas fa-heart"></i> Saved Items</a>
+                            <a href="User Account/vouchers.php"><i class="fas fa-ticket-alt"></i> Vouchers</a>
                             <div class="dropdown-divider"></div>
                             <a href="User Account/logout.php" class="logout-link"><i class="fas fa-sign-out-alt"></i>
                                 Logout</a>

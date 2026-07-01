@@ -88,10 +88,29 @@ switch ($action) {
             $discount_value = floatval($_POST['discount_value'] ?? 0);
             $minimum_spend = floatval($_POST['minimum_spend'] ?? 0);
             $maximum_discount = !empty($_POST['maximum_discount']) ? floatval($_POST['maximum_discount']) : null;
+            $max_discounted_travelers = intval($_POST['max_discounted_travelers'] ?? 0);
             $max_total_redemptions = intval($_POST['max_total_redemptions'] ?? 0);
             $max_redemptions_per_user = intval($_POST['max_redemptions_per_user'] ?? 1);
             $start_date = $_POST['start_date'] ?? '';
             $end_date = $_POST['end_date'] ?? '';
+            $normalizeDateTime = function ($value) {
+                if (empty($value)) {
+                    return '';
+                }
+                $value = trim($value);
+                if (strpos($value, 'T') !== false) {
+                    $value = str_replace('T', ' ', $value);
+                }
+                if (preg_match('/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/', $value)) {
+                    $value .= ':00';
+                }
+                if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $value)) {
+                    $value .= ' 00:00:00';
+                }
+                return $value;
+            };
+            $start_date = $normalizeDateTime($start_date);
+            $end_date = $normalizeDateTime($end_date);
             $status = $_POST['status'] ?? 'active';
             $priority = intval($_POST['priority'] ?? 0);
             $display_order = intval($_POST['display_order'] ?? 0);
@@ -126,7 +145,7 @@ switch ($action) {
                 // Update
                 $stmt = $pdo->prepare("UPDATE vouchers SET 
                     voucher_name = ?, voucher_code = ?, description = ?, discount_type = ?, 
-                    discount_value = ?, minimum_spend = ?, maximum_discount = ?, 
+                    discount_value = ?, minimum_spend = ?, maximum_discount = ?, max_discounted_travelers = ?, 
                     max_total_redemptions = ?, max_redemptions_per_user = ?, 
                     start_date = ?, end_date = ?, status = ?, priority = ?, 
                     display_order = ?, banner_image_url = ?, color_theme = ?, 
@@ -134,7 +153,7 @@ switch ($action) {
                     WHERE id = ?");
                 $stmt->execute([
                     $voucher_name, $voucher_code, $description, $discount_type,
-                    $discount_value, $minimum_spend, $maximum_discount,
+                    $discount_value, $minimum_spend, $maximum_discount, $max_discounted_travelers,
                     $max_total_redemptions, $max_redemptions_per_user,
                     $start_date, $end_date, $status, $priority,
                     $display_order, $banner_image_url, $color_theme,
@@ -149,15 +168,15 @@ switch ($action) {
                 // Insert
                 $stmt = $pdo->prepare("INSERT INTO vouchers (
                     voucher_name, voucher_code, description, discount_type, 
-                    discount_value, minimum_spend, maximum_discount, 
+                    discount_value, minimum_spend, maximum_discount, max_discounted_travelers, 
                     max_total_redemptions, max_redemptions_per_user, 
                     start_date, end_date, status, priority, 
                     display_order, banner_image_url, color_theme, 
                     audience, collection_method
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
                 $stmt->execute([
                     $voucher_name, $voucher_code, $description, $discount_type,
-                    $discount_value, $minimum_spend, $maximum_discount,
+                    $discount_value, $minimum_spend, $maximum_discount, $max_discounted_travelers,
                     $max_total_redemptions, $max_redemptions_per_user,
                     $start_date, $end_date, $status, $priority,
                     $display_order, $banner_image_url, $color_theme,

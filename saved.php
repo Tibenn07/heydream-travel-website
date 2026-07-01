@@ -29,7 +29,7 @@ require_once __DIR__ . '/config/database.php';
             height: 100%;
             background: rgba(0, 0, 0, 0.4);
             backdrop-filter: blur(8px);
-            z-index: 99999999 !important;
+            z-index: 2147483647 !important;
             display: flex;
             align-items: center;
             justify-content: center;

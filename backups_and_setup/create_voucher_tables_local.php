@@ -17,6 +17,7 @@ try {
             discount_value DECIMAL(10,2) NOT NULL,
             minimum_spend DECIMAL(12,2) DEFAULT 0.00,
             maximum_discount DECIMAL(12,2) NULL,
+            max_discounted_travelers INT DEFAULT 0,
             max_total_redemptions INT DEFAULT 0,
             max_redemptions_per_user INT DEFAULT 1,
             start_date DATE NOT NULL,
