@@ -47,6 +47,32 @@ function countRedemptions($pdo, $voucherId) {
     return (int)$stmt->fetchColumn();
 }
 
+function currentDateTimeValue() {
+    return date('Y-m-d H:i:s');
+}
+
+function isVoucherActiveNow($startDate, $endDate, $now) {
+    if (empty($startDate) || empty($endDate)) {
+        return false;
+    }
+
+    $start = new DateTime($startDate);
+    $end   = new DateTime($endDate);
+    $nowDt = new DateTime($now);
+
+    if ($start > $nowDt) {
+        return false;
+    }
+
+    // If the end time stored is exactly midnight (00:00:00), the value was
+    // originally a DATE-only value — treat it as valid until end of that day.
+    if ($end->format('H:i:s') === '00:00:00') {
+        $end->setTime(23, 59, 59);
+    }
+
+    return $nowDt <= $end;
+}
+
 switch ($action) {
 
     // ── GET MY VOUCHERS ──────────────────────────────────────────────────
@@ -78,7 +104,7 @@ switch ($action) {
     // ── GET AVAILABLE VOUCHERS ───────────────────────────────────────────
     case 'get_available_vouchers':
         try {
-            $today = date('Y-m-d');
+            $now = currentDateTimeValue();
 
             // Build audience filter
             $audienceSql = "(v.audience = 'everyone'";
@@ -102,12 +128,10 @@ switch ($action) {
                 SELECT v.*
                 FROM vouchers v
                 WHERE v.status = 'active'
-                  AND v.start_date <= :today
-                  AND v.end_date >= :today2
                   AND $audienceSql
                 ORDER BY v.priority DESC, v.created_at DESC
             ");
-            $stmt->execute([':today' => $today, ':today2' => $today]);
+            $stmt->execute();
             $vouchers = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
             foreach ($vouchers as &$v) {
@@ -116,6 +140,10 @@ switch ($action) {
 
                 // Check if this user has already claimed it
                 $v['already_claimed'] = $userId ? userHasClaimed($pdo, $userId, $v['id']) : false;
+
+                if (!isVoucherActiveNow($v['start_date'], $v['end_date'], $now)) {
+                    continue;
+                }
 
                 // Check total usage limit
                 if ((int)$v['max_total_redemptions'] > 0) {
@@ -151,8 +179,8 @@ switch ($action) {
             if (!$voucher) respond(false, null, 'Voucher not found or is no longer active.');
 
             // Check date validity
-            $today = date('Y-m-d');
-            if ($voucher['start_date'] > $today || $voucher['end_date'] < $today) {
+            $now = currentDateTimeValue();
+            if (!isVoucherActiveNow($voucher['start_date'], $voucher['end_date'], $now)) {
                 respond(false, null, 'This voucher is outside its validity period.');
             }
 
@@ -229,8 +257,8 @@ $voucherId       = intval($_POST['voucher_id'] ?? 0);
             if (!$uv) respond(false, null, 'Voucher not found in your wallet or already used.');
 
             // Check date
-            $today = date('Y-m-d');
-            if (($uv['start_date'] ?? $uv['v_start_date']) > $today || ($uv['end_date'] ?? $uv['v_end_date']) < $today) {
+            $now = currentDateTimeValue();
+            if (!isVoucherActiveNow($uv['start_date'] ?? $uv['v_start_date'] ?? null, $uv['end_date'] ?? $uv['v_end_date'] ?? null, $now)) {
                 respond(false, null, 'This voucher has expired.');
             }
 

@@ -433,6 +433,27 @@ if (!$user) {
         }
         window.switchVoucherTab = switchVoucherTab;
 
+        function parseVoucherDate(value) {
+            if (!value) return null;
+            const normalized = String(value).trim().replace(' ', 'T');
+            const parsed = new Date(normalized);
+            return Number.isNaN(parsed.getTime()) ? null : parsed;
+        }
+
+        function getVoucherStatus(startTime, endTime, nowMs) {
+            if (!startTime || !endTime) return 'expired';
+
+            if (startTime.getTime() > nowMs) return 'upcoming';
+
+            // If end time is midnight, it came from an old DATE-only record — treat whole day as valid.
+            let effectiveEnd = endTime;
+            if (endTime.getHours() === 0 && endTime.getMinutes() === 0 && endTime.getSeconds() === 0) {
+                effectiveEnd = new Date(endTime.getFullYear(), endTime.getMonth(), endTime.getDate(), 23, 59, 59, 999);
+            }
+
+            return effectiveEnd.getTime() >= nowMs ? 'active' : 'expired';
+        }
+
         function buildVoucherCard(v, mode) {
             const color = v.color_theme || '#003580';
             const discountText = v.discount_type === 'percentage'
@@ -441,11 +462,12 @@ if (!$user) {
             const minSpend = parseFloat(v.minimum_spend) > 0
                 ? `Min. spend: ₱${parseFloat(v.minimum_spend).toLocaleString()}`
                 : 'No minimum spend';
-            const startTime = v.start_date ? new Date(v.start_date) : null;
-            const endTime = v.end_date ? new Date(v.end_date) : null;
-            const now = new Date();
-            const isExpired = endTime && endTime < now;
-            const hasStarted = !startTime || startTime <= now;
+            const startTime = parseVoucherDate(v.start_date);
+            const endTime = parseVoucherDate(v.end_date);
+            const now = Date.now();
+            const voucherStatus = getVoucherStatus(startTime, endTime, now);
+            const isExpired = voucherStatus === 'expired';
+            const hasStarted = !startTime || startTime.getTime() <= now;
             const timeLabel = !startTime || !hasStarted
                 ? `Starts: ${startTime ? startTime.toLocaleString(undefined, {month:'short', day:'numeric', hour:'2-digit', minute:'2-digit'}) : 'Soon'}`
                 : `Ends: ${endTime ? endTime.toLocaleString(undefined, {month:'short', day:'numeric', hour:'2-digit', minute:'2-digit'}) : 'Soon'}`;

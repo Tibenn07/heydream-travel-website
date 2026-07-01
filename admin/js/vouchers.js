@@ -3,6 +3,44 @@
 let allVouchers = [];
 let loadedPackagesCache = {}; // Cache to avoid multiple redundant requests for packages
 
+function parseVoucherDateTime(value) {
+    if (!value) return null;
+
+    const trimmed = String(value).trim();
+    const directMatch = trimmed.match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})(?::(\d{2}))?/);
+
+    if (directMatch) {
+        const [, year, month, day, hours, minutes, seconds = '00'] = directMatch;
+        return new Date(
+            Number(year),
+            Number(month) - 1,
+            Number(day),
+            Number(hours),
+            Number(minutes),
+            Number(seconds)
+        );
+    }
+
+    const normalized = trimmed.replace(' ', 'T');
+    const date = new Date(normalized);
+    return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function getAdminVoucherStatus(startTime, endTime, nowMs) {
+    if (!startTime || !endTime) return 'expired';
+
+    if (startTime.getTime() > nowMs) return 'upcoming';
+
+    // If end time is exactly midnight (00:00:00), the value came from an old
+    // DATE-only column — treat the whole day as valid (backward compat).
+    let effectiveEnd = endTime;
+    if (endTime.getHours() === 0 && endTime.getMinutes() === 0 && endTime.getSeconds() === 0) {
+        effectiveEnd = new Date(endTime.getFullYear(), endTime.getMonth(), endTime.getDate(), 23, 59, 59, 999);
+    }
+
+    return effectiveEnd.getTime() >= nowMs ? 'active' : 'expired';
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     if (!window.__voucherCountdownInterval) {
         window.__voucherCountdownInterval = setInterval(updateAdminVoucherCountdowns, 1000);
@@ -66,8 +104,13 @@ function updateAdminVoucherCountdowns() {
         const mode = el.getAttribute('data-voucher-countdown-mode');
         const diff = target - Date.now();
 
-        if (diff <= 0) {
+        if (diff < 0) {
             el.innerHTML = `<i class="fas fa-clock"></i> ${mode === 'start' ? 'Started' : 'Expired'}`;
+            return;
+        }
+
+        if (diff === 0) {
+            el.innerHTML = `<i class="fas fa-clock"></i> ${mode === 'start' ? 'Started' : 'Ends now'}`;
             return;
         }
 
@@ -156,16 +199,23 @@ function renderVouchersList() {
         `;
 
         // Date validity
-        const startDate = new Date(v.start_date).toLocaleDateString(undefined, {month: 'short', day: 'numeric', year: 'numeric'});
-        const endDate = new Date(v.end_date).toLocaleString(undefined, {month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit'});
-        const now = new Date();
-        const startTime = new Date(v.start_date);
-        const endTime = new Date(v.end_date);
+        const startTime = parseVoucherDateTime(v.start_date);
+        const endTime = parseVoucherDateTime(v.end_date);
+        const startDate = startTime ? startTime.toLocaleString(undefined, {month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit'}) : '—';
+        const endDate = endTime ? endTime.toLocaleString(undefined, {month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit'}) : '—';
+        const now = Date.now();
+        const voucherStatus = getAdminVoucherStatus(startTime, endTime, now);
         let countdownHtml = '';
-        if (startTime > now) {
+        if (voucherStatus === 'upcoming') {
             countdownHtml = `<div style="font-size: 0.72rem; color: #0369a1; font-weight: 700; margin-top: 4px;" data-voucher-countdown="${startTime.getTime()}" data-voucher-countdown-mode="start"><i class="fas fa-hourglass-half"></i> Starts in --</div>`;
-        } else if (endTime > now) {
-            countdownHtml = `<div style="font-size: 0.72rem; color: #059669; font-weight: 700; margin-top: 4px;" data-voucher-countdown="${endTime.getTime()}" data-voucher-countdown-mode="end"><i class="fas fa-hourglass-half"></i> Ends in --</div>`;
+        } else if (voucherStatus === 'active') {
+            // If end time is midnight (old DATE record) use end-of-day; otherwise use the real stored time.
+            let targetTime = endTime.getTime();
+            if (endTime.getHours() === 0 && endTime.getMinutes() === 0 && endTime.getSeconds() === 0) {
+                const endOfDay = new Date(endTime.getFullYear(), endTime.getMonth(), endTime.getDate(), 23, 59, 59, 999);
+                targetTime = endOfDay.getTime();
+            }
+            countdownHtml = `<div style="font-size: 0.72rem; color: #059669; font-weight: 700; margin-top: 4px;" data-voucher-countdown="${targetTime}" data-voucher-countdown-mode="end"><i class="fas fa-hourglass-half"></i> Ends in --</div>`;
         } else {
             countdownHtml = `<div style="font-size: 0.72rem; color: #ef4444; font-weight: 700; margin-top: 4px;"><i class="fas fa-exclamation-circle"></i> Expired</div>`;
         }
@@ -287,8 +337,19 @@ function openEditVoucherModal(id) {
                 document.getElementById('v-max-discount').value = v.maximum_discount || '';
                 document.getElementById('v-max-total').value = v.max_total_redemptions;
                 document.getElementById('v-max-user').value = v.max_redemptions_per_user;
-                document.getElementById('v-start-date').value = v.start_date;
-                document.getElementById('v-end-date').value = v.end_date ? v.end_date.replace(' ', 'T').slice(0,16) : '';
+                const normalizeDateTimeInput = (value) => {
+                    if (!value) return '';
+                    const trimmed = String(value).trim();
+                    const matched = trimmed.match(/^(\d{4})-(\d{2})-(\d{2})\s+(\d{2}):(\d{2})(?::\d{2})?$/);
+                    if (matched) {
+                        const [, year, month, day, hours, minutes] = matched;
+                        return `${year}-${month}-${day}T${hours}:${minutes}`;
+                    }
+                    return trimmed.replace(' ', 'T').slice(0, 16);
+                };
+
+                document.getElementById('v-start-date').value = normalizeDateTimeInput(v.start_date);
+                document.getElementById('v-end-date').value = normalizeDateTimeInput(v.end_date);
                 document.getElementById('v-audience').value = v.audience;
                 document.getElementById('v-collection-method').value = v.collection_method;
                 document.getElementById('v-status').value = v.status;
