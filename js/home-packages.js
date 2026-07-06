@@ -569,12 +569,10 @@ window.showLocalPackagePopup = async function (identifier) {
                 <div class="booking-summary" style="margin-bottom: 20px; background: #f9f9f9;">
                     <div class="summary-item"><span>Price per Person:</span><span>${destination.currency || '₱'}${formatNumber(destination.price)}</span></div>
                     <div class="summary-item"><span>Travelers:</span><span id="homeSummaryTravelers">1</span></div>
+                    <div class="summary-item discounted" id="homeSummaryDiscountedRow" style="display:none;"><span>Discounted:</span><span id="homeSummaryDiscounted">₱0</span></div>
                     <div class="summary-item total"><span>Total:</span><span id="homeSummaryTotal">${destination.currency || '₱'}${formatNumber(destination.price)}</span></div>
                 </div>
 
-                <!-- Voucher Section (Step 2) -->
-                <div id="homeStep2VoucherArea" style="margin-bottom:18px;"></div>
-                
                 <div class="form-row">
                     <div class="form-group"><label>Full Name *</label><input type="text" id="homeFullName" placeholder="Enter your full name" value="${window.currentFullName || ''}"></div>
                 </div>
@@ -582,6 +580,8 @@ window.showLocalPackagePopup = async function (identifier) {
                     <div class="form-group"><label>Phone *</label><input type="tel" id="homePhone" placeholder="+63 912 345 6789"></div>
                     <div class="form-group"><label>Travelers *</label><input type="number" id="homeTravelersCount" min="1" value="1" onchange="updateHomeTotalPrice(${destination.price})"></div>
                 </div>
+                <!-- Voucher Section (Step 2) -->
+                <div id="homeStep2VoucherArea" style="margin-bottom:18px;"></div>
                 <div class="form-group"><label>Special Requests</label><textarea id="homeSpecialRequests" rows="2" placeholder="Any special requirements, dietary restrictions, etc."></textarea></div>
                 
                 <div id="homeStep2Errors" class="error-message" style="display: none;"></div>

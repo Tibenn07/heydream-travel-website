@@ -4,7 +4,21 @@
 // Now supports auto-save draft functionality
 // Foreign destinations now fully editable from database
 
+// Suppress errors from appearing in output (especially important for JSON responses)
+ini_set('display_errors', 0);
+ini_set('log_errors', 1);
+error_reporting(E_ALL);
+
 require_once __DIR__ . '/../config/database.php';
+
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+
+// Set JSON header for all responses
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    header('Content-Type: application/json; charset=utf-8');
+}
 
 // Check if admin is logged in
 if (!isset($_SESSION['admin_logged_in']) || $_SESSION['admin_logged_in'] !== true) {
@@ -241,11 +255,14 @@ try {
         duration VARCHAR(50) DEFAULT '',
         price DECIMAL(10,2) DEFAULT 0,
         activities_count INT DEFAULT 0,
+        uploaded_by INT DEFAULT NULL,
+        uploaded_by_name VARCHAR(255) DEFAULT NULL,
         is_active TINYINT DEFAULT 1,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
         INDEX idx_packages_destination (destination_id),
-        INDEX idx_packages_active (is_active)
+        INDEX idx_packages_active (is_active),
+        INDEX idx_packages_uploader (uploaded_by)
     )");
 
     // Also ensure destinations table exists for local destinations

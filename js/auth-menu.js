@@ -313,7 +313,7 @@ function executeLogout(logoutProcessPath) {
  * Main function to enforce login before actions
  */
 function requireLogin(callback, ...args) {
-    const isSubdir = window.location.pathname.includes('/buttons/') || window.location.pathname.includes('/api/');
+    const isSubdir = window.location.pathname.includes('/buttons/') || window.location.pathname.includes('/api/') || window.location.pathname.includes('/User Account/') || window.location.pathname.includes('/User%20Account/');
     const loginPath = isSubdir ? '../User Account/login.php' : 'User Account/login.php';
     const registerPath = isSubdir ? '../User Account/register.php' : 'User Account/register.php';
     const checkAuthPath = isSubdir ? '../api/check-auth.php' : 'api/check-auth.php';

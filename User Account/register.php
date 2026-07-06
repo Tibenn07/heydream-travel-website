@@ -406,21 +406,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 </div>
             <?php endif; ?>
 
-            <div class="social-buttons">
-                <a href="#" class="social-btn google" onclick="socialLogin('google')">
-                    <i class="fab fa-google"></i> Continue with Google
-                </a>
-                <a href="#" class="social-btn facebook" onclick="socialLogin('facebook')" style="display:none;">
-                    <i class="fab fa-facebook-f"></i> Continue with Facebook
-                </a>
-                <a href="#" class="social-btn apple" onclick="socialLogin('apple')" style="display:none;">
-                    <i class="fab fa-apple"></i> Continue with Apple
-                </a>
-            </div>
-
-            <div class="divider">
-                <span>or register with email</span>
-            </div>
 
             <form method="POST" action="">
                 <div class="form-group">

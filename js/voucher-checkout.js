@@ -56,12 +56,6 @@ function _vcBuildInlineHTML(prefix, total) {
             <div class="vc-loading"><i class="fas fa-spinner fa-spin"></i> Loading vouchers...</div>
         </div>
         <div id="${prefix}VcInlineMsg"></div>
-        ${applied ? `
-        <div class="vc-inline-savings">
-            <i class="fas fa-tag"></i>
-            You save <strong>${sym}${_vcFormatMoney(applied.discountAmount)}</strong> — Final total: <strong>${sym}${_vcFormatMoney(applied.finalTotal)}</strong>
-            <button class="vc-inline-remove-btn" onclick="removeCheckoutVoucherInline('${prefix}')">✕ Remove</button>
-        </div>` : ''}
     </div>`;
 }
 
@@ -173,7 +167,7 @@ window.applyInlineVoucher = function(prefix, voucherId, voucherCode, optionalTot
             const containerId = prefix + 'Step2VoucherArea';
             const container = document.getElementById(containerId);
             if (container) container.innerHTML = _vcBuildInlineHTML(prefix, d.final_amount);
-            _vcUpdateVoucherDisplays(prefix, d.final_amount, total);
+            _vcUpdateVoucherDisplays(prefix, d.final_amount, total, d.discount_amount);
             _vcShowPriceSummary(prefix, total, d.discount_amount, d.final_amount, d.eligible_travelers, d.max_discounted_travelers);
             _vcLoadInlineVouchers(prefix);
         })
@@ -219,7 +213,7 @@ window.removeCheckoutVoucherInline = function(prefix, fallbackTotal) {
         const totalEl = document.getElementById(totalElId);
         if (totalEl) totalEl.textContent = `${sym}${_vcFormatMoney(origTotal)}`;
     }
-    _vcUpdateVoucherDisplays(prefix, origTotal, origTotal);
+    _vcUpdateVoucherDisplays(prefix, origTotal, origTotal, 0);
 
     // Rebuild panel
     const containerId = prefix + 'Step2VoucherArea';
@@ -321,28 +315,6 @@ window.removeCheckoutVoucherInline = function(prefix, fallbackTotal) {
             color: #64748b;
             padding: 8px 2px;
             text-align: center;
-        }
-        .vc-inline-savings {
-            background: linear-gradient(90deg, #f0fdf4, #dcfce7);
-            border-top: 1px solid #bbf7d0;
-            padding: 8px 14px;
-            font-size: 0.76rem;
-            color: #15803d;
-            display: flex;
-            align-items: center;
-            gap: 7px;
-            flex-wrap: wrap;
-        }
-        .vc-inline-savings i { color: #22c55e; }
-        .vc-inline-remove-btn {
-            margin-left: auto;
-            background: none;
-            border: none;
-            font-size: 0.68rem;
-            color: #dc2626;
-            font-weight: 700;
-            cursor: pointer;
-            text-decoration: underline;
         }
     `;
     document.head.appendChild(s);
@@ -785,9 +757,9 @@ window.applyCheckoutVoucherById = function(prefix, voucherId, voucherCode) {
                 window._vcTotalAmount[prefix] = d.final_amount;
             }
 
-            _vcMsg(prefix, `✅ Voucher "${d.voucher_code}" applied! You save ₱${_vcFormatMoney(d.discount_amount)}.`, 'success');
+            _vcMsg(prefix, `✅ Voucher "${d.voucher_code}" applied.`, 'success');
             _vcShowPriceSummary(prefix, d.original_amount, d.discount_amount, d.final_amount, d.eligible_travelers, d.max_discounted_travelers);
-            _vcUpdateVoucherDisplays(prefix, d.final_amount, d.original_amount);
+            _vcUpdateVoucherDisplays(prefix, d.final_amount, d.original_amount, d.discount_amount);
             _vcRefreshListUI(prefix);
         })
         .catch(() => _vcMsg(prefix, 'Server error. Please try again.', 'error'));
@@ -806,7 +778,7 @@ window.removeCheckoutVoucher = function(prefix) {
     _vcMsg(prefix, '', '');
     const summary = document.getElementById(prefix + 'VcPriceSummary');
     if (summary) summary.style.display = 'none';
-    _vcUpdateVoucherDisplays(prefix, rawTotal, rawTotal);
+    _vcUpdateVoucherDisplays(prefix, rawTotal, rawTotal, 0);
     _vcRefreshListUI(prefix);
 };
 
@@ -829,10 +801,11 @@ function _vcShowPriceSummary(prefix, original, discount, final, eligibleTraveler
         </div>`;
 }
 
-function _vcUpdateVoucherDisplays(prefix, finalAmount, rawAmount) {
+function _vcUpdateVoucherDisplays(prefix, finalAmount, rawAmount, discountAmount = 0) {
     const sym = (window._vcCurrencyFn && window._vcCurrencyFn[prefix]) ? window._vcCurrencyFn[prefix]() : '₱';
     const formattedFinal = _vcFormatMoney(finalAmount);
     const formattedRaw = _vcFormatMoney(rawAmount);
+    const formattedDiscount = _vcFormatMoney(discountAmount);
     const amountIds = [
         `${prefix}GcashAmount`,
         `${prefix}PaymayaAmount`,
@@ -850,6 +823,18 @@ function _vcUpdateVoucherDisplays(prefix, finalAmount, rawAmount) {
                 ? ` <span style="text-decoration:line-through;color:#94a3b8;font-size:0.8em;">${sym}${formattedRaw}</span>`
                 : '');
     });
+
+    const discountEl = document.getElementById(`${prefix}SummaryDiscounted`);
+    const discountRow = document.getElementById(`${prefix}SummaryDiscountedRow`);
+    if (discountEl && discountRow) {
+        if (discountAmount > 0) {
+            discountRow.style.display = 'flex';
+            discountEl.textContent = `-${sym}${formattedDiscount}`;
+        } else {
+            discountRow.style.display = 'none';
+            discountEl.textContent = `₱0`;
+        }
+    }
 }
 
 // ── Message helper ───────────────────────────────────────────

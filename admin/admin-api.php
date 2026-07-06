@@ -99,6 +99,25 @@ try {
         INDEX idx_packages_active (is_active)
     )");
     debugLog("Migration: Ensured packages table exists");
+
+    $pdo->exec("CREATE TABLE IF NOT EXISTS partner_applications (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        company_name VARCHAR(255) NOT NULL,
+        contact_person VARCHAR(255) NOT NULL,
+        email VARCHAR(150) NOT NULL UNIQUE,
+        phone VARCHAR(50) NOT NULL,
+        website VARCHAR(255) DEFAULT NULL,
+        business_type VARCHAR(100) NOT NULL,
+        message TEXT,
+        password VARCHAR(255) NOT NULL,
+        status ENUM('pending','approved','rejected') DEFAULT 'pending',
+        rejection_reason TEXT DEFAULT NULL,
+        approved_at DATETIME DEFAULT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        INDEX idx_status (status)
+    )");
+    debugLog("Migration: Ensured partner_applications table exists");
 } catch (Exception $e) {
     debugLog("Migration Error (packages table): " . $e->getMessage());
 }
@@ -968,7 +987,9 @@ EOF;
             break;
 
         case 'delete_booking':
-            debugLog("Processing delete_booking for ID: " . ($_POST['id'] ?? 'null'));
+            $idInput = $_POST['id'] ?? $_GET['id'] ?? 0;
+            $bookingNumberInput = trim($_POST['booking_number'] ?? $_GET['booking_number'] ?? '');
+            debugLog("Processing delete_booking for ID: " . (is_scalar($idInput) ? $idInput : 'null') . " / booking number: " . $bookingNumberInput);
 
             // Only Super Admin can delete bookings
             if (!hasPermission(['super_admin'], $admin_role)) {
@@ -977,17 +998,23 @@ EOF;
                 break;
             }
 
-            $id = intval($_POST['id'] ?? $_GET['id'] ?? 0);
-            if ($id <= 0) {
+            $id = intval($idInput);
+            if ($id > 0) {
+                $stmt = $pdo->prepare("DELETE FROM bookings WHERE id = ?");
+                $success = $stmt->execute([$id]);
+                $deleted = $success && $stmt->rowCount() > 0;
+                debugLog("Booking delete " . ($deleted ? "successful" : "failed") . " for ID: " . $id);
+                echo json_encode(['success' => $deleted, 'message' => $deleted ? 'Booking deleted successfully' : 'Booking not found']);
+            } elseif ($bookingNumberInput !== '') {
+                $stmt = $pdo->prepare("DELETE FROM bookings WHERE booking_number = ?");
+                $success = $stmt->execute([$bookingNumberInput]);
+                $deleted = $success && $stmt->rowCount() > 0;
+                debugLog("Booking delete " . ($deleted ? "successful" : "failed") . " for booking number: " . $bookingNumberInput);
+                echo json_encode(['success' => $deleted, 'message' => $deleted ? 'Booking deleted successfully' : 'Booking not found']);
+            } else {
                 debugLog("Invalid booking ID for delete: " . ($id ?? 'null'));
                 echo json_encode(['success' => false, 'message' => 'Invalid booking ID']);
-                break;
             }
-
-            $stmt = $pdo->prepare("DELETE FROM bookings WHERE id = ?");
-            $success = $stmt->execute([$id]);
-            debugLog("Booking delete " . ($success ? "successful" : "failed") . " for ID: " . $id);
-            echo json_encode(['success' => $success]);
             break;
 
         case 'get_destination':
@@ -1452,6 +1479,150 @@ EOF;
             }
             break;
 
+        case 'get_partner_packages_for_approval':
+            debugLog("Processing get_partner_packages_for_approval");
+
+            if (!hasPermission(['super_admin', 'admin'], $admin_role)) {
+                debugLog("Permission denied for get_partner_packages_for_approval - role: " . $admin_role);
+                echo json_encode(['success' => false, 'message' => 'Permission denied']);
+                break;
+            }
+
+            $stmt = $pdo->prepare("SELECT id, partner_company, uploaded_by_name, uploaded_by_email, package_name, destination_name, duration, price, upload_status, created_at FROM partner_package_uploads ORDER BY created_at DESC");
+            $stmt->execute();
+            $packages = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            echo json_encode(['success' => true, 'data' => $packages]);
+            break;
+
+        case 'approve_partner_package_submission':
+            debugLog("Processing approve_partner_package_submission for ID: " . ($_POST['package_id'] ?? 'null'));
+
+            if (!hasPermission(['super_admin', 'admin'], $admin_role)) {
+                echo json_encode(['success' => false, 'message' => 'Permission denied']);
+                break;
+            }
+
+            $package_id = intval($_POST['package_id'] ?? 0);
+            if ($package_id <= 0) {
+                echo json_encode(['success' => false, 'message' => 'Invalid package ID']);
+                break;
+            }
+
+            $stmt = $pdo->prepare("UPDATE partner_package_uploads SET upload_status = 'approved', is_active = 1, updated_at = NOW() WHERE id = ?" );
+            if ($stmt->execute([$package_id]) && $stmt->rowCount() > 0) {
+                echo json_encode(['success' => true, 'message' => 'Package approved and published.']);
+            } else {
+                echo json_encode(['success' => false, 'message' => 'Unable to approve package.']);
+            }
+            break;
+
+        case 'reject_partner_package_submission':
+            debugLog("Processing reject_partner_package_submission for ID: " . ($_POST['package_id'] ?? 'null'));
+
+            if (!hasPermission(['super_admin', 'admin'], $admin_role)) {
+                echo json_encode(['success' => false, 'message' => 'Permission denied']);
+                break;
+            }
+
+            $package_id = intval($_POST['package_id'] ?? 0);
+            $reason = trim($_POST['reason'] ?? '');
+            if ($package_id <= 0) {
+                echo json_encode(['success' => false, 'message' => 'Invalid package ID']);
+                break;
+            }
+
+            if (empty($reason)) {
+                $reason = 'No reason provided';
+            }
+
+            $stmt = $pdo->prepare("UPDATE partner_package_uploads SET upload_status = 'rejected', is_active = 0, remarks = COALESCE(CONCAT(remarks, '\n', ?), ?) , updated_at = NOW() WHERE id = ?" );
+            if ($stmt->execute([$reason, $reason, $package_id]) && $stmt->rowCount() > 0) {
+                echo json_encode(['success' => true, 'message' => 'Package rejected.']);
+            } else {
+                echo json_encode(['success' => false, 'message' => 'Unable to reject package.']);
+            }
+            break;
+
+        case 'get_partner_applications':
+            debugLog("Processing get_partner_applications");
+
+            if (!hasPermission(['super_admin', 'admin'], $admin_role)) {
+                debugLog("Permission denied for get_partner_applications - role: " . $admin_role);
+                echo json_encode(['success' => false, 'message' => 'Permission denied']);
+                break;
+            }
+
+            $stmt = $pdo->prepare("SELECT id, company_name, contact_person, email, phone, business_type, website, status, rejection_reason, approved_at, created_at FROM partner_applications ORDER BY created_at DESC");
+            $stmt->execute();
+            $applications = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            echo json_encode(['success' => true, 'data' => $applications]);
+            break;
+
+        case 'get_approved_partners':
+            debugLog("Processing get_approved_partners");
+
+            if (!hasPermission(['super_admin', 'admin'], $admin_role)) {
+                debugLog("Permission denied for get_approved_partners - role: " . $admin_role);
+                echo json_encode(['success' => false, 'message' => 'Permission denied']);
+                break;
+            }
+
+            $stmt = $pdo->prepare("SELECT id, company_name, contact_person, email, phone, business_type, website, approved_at, created_at, is_banned, ban_until FROM partner_applications WHERE status = 'approved' ORDER BY approved_at DESC");
+            $stmt->execute();
+            $approvedPartners = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            echo json_encode(['success' => true, 'data' => $approvedPartners]);
+            break;
+
+        case 'approve_partner_application':
+            debugLog("Processing approve_partner_application for ID: " . ($_POST['request_id'] ?? 'null'));
+            if (!hasPermission(['super_admin', 'admin'], $admin_role)) {
+                debugLog("Permission denied for approve_partner_application - role: " . $admin_role);
+                echo json_encode(['success' => false, 'message' => 'Permission denied']);
+                break;
+            }
+
+            $request_id = intval($_POST['request_id'] ?? 0);
+            if ($request_id <= 0) {
+                echo json_encode(['success' => false, 'message' => 'Invalid request ID']);
+                break;
+            }
+
+            $stmt = $pdo->prepare("UPDATE partner_applications SET status = 'approved', approved_at = NOW(), rejection_reason = NULL WHERE id = ? AND status = 'pending'");
+            if ($stmt->execute([$request_id]) && $stmt->rowCount() > 0) {
+                echo json_encode(['success' => true, 'message' => 'Partner application approved']);
+            } else {
+                echo json_encode(['success' => false, 'message' => 'Unable to approve application or already processed']);
+            }
+            break;
+
+        case 'reject_partner_application':
+            debugLog("Processing reject_partner_application for ID: " . ($_POST['request_id'] ?? 'null'));
+            if (!hasPermission(['super_admin', 'admin'], $admin_role)) {
+                debugLog("Permission denied for reject_partner_application - role: " . $admin_role);
+                echo json_encode(['success' => false, 'message' => 'Permission denied']);
+                break;
+            }
+
+            $request_id = intval($_POST['request_id'] ?? 0);
+            $reason = trim($_POST['reason'] ?? '');
+            if ($request_id <= 0) {
+                echo json_encode(['success' => false, 'message' => 'Invalid request ID']);
+                break;
+            }
+
+            if (empty($reason)) {
+                echo json_encode(['success' => false, 'message' => 'A rejection reason is required']);
+                break;
+            }
+
+            $stmt = $pdo->prepare("UPDATE partner_applications SET status = 'rejected', rejection_reason = ?, approved_at = NULL WHERE id = ? AND status = 'pending'");
+            if ($stmt->execute([$reason, $request_id]) && $stmt->rowCount() > 0) {
+                echo json_encode(['success' => true, 'message' => 'Partner application rejected']);
+            } else {
+                echo json_encode(['success' => false, 'message' => 'Unable to reject application or already processed']);
+            }
+            break;
+
         case 'update_admin_role':
             debugLog("Processing update_admin_role");
 
@@ -1752,6 +1923,46 @@ EOF;
                 echo json_encode(['success' => true, 'message' => 'Request rejected successfully']);
             } else {
                 echo json_encode(['success' => false, 'message' => 'Failed to reject request']);
+            }
+            break;
+
+        case 'ban_partner':
+            if (!hasPermission(['super_admin', 'admin'], $admin_role)) {
+                echo json_encode(['success' => false, 'message' => 'Permission denied']); break;
+            }
+            $partner_id = intval($_POST['partner_id'] ?? 0);
+            $ban_action = trim($_POST['ban_action'] ?? '');
+            if ($partner_id <= 0) { echo json_encode(['success' => false, 'message' => 'Invalid partner ID']); break; }
+            if ($ban_action === 'unban') {
+                $stmt = $pdo->prepare("UPDATE partner_applications SET is_banned = 0, ban_until = NULL WHERE id = ?");
+                $stmt->execute([$partner_id]);
+                echo json_encode(['success' => true, 'message' => 'Partner has been unbanned successfully.']);
+            } else {
+                $ban_days = isset($_POST['ban_days']) ? intval($_POST['ban_days']) : null;
+                if ($ban_days !== null && $ban_days > 0) {
+                    $ban_until = date('Y-m-d H:i:s', strtotime("+{$ban_days} days"));
+                    $stmt = $pdo->prepare("UPDATE partner_applications SET is_banned = 1, ban_until = ? WHERE id = ?");
+                    $stmt->execute([$ban_until, $partner_id]);
+                    echo json_encode(['success' => true, 'message' => "Partner banned for {$ban_days} day(s)."]);
+                } else {
+                    $stmt = $pdo->prepare("UPDATE partner_applications SET is_banned = 1, ban_until = NULL WHERE id = ?");
+                    $stmt->execute([$partner_id]);
+                    echo json_encode(['success' => true, 'message' => 'Partner has been permanently banned.']);
+                }
+            }
+            break;
+
+        case 'delete_partner':
+            if (!hasPermission(['super_admin', 'admin'], $admin_role)) {
+                echo json_encode(['success' => false, 'message' => 'Permission denied']); break;
+            }
+            $partner_id = intval($_POST['partner_id'] ?? 0);
+            if ($partner_id <= 0) { echo json_encode(['success' => false, 'message' => 'Invalid partner ID']); break; }
+            $stmt = $pdo->prepare("DELETE FROM partner_applications WHERE id = ?");
+            if ($stmt->execute([$partner_id])) {
+                echo json_encode(['success' => true, 'message' => 'Partner account deleted successfully.']);
+            } else {
+                echo json_encode(['success' => false, 'message' => 'Failed to delete partner.']);
             }
             break;
 

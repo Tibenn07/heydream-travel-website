@@ -2541,11 +2541,9 @@ if ($selected_dest_name) {
                     <div class="booking-summary" style="margin-bottom: 20px; background: #f9f9f9;">
                         <div class="summary-item"><span>Price per Person:</span><span>${destination.currency || '₱'}${formatNumber(destination.price)}</span></div>
                         <div class="summary-item"><span>Travelers:</span><span id="localStepSummaryTravelers">1</span></div>
+                        <div class="summary-item discounted" id="localStepSummaryDiscountedRow" style="display:none;"><span>Discounted:</span><span id="localStepSummaryDiscounted">₱0</span></div>
                         <div class="summary-item total"><span>Total:</span><span id="localStepSummaryTotal">${destination.currency || '₱'}${formatNumber(destination.price)}</span></div>
                     </div>
-
-                    <!-- Voucher Section (Step 2) -->
-                    <div id="localStep2VoucherArea" style="margin-bottom:18px;"></div>
 
                     <div class="form-row">
                         <div class="form-group"><label>Full Name *</label><input type="text" id="localStepFullName" placeholder="Enter your full name" value="${window.currentFullName || ''}"></div>
@@ -2554,6 +2552,8 @@ if ($selected_dest_name) {
                         <div class="form-group"><label>Phone *</label><input type="tel" id="localStepPhone" placeholder="+63 912 345 6789"></div>
                         <div class="form-group"><label>Travelers *</label><input type="number" id="localStepTravelers" min="1" value="1" onchange="updateLocalStepTotal(${destination.price})"></div>
                     </div>
+                    <!-- Voucher Section (Step 2) -->
+                    <div id="localStep2VoucherArea" style="margin-bottom:18px;"></div>
                     <div class="form-group"><label>Special Requests</label><textarea id="localStepRequests" rows="2" placeholder="Any special requirements, dietary restrictions, etc."></textarea></div>
                     
                     <div id="localStep2Errors" class="error-message" style="display: none;"></div>

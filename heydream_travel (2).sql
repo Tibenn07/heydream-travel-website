@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Jun 15, 2026 at 04:52 AM
+-- Generation Time: Jul 04, 2026 at 07:45 PM
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.2.12
 
@@ -52,7 +52,7 @@ INSERT INTO `admin_registration_requests` (`id`, `username`, `email`, `full_name
 (21, 'kos', 'jkasuela@gmail.com', 'John Kostya Asuela', '$2y$10$d67aJCwgvaVmauwtr59V/u6g4tGEOfIX9cfpwanqNQRbW4s4yItxK', 'sales', '1722ce08ae025289b5a266901cffafcfac28566dfe64759b9bcafe1b387f9a27', 'approved', '2026-05-26 05:58:58', '2026-05-26 08:49:42', 1, NULL),
 (23, 'gela', 'gelabean05@gmail.com', 'Angela Lou  Dela Cruz', '$2y$10$o.opNFFsOEj.7GjJNCLCxO0avVyGnqussEhXzna3SYk4N9niF5fCG', 'admin', '982c9cba9ac37be96d074be15c859db6f89ff84e3fbdbd96449c06923c5dcdde', 'approved', '2026-05-26 08:43:37', '2026-06-01 11:36:23', 1, NULL),
 (25, 'hmm', 'hmm11@gmail.com', 'hmmm', '$2y$10$aDnmIfk9JrhOvh6vQJzRRejczvRA08gdpuh4Ze7J5vXyNcavz0s8O', 'sales', '99ea9f506a3de6e21d904cd20908968ceb83e572587642c52347b0df07e04d07', 'rejected', '2026-06-01 12:05:28', '2026-06-01 12:17:59', 1, ''),
-(26, 'Gelo', 'angelomarc@gmail.com', 'Angelo', '$2y$10$S1cHbF6gsBWjoTzTMEPgAuP1qIYrlSbh07w59mOktFV3uEaztcCXK', 'sales', 'ea7f7d8f18b825bba887319086d3d972af954c9180cb7b49b59b8d9d42e2ecf8', 'pending', '2026-06-01 12:06:33', NULL, NULL, NULL);
+(26, 'Gelo', 'angelomarc@gmail.com', 'Angelo', '$2y$10$S1cHbF6gsBWjoTzTMEPgAuP1qIYrlSbh07w59mOktFV3uEaztcCXK', 'sales', 'ea7f7d8f18b825bba887319086d3d972af954c9180cb7b49b59b8d9d42e2ecf8', 'rejected', '2026-06-01 12:06:33', '2026-07-01 06:16:59', 1, '');
 
 -- --------------------------------------------------------
 
@@ -82,7 +82,7 @@ CREATE TABLE `admin_users` (
 --
 
 INSERT INTO `admin_users` (`id`, `username`, `email`, `password`, `full_name`, `role`, `is_active`, `approved`, `last_login`, `reset_token`, `reset_token_expires`, `last_password_reset`, `created_at`, `updated_at`) VALUES
-(1, 'superadmin', 'heydreamtravelandtours', '$2y$10$egjHNeezJpc/I3ezli1jJuuRWBa9JMbkL7gd2nfKMMWFv5/ZLdaSe', 'Super Administrator', 'super_admin', 1, 1, '2026-06-11 13:15:01', NULL, NULL, NULL, '2026-03-23 05:21:35', '2026-06-11 05:15:01'),
+(1, 'superadmin', 'heydreamtravelandtours@gmail.com', '$2y$10$x.EbJLOSYEG8D.H9guUTm.u3s9kwCqYpT4sc1Tg0P54O7nGGdR4G6', 'Super Administrator', 'super_admin', 1, 1, '2026-07-04 22:53:08', NULL, NULL, '2026-07-01 14:16:35', '2026-03-23 05:21:35', '2026-07-04 14:53:08'),
 (7, 'Tibenn', 'rebancossteven35@gmail.com', '$2y$10$Dd8r.3wclnUSY.1hIf04nuAw3QuAr4II5Wxzxekfn4sdKlj3sP7iW', 'Steven Rebancos', 'admin', 1, 1, '2026-05-19 11:22:03', 'c6e86cb2600a91f352cce8dcdf3048ee901c1db8ada0128231a20e3d7d940ee29d447fc021c9cb1c4eb98f17f2eca784d3e4', '2026-04-17 04:56:41', '2026-04-17 08:48:42', '2026-03-25 02:38:28', '2026-06-01 12:21:14'),
 (8, 'Kostya', 'johnkostya@gmail.com', '$2y$10$ni3cdgdJ5R3gg2G9VV4xue89z363o63I.AUDPuHxuVY/v8Ppr/tfy', 'John Kostya Asuela', 'editor', 0, 0, '2026-03-25 10:55:26', NULL, NULL, NULL, '2026-03-25 02:40:46', '2026-05-25 08:10:49'),
 (11, 'Angela Lou', 'angelalou@gmail.com', '$2y$10$R3mHFlbfGhECqa1I7FyYkeLO5zjJfv1aNkJspDH0hNJXsAUZtyT6O', 'Angela Lou Dela Cruz', 'sales', 0, 0, '2026-03-29 13:23:06', NULL, NULL, NULL, '2026-03-29 05:22:41', '2026-05-26 08:30:14'),
@@ -111,59 +111,17 @@ CREATE TABLE `ai_chat_messages` (
 --
 
 INSERT INTO `ai_chat_messages` (`id`, `session_id`, `sender`, `message`, `timestamp`, `admin_seen`) VALUES
-(639, 'hd_float_t4etlmscwuo_1779200190412', 'ai', '👋 Hi there Steven Rebancos! Welcome to <strong>HeyDream Travel and Tours!</strong><br>I\'m <strong>HeyDream AI</strong>, your personal travel assistant. 😊<br><br>How can I help you today? Do you have a destination in mind, or would you like to know more about our packages? ✈️🌏', '2026-05-19 16:00:46', 0),
-(640, 'hd_float_t4etlmscwuo_1779200190412', 'ai', '👋 Hi there Steven Rebancos! Welcome to <strong>HeyDream Travel and Tours!</strong><br>I\'m <strong>HeyDream AI</strong>, your personal travel assistant. 😊<br><br>How can I help you today? Do you have a destination in mind, or would you like to know more about our packages? ✈️🌏', '2026-05-19 16:00:47', 0),
-(641, 'hd_float_t4etlmscwuo_1779200190412', 'customer', 'hello', '2026-05-19 16:00:50', 1),
-(642, 'hd_float_t4etlmscwuo_1779200190412', 'ai', 'Hello again, Steven Rebancos! 👋 I\'m excited to help you plan your next adventure. What travel inspiration can I provide for you today?', '2026-05-19 16:00:59', 0),
-(644, 'hd_float_t4etlmscwuo_1779200190412', 'customer', 'How can I pay for the package?', '2026-05-20 02:18:00', 1),
-(645, 'hd_float_t4etlmscwuo_1779200190412', 'ai', 'You have several convenient ways to pay for your dream package! We accept secure payments via GCash, PayMaya, BPI, BDO, and Metrobank transfers. You can also use your Visa, Mastercard, or JCB credit/debit cards directly through our website checkout.', '2026-05-20 02:18:04', 0),
-(647, 'hd_float_jvhhk3kpcle_1779180804654', 'ai', '👋 Hi there! Welcome to <strong>HeyDream Travel and Tours!</strong><br>I\'m <strong>HeyDream AI</strong>, your personal travel assistant. 😊<br><br>How can I help you today? Do you have a destination in mind, or would you like to know more about our packages? ✈️🌏', '2026-05-20 02:31:57', 0),
-(648, 'hd_form_i0dnw4bl4_1779204896442', 'ai', '👋 Hi there! Welcome to <strong>HeyDream Travel and Tours!</strong><br>I\'m <strong>HeyDream AI</strong>, your personal travel assistant. 😊<br><br>How can I help you today? Do you have a destination in mind, or would you like to know more about our packages? ✈️🌏', '2026-05-20 02:32:22', 0),
-(649, 'hd_float_jvhhk3kpcle_1779180804654', 'ai', '👋 Hi there! Welcome to <strong>HeyDream Travel and Tours!</strong><br>I\'m <strong>HeyDream AI</strong>, your personal travel assistant. 😊<br><br>How can I help you today? Do you have a destination in mind, or would you like to know more about our packages? ✈️🌏', '2026-05-20 02:33:12', 0),
-(650, 'hd_form_i0dnw4bl4_1779204896442', 'ai', '👋 Hi there! Welcome to <strong>HeyDream Travel and Tours!</strong><br>I\'m <strong>HeyDream AI</strong>, your personal travel assistant. 😊<br><br>How can I help you today? Do you have a destination in mind, or would you like to know more about our packages? ✈️🌏', '2026-05-20 02:34:35', 0),
-(651, 'hd_float_jvhhk3kpcle_1779180804654', 'ai', '👋 Hi there! Welcome to <strong>HeyDream Travel and Tours!</strong><br>I\'m <strong>HeyDream AI</strong>, your personal travel assistant. 😊<br><br>How can I help you today? Do you have a destination in mind, or would you like to know more about our packages? ✈️🌏', '2026-05-20 02:35:01', 0),
-(662, 'hd_idx_s8f3pb2z0_1779255911889', 'ai', '👋 Hi there! Welcome to <strong>HeyDream Travel and Tours!</strong><br>I\'m <strong>HeyDream AI</strong>, your personal travel assistant. 😊<br><br>How can I help you today? Do you have a destination in mind, or would you like to know more about our packages? ✈️🌏', '2026-05-20 05:45:12', 0),
-(663, 'hd_idx_s8f3pb2z0_1779255911889', 'customer', 'What destinations do you offer?', '2026-05-20 05:45:42', 1),
-(664, 'hd_idx_s8f3pb2z0_1779255911889', 'ai', 'We\'d love to help you explore the world! HeyDream Travel and Tours offers a variety of breathtaking destinations, perfect for every kind of traveler.<br><br>\n\n<strong>Local Gems in the Philippines:</strong><br>\n1.  <strong>Boracay</strong><br>\n    <img src=\\', '2026-05-20 05:45:49', 0),
-(665, 'hd_idx_s8f3pb2z0_1779255911889', 'customer', 'how do I book?', '2026-05-20 05:46:14', 1),
-(666, 'hd_idx_s8f3pb2z0_1779255911889', 'ai', 'To book a package, get a custom itinerary, or customize your dream trip, please visit our <a href=\'inquiry/inquire.php\' style=\'color:#003580; font-weight:bold; text-decoration:underline;\'>Inquiry Page</a>. This is where our team can best assist you with your booking needs!\n\nWhat destination are you dreaming of for your next adventure?\nWould you like to see our featured local destinations?\nCan I help you with visa assistance information?', '2026-05-20 05:46:17', 0),
-(673, 'hd_idx_s8f3pb2z0_1779255911889', 'ai', '👋 Hi there! Welcome to <strong>HeyDream Travel and Tours!</strong><br>I\'m <strong>HeyDream AI</strong>, your personal travel assistant. 😊<br><br>How can I help you today? Do you have a destination in mind, or would you like to know more about our packages? ✈️🌏', '2026-05-20 06:00:40', 0),
-(681, 'test_session_12345', 'customer', 'Do you have local tour packages?', '2026-05-20 06:57:29', 1),
-(682, 'test_session_12345', 'ai', 'Yes, Guest! We have amazing local packages to the most beautiful islands in the Philippines. Here are our top featured local destinations:<br><br><strong>1. Boracay</strong><br><img src=\"images/boracay.jpg\" alt=\"Boracay\" style=\"width:100%; max-width:260px; border-radius:10px; margin:6px 0; display:block; border: 1.5px solid #fff; box-shadow: 0 4px 10px rgba(0,0,0,0.12);\">White-sand beaches, water sports, and vibrant nightlife.<br><br><strong>2. Siargao</strong><br><img src=\"images/siargao.jpg\" alt=\"Siargao\" style=\"width:100%; max-width:260px; border-radius:10px; margin:6px 0; display:block; border: 1.5px solid #fff; box-shadow: 0 4px 10px rgba(0,0,0,0.12);\">The surf capital of the Philippines with breathtaking island hopping.<br><br><strong>3. El Nido</strong><br><img src=\"images/elnido.jpg\" alt=\"El Nido\" style=\"width:100%; max-width:260px; border-radius:10px; margin:6px 0; display:block; border: 1.5px solid #fff; box-shadow: 0 4px 10px rgba(0,0,0,0.12);\">Stunning lagoons and a true pristine island paradise.<br><br>Ready to plan your getaway? You can easily customize your trip on our <a href=\'inquiry/inquire.php\' style=\'color:#003580; font-weight:bold; text-decoration:underline;\'>Inquiry Page</a>!', '2026-05-20 06:57:34', 0),
-(691, 'hd_form_uqadoukhp_1779181288137', 'customer', 'How do I fill out this inquiry form?', '2026-05-20 08:07:25', 1),
-(692, 'hd_form_uqadoukhp_1779181288137', 'ai', 'Filling out our Inquiry Form is incredibly easy, Guest! Just enter your basic contact info, preferred travel dates, and destination. <br><br>Don\'t worry—no passport details are needed right now, and you can add any custom requests in the \'Special Requests\' field. Once you click <strong>\'Plan My Trip\'</strong>, our experts will send you a free, personalized quote within minutes!', '2026-05-20 08:07:28', 0),
-(693, 'hd_form_uqadoukhp_1779181288137', 'customer', 'What destinations can I choose?', '2026-05-20 08:50:34', 1),
-(694, 'hd_form_uqadoukhp_1779181288137', 'ai', 'We offer a beautiful selection of handpicked destinations, Guest! Here are our most popular packages:<br><br><strong>🏝️ Local Paradises (Philippines):</strong><br>• <strong>Boracay:</strong> White-sand beaches and vibrant nightlife.<br><img src=\"../images/boracay.jpg\" alt=\"Boracay\" style=\"width:100%; max-width:260px; border-radius:10px; margin:6px 0; display:block; border: 1.5px solid #fff; box-shadow: 0 4px 10px rgba(0,0,0,0.12);\"><br>• <strong>Siargao:</strong> The ultimate surf capital and island-hopping haven.<br><img src=\"../images/siargao.jpg\" alt=\"Siargao\" style=\"width:100%; max-width:260px; border-radius:10px; margin:6px 0; display:block; border: 1.5px solid #fff; box-shadow: 0 4px 10px rgba(0,0,0,0.12);\"><br>• <strong>El Nido:</strong> Stunning limestone lagoons and pristine beaches.<br><img src=\"../images/elnido.jpg\" alt=\"El Nido\" style=\"width:100%; max-width:260px; border-radius:10px; margin:6px 0; display:block; border: 1.5px solid #fff; box-shadow: 0 4px 10px rgba(0,0,0,0.12);\"><br><br><strong>✈️ Dream Foreign Gateways:</strong><br>• <strong>Japan:</strong> Cherry blossoms, incredible food, and modern culture.<br><img src=\"../images/japan.jpg\" alt=\"Japan\" style=\"width:100%; max-width:260px; border-radius:10px; margin:6px 0; display:block; border: 1.5px solid #fff; box-shadow: 0 4px 10px rgba(0,0,0,0.12);\"><br>• <strong>Korea:</strong> K-culture, street food, and historic palaces.<br><img src=\"../images/korea.jpg\" alt=\"Korea\" style=\"width:100%; max-width:260px; border-radius:10px; margin:6px 0; display:block; border: 1.5px solid #fff; box-shadow: 0 4px 10px rgba(0,0,0,0.12);\"><br>• <strong>Vietnam:</strong> Ha Long Bay and delicious local cuisine.<br><img src=\"../images/vietnam.jpg\" alt=\"Vietnam\" style=\"width:100%; max-width:260px; border-radius:10px; margin:6px 0; display:block; border: 1.5px solid #fff; box-shadow: 0 4px 10px rgba(0,0,0,0.12);\"><br><br>If you want to go somewhere else, just select \"Others\" on the form and write your dream destination in the special requests!', '2026-05-20 08:50:39', 0),
-(695, 'hd_form_08bxc5nm1_1779237708230', 'ai', '👋 Hi there! Welcome to <strong>HeyDream Travel and Tours!</strong><br>I\'m <strong>HeyDream AI</strong>, your personal travel assistant. 😊<br><br>How can I help you today? Do you have a destination in mind, or would you like to know more about our packages? ✈️🌏', '2026-05-21 01:15:20', 0),
-(696, 'hd_idx_ako7c8krd_1779325141197', 'ai', '👋 Hi there! Welcome to <strong>HeyDream Travel and Tours!</strong><br>I\'m <strong>HeyDream AI</strong>, your personal travel assistant. 😊<br><br>How can I help you today? Do you have a destination in mind, or would you like to know more about our packages? ✈️🌏', '2026-05-21 02:49:40', 0),
-(697, 'hd_idx_01vwol9w9_1779411183512', 'ai', '👋 Hi there! Welcome to <strong>HeyDream Travel and Tours!</strong><br>I\'m <strong>HeyDream AI</strong>, your personal travel assistant. 😊<br><br>How can I help you today? Do you have a destination in mind, or would you like to know more about our packages? ✈️🌏', '2026-05-22 00:53:03', 0),
-(698, 'hd_idx_qvzdx5iia_1779411283534', 'ai', '👋 Hi there! Welcome to <strong>HeyDream Travel and Tours!</strong><br>I\'m <strong>HeyDream AI</strong>, your personal travel assistant. 😊<br><br>How can I help you today? Do you have a destination in mind, or would you like to know more about our packages? ✈️🌏', '2026-05-22 00:54:43', 0),
-(699, 'hd_idx_ako7c8krd_1779325141197', 'ai', '👋 Hi there! Welcome to <strong>HeyDream Travel and Tours!</strong><br>I\'m <strong>HeyDream AI</strong>, your personal travel assistant. 😊<br><br>How can I help you today? Do you have a destination in mind, or would you like to know more about our packages? ✈️🌏', '2026-05-22 01:40:58', 0),
-(700, 'hd_idx_ltndezg93_1779673189255', 'ai', '👋 Hi there! Welcome to <strong>HeyDream Travel and Tours!</strong><br>I\'m <strong>HeyDream AI</strong>, your personal travel assistant. 😊<br><br>How can I help you today? Do you have a destination in mind, or would you like to know more about our packages? ✈️🌏', '2026-05-25 03:58:55', 0),
-(701, 'hd_idx_ltndezg93_1779673189255', 'ai', '👋 Hi there! Welcome to <strong>HeyDream Travel and Tours!</strong><br>I\'m <strong>HeyDream AI</strong>, your personal travel assistant. 😊<br><br>How can I help you today? Do you have a destination in mind, or would you like to know more about our packages? ✈️🌏', '2026-05-25 06:08:41', 0),
-(702, 'hd_idx_ltndezg93_1779673189255', 'ai', '👋 Hi there! Welcome to <strong>HeyDream Travel and Tours!</strong><br>I\'m <strong>HeyDream AI</strong>, your personal travel assistant. 😊<br><br>How can I help you today? Do you have a destination in mind, or would you like to know more about our packages? ✈️🌏', '2026-05-25 06:35:05', 0),
-(703, 'hd_idx_ltndezg93_1779673189255', 'ai', '👋 Hi there! Welcome to <strong>HeyDream Travel and Tours!</strong><br>I\'m <strong>HeyDream AI</strong>, your personal travel assistant. 😊<br><br>How can I help you today? Do you have a destination in mind, or would you like to know more about our packages? ✈️🌏', '2026-05-25 06:41:14', 0),
-(704, 'hd_idx_ltndezg93_1779673189255', 'ai', '👋 Hi there! Welcome to <strong>HeyDream Travel and Tours!</strong><br>I\'m <strong>HeyDream AI</strong>, your personal travel assistant. 😊<br><br>How can I help you today? Do you have a destination in mind, or would you like to know more about our packages? ✈️🌏', '2026-05-25 06:44:19', 0),
-(705, 'hd_idx_ltndezg93_1779673189255', 'ai', '👋 Hi there! Welcome to <strong>HeyDream Travel and Tours!</strong><br>I\'m <strong>HeyDream AI</strong>, your personal travel assistant. 😊<br><br>How can I help you today? Do you have a destination in mind, or would you like to know more about our packages? ✈️🌏', '2026-05-25 06:50:37', 0),
-(706, 'hd_idx_ltndezg93_1779673189255', 'ai', '👋 Hi there! Welcome to <strong>HeyDream Travel and Tours!</strong><br>I\'m <strong>HeyDream AI</strong>, your personal travel assistant. 😊<br><br>How can I help you today? Do you have a destination in mind, or would you like to know more about our packages? ✈️🌏', '2026-05-25 07:18:33', 0),
-(707, 'hd_idx_ltndezg93_1779673189255', 'ai', '👋 Hi there! Welcome to <strong>HeyDream Travel and Tours!</strong><br>I\'m <strong>HeyDream AI</strong>, your personal travel assistant. 😊<br><br>How can I help you today? Do you have a destination in mind, or would you like to know more about our packages? ✈️🌏', '2026-05-25 07:41:28', 0),
-(708, 'hd_idx_ltndezg93_1779673189255', 'ai', '👋 Hi there! Welcome to <strong>HeyDream Travel and Tours!</strong><br>I\'m <strong>HeyDream AI</strong>, your personal travel assistant. 😊<br><br>How can I help you today? Do you have a destination in mind, or would you like to know more about our packages? ✈️🌏', '2026-05-25 07:54:40', 0),
-(709, 'hd_idx_ltndezg93_1779673189255', 'ai', '👋 Hi there! Welcome to <strong>HeyDream Travel and Tours!</strong><br>I\'m <strong>HeyDream AI</strong>, your personal travel assistant. 😊<br><br>How can I help you today? Do you have a destination in mind, or would you like to know more about our packages? ✈️🌏', '2026-05-25 08:04:43', 0),
-(710, 'hd_idx_ltndezg93_1779673189255', 'ai', '👋 Hi there! Welcome to <strong>HeyDream Travel and Tours!</strong><br>I\'m <strong>HeyDream AI</strong>, your personal travel assistant. 😊<br><br>How can I help you today? Do you have a destination in mind, or would you like to know more about our packages? ✈️🌏', '2026-05-26 03:40:11', 0),
-(711, 'hd_idx_ltndezg93_1779673189255', 'ai', '👋 Hi there! Welcome to <strong>HeyDream Travel and Tours!</strong><br>I\'m <strong>HeyDream AI</strong>, your personal travel assistant. 😊<br><br>How can I help you today? Do you have a destination in mind, or would you like to know more about our packages? ✈️🌏', '2026-05-26 08:17:07', 0),
-(712, 'hd_idx_zy1m40ozi_1779689878511', 'ai', '👋 Hi there! Welcome to <strong>HeyDream Travel and Tours!</strong><br>I\'m <strong>HeyDream AI</strong>, your personal travel assistant. 😊<br><br>How can I help you today? Do you have a destination in mind, or would you like to know more about our packages? ✈️🌏', '2026-05-28 05:29:33', 0),
-(713, 'hd_idx_2kfpuc4kf_1779952682369', 'ai', '👋 Hi there! Welcome to <strong>HeyDream Travel and Tours!</strong><br>I\'m <strong>HeyDream AI</strong>, your personal travel assistant. 😊<br><br>How can I help you today? Do you have a destination in mind, or would you like to know more about our packages? ✈️🌏', '2026-05-28 07:18:03', 0),
-(714, 'hd_idx_ltndezg93_1779673189255', 'ai', '👋 Hi there! Welcome to <strong>HeyDream Travel and Tours!</strong><br>I\'m <strong>HeyDream AI</strong>, your personal travel assistant. 😊<br><br>How can I help you today? Do you have a destination in mind, or would you like to know more about our packages? ✈️🌏', '2026-05-29 01:22:33', 0),
-(715, 'hd_idx_ltndezg93_1779673189255', 'ai', '👋 Hi there! Welcome to <strong>HeyDream Travel and Tours!</strong><br>I\'m <strong>HeyDream AI</strong>, your personal travel assistant. 😊<br><br>How can I help you today? Do you have a destination in mind, or would you like to know more about our packages? ✈️🌏', '2026-05-29 06:27:53', 0),
-(716, 'hd_idx_ltndezg93_1779673189255', 'ai', '👋 Hi there! Welcome to <strong>HeyDream Travel and Tours!</strong><br>I\'m <strong>HeyDream AI</strong>, your personal travel assistant. 😊<br><br>How can I help you today? Do you have a destination in mind, or would you like to know more about our packages? ✈️🌏', '2026-06-01 00:16:43', 0),
-(717, 'hd_idx_ltndezg93_1779673189255', 'ai', '👋 Hi there! Welcome to <strong>HeyDream Travel and Tours!</strong><br>I\'m <strong>HeyDream AI</strong>, your personal travel assistant. 😊<br><br>How can I help you today? Do you have a destination in mind, or would you like to know more about our packages? ✈️🌏', '2026-06-01 01:37:48', 0),
-(718, 'hd_idx_ltndezg93_1779673189255', 'ai', '👋 Hi there! Welcome to <strong>HeyDream Travel and Tours!</strong><br>I\'m <strong>HeyDream AI</strong>, your personal travel assistant. 😊<br><br>How can I help you today? Do you have a destination in mind, or would you like to know more about our packages? ✈️🌏', '2026-06-01 03:16:01', 0),
-(719, 'hd_idx_ltndezg93_1779673189255', 'ai', '👋 Hi there! Welcome to <strong>HeyDream Travel and Tours!</strong><br>I\'m <strong>HeyDream AI</strong>, your personal travel assistant. 😊<br><br>How can I help you today? Do you have a destination in mind, or would you like to know more about our packages? ✈️🌏', '2026-06-01 03:17:57', 0),
-(720, 'hd_float_zxdhpaydil_1779237139818', 'ai', '👋 Hi there! Welcome to <strong>HeyDream Travel and Tours!</strong><br>I\'m <strong>HeyDream AI</strong>, your personal travel assistant. 😊<br><br>How can I help you today? Do you have a destination in mind, or would you like to know more about our packages? ✈️🌏', '2026-06-01 03:35:40', 0),
-(721, 'hd_idx_ltndezg93_1779673189255', 'ai', '👋 Hi there! Welcome to <strong>HeyDream Travel and Tours!</strong><br>I\'m <strong>HeyDream AI</strong>, your personal travel assistant. 😊<br><br>How can I help you today? Do you have a destination in mind, or would you like to know more about our packages? ✈️🌏', '2026-06-01 05:15:26', 0),
-(722, 'hd_idx_ltndezg93_1779673189255', 'ai', '👋 Hi there! Welcome to <strong>HeyDream Travel and Tours!</strong><br>I\'m <strong>HeyDream AI</strong>, your personal travel assistant. 😊<br><br>How can I help you today? Do you have a destination in mind, or would you like to know more about our packages? ✈️🌏', '2026-06-01 08:15:19', 0),
-(723, 'hd_idx_8u4afqkxx_1779411800353', 'ai', '👋 Hi there! Welcome to <strong>HeyDream Travel and Tours!</strong><br>I\'m <strong>HeyDream AI</strong>, your personal travel assistant. 😊<br><br>How can I help you today? Do you have a destination in mind, or would you like to know more about our packages? ✈️🌏', '2026-06-02 03:33:17', 0),
-(724, 'hd_idx_lbw6jywsu_1779247727906', 'ai', '👋 Hi there! Welcome to <strong>HeyDream Travel and Tours!</strong><br>I\'m <strong>HeyDream AI</strong>, your personal travel assistant. 😊<br><br>How can I help you today? Do you have a destination in mind, or would you like to know more about our packages? ✈️🌏', '2026-06-02 08:25:25', 0);
+(737, 'hd_idx_8u4afqkxx_1779411800353', 'ai', '👋 Hi there! Welcome to <strong>HeyDream Travel and Tours!</strong><br>I\'m <strong>HeyDream AI</strong>, your personal travel assistant. 😊<br><br>How can I help you today? Do you have a destination in mind, or would you like to know more about our packages? ✈️🌏', '2026-06-30 03:06:32', 0),
+(738, 'hd_idx_8u4afqkxx_1779411800353', 'ai', '👋 Hi there! Welcome to <strong>HeyDream Travel and Tours!</strong><br>I\'m <strong>HeyDream AI</strong>, your personal travel assistant. 😊<br><br>How can I help you today? Do you have a destination in mind, or would you like to know more about our packages? ✈️🌏', '2026-06-30 03:25:15', 0),
+(739, 'hd_idx_8u4afqkxx_1779411800353', 'ai', '👋 Hi there! Welcome to <strong>HeyDream Travel and Tours!</strong><br>I\'m <strong>HeyDream AI</strong>, your personal travel assistant. 😊<br><br>How can I help you today? Do you have a destination in mind, or would you like to know more about our packages? ✈️🌏', '2026-06-30 05:27:51', 0),
+(740, 'hd_idx_8u4afqkxx_1779411800353', 'ai', '👋 Hi there! Welcome to <strong>HeyDream Travel and Tours!</strong><br>I\'m <strong>HeyDream AI</strong>, your personal travel assistant. 😊<br><br>How can I help you today? Do you have a destination in mind, or would you like to know more about our packages? ✈️🌏', '2026-07-01 03:40:23', 0),
+(741, 'hd_idx_8u4afqkxx_1779411800353', 'customer', 'how are you?', '2026-07-01 03:40:32', 1),
+(742, 'hd_idx_8u4afqkxx_1779411800353', 'ai', 'Hello Guest! I\'m doing absolutely wonderful, thank you for asking! 😊 I am fully charged and ready to help you plan your next dream getaway.<br><br>Where are you planning to travel next? I\'d love to share some amazing destinations with you!', '2026-07-01 03:40:35', 0),
+(743, 'hd_idx_8u4afqkxx_1779411800353', 'customer', 'what are the best packages that available here in website?', '2026-07-01 03:40:54', 1),
+(744, 'hd_idx_8u4afqkxx_1779411800353', 'ai', '👋 Hi there! Welcome to <strong>HeyDream Travel and Tours!</strong><br>I\'m <strong>HeyDream AI</strong>, your personal travel assistant. 😊<br><br>How can I help you today? Do you have a destination in mind, or would you like to know more about our packages? ✈️🌏', '2026-07-01 03:49:02', 0),
+(745, 'hd_form_qzmxqnd51_1779411915552', 'ai', '👋 Hi there! Welcome to <strong>HeyDream Travel and Tours!</strong><br>I\'m <strong>HeyDream AI</strong>, your personal travel assistant. 😊<br><br>How can I help you today? Do you have a destination in mind, or would you like to know more about our packages? ✈️🌏', '2026-07-01 03:50:03', 0),
+(746, 'hd_idx_lbw6jywsu_1779247727906', 'ai', '👋 Hi there! Welcome to <strong>HeyDream Travel and Tours!</strong><br>I\'m <strong>HeyDream AI</strong>, your personal travel assistant. 😊<br><br>How can I help you today? Do you have a destination in mind, or would you like to know more about our packages? ✈️🌏', '2026-07-04 14:51:52', 0),
+(747, 'hd_idx_lbw6jywsu_1779247727906', 'ai', '👋 Hi there! Welcome to <strong>HeyDream Travel and Tours!</strong><br>I\'m <strong>HeyDream AI</strong>, your personal travel assistant. 😊<br><br>How can I help you today? Do you have a destination in mind, or would you like to know more about our packages? ✈️🌏', '2026-07-04 16:16:43', 0);
 
 -- --------------------------------------------------------
 
@@ -186,22 +144,9 @@ CREATE TABLE `ai_chat_sessions` (
 --
 
 INSERT INTO `ai_chat_sessions` (`session_id`, `customer_name`, `customer_email`, `status`, `assigned_agent_id`, `last_activity`, `created_at`) VALUES
-('hd_float_jvhhk3kpcle_1779180804654', 'Guest', '', 'active', NULL, '2026-05-20 02:35:01', '2026-05-20 02:31:57'),
-('hd_float_t4etlmscwuo_1779200190412', 'Guest', '', 'active', NULL, '2026-05-20 02:18:00', '2026-05-19 16:00:46'),
-('hd_float_zxdhpaydil_1779237139818', 'Guest', '', 'active', NULL, '2026-06-01 03:35:40', '2026-06-01 03:35:40'),
-('hd_form_08bxc5nm1_1779237708230', 'Guest', '', 'active', NULL, '2026-05-21 01:15:20', '2026-05-21 01:15:20'),
-('hd_form_i0dnw4bl4_1779204896442', 'Guest', '', 'active', NULL, '2026-05-20 02:34:35', '2026-05-20 02:32:22'),
-('hd_form_uqadoukhp_1779181288137', 'Guest', '', 'active', NULL, '2026-05-20 08:50:34', '2026-05-20 08:07:25'),
-('hd_idx_01vwol9w9_1779411183512', 'Guest', '', 'active', NULL, '2026-05-22 00:53:03', '2026-05-22 00:53:03'),
-('hd_idx_2kfpuc4kf_1779952682369', 'Guest', '', 'active', NULL, '2026-05-28 07:18:03', '2026-05-28 07:18:03'),
-('hd_idx_8u4afqkxx_1779411800353', 'Guest', '', 'active', NULL, '2026-06-02 03:33:17', '2026-06-02 03:33:17'),
-('hd_idx_ako7c8krd_1779325141197', 'Guest', '', 'active', NULL, '2026-05-22 01:40:58', '2026-05-21 02:49:40'),
-('hd_idx_lbw6jywsu_1779247727906', 'Guest', '', 'active', NULL, '2026-06-02 08:25:25', '2026-06-02 08:25:25'),
-('hd_idx_ltndezg93_1779673189255', 'Guest', '', 'active', NULL, '2026-06-01 08:15:19', '2026-05-25 03:58:55'),
-('hd_idx_qvzdx5iia_1779411283534', 'Guest', '', 'active', NULL, '2026-05-22 00:54:43', '2026-05-22 00:54:43'),
-('hd_idx_s8f3pb2z0_1779255911889', 'Guest', '', 'active', NULL, '2026-05-20 06:00:40', '2026-05-20 05:45:12'),
-('hd_idx_zy1m40ozi_1779689878511', 'Guest', '', 'active', NULL, '2026-05-28 05:29:33', '2026-05-28 05:29:33'),
-('test_session_12345', 'Guest', '', 'active', NULL, '2026-05-20 06:57:29', '2026-05-20 06:57:29');
+('hd_form_qzmxqnd51_1779411915552', 'Guest', '', 'active', NULL, '2026-07-01 03:50:03', '2026-07-01 03:50:03'),
+('hd_idx_8u4afqkxx_1779411800353', 'Guest', '', 'active', NULL, '2026-07-01 03:49:02', '2026-06-30 03:06:32'),
+('hd_idx_lbw6jywsu_1779247727906', 'Guest', '', 'active', NULL, '2026-07-04 16:16:43', '2026-07-04 14:51:52');
 
 -- --------------------------------------------------------
 
@@ -278,7 +223,10 @@ INSERT INTO `bookings` (`id`, `user_id`, `booking_number`, `destination_name`, `
 (49, NULL, 'INQ-0AE1A320260514', 'tour-package', '', 'N/A', 0.00, 'Steven Fernandez Rebancos', 'rebancossteven35@gmail.com', '+639919612457', NULL, '2026-05-14', 0, 'Destination: \nTravel Type: tour-package\nBudget: Not specified\nHotel Preference: Not specified\n\nHow did you hear about us: Facebook', NULL, NULL, 0.00, '₱', 'pending', 'unpaid', 'Inquiry Only', NULL, NULL, 0, 0, 0, 1, '2026-05-13 18:28:16', '2026-05-21 02:11:03', 'PENDING', 1),
 (51, NULL, 'INQ-389F0F20260514', 'tour-package', '', 'N/A', 0.00, 'John Kostya Asuela', 'asuelajohnkostya@gmail.com', '+63991961245897', NULL, '2026-05-14', 0, 'Destination: \nTravel Type: tour-package\nBudget: Not specified\nHotel Preference: Not specified\n\nHow did you hear about us: Twitter', NULL, NULL, 0.00, '₱', 'pending', 'unpaid', 'Inquiry Only', NULL, NULL, 0, 0, 0, 0, '2026-05-13 19:26:27', '2026-05-18 07:04:51', 'PENDING', 1),
 (0, 16, 'VI-D22FD620260526', 'Visa Assistance', 'Singapore', 'Regular', 999.00, 'Angela Lou G. Dela Cruz', 'agdelacruz@paterostechnologicalcollege.edu.ph', '+639079128442', NULL, '2026-05-26', 1, 'Applicants: 1, Passport: P1234567A, DOB: 2003-11-05, Address: angelaloudelacruz7@gmail.com, Destination: Singapore, Embassy: manila, Occupation: , Travel History: ', '', '', 999.00, '₱', 'pending', 'unpaid', 'Manual Agent Approval', 'PENDING_AGENT', NULL, 0, 0, 0, 0, '2026-05-26 02:59:25', '2026-05-26 08:16:17', 'FOR_RELEASING', 0),
-(0, 16, 'FO-18F67620260526', 'Foreign Destination', '3D2N HKG FREE 7 EASY (HKFE-3D)', '3D2N', 999.00, 'Angela Lou G. Dela Cruz', 'agdelacruz@paterostechnologicalcollege.edu.ph', '+639079128442', NULL, '2026-05-28', 1, '', '', '', 999.00, '$', 'pending', 'unpaid', 'gcash', '12345', 'uploads/receipts/REC_6a150ec18e411_20260526.png', 0, 0, 0, 0, '2026-05-26 03:08:49', '2026-05-26 08:11:53', 'PENDING', 0);
+(0, 16, 'FO-18F67620260526', 'Foreign Destination', '3D2N HKG FREE 7 EASY (HKFE-3D)', '3D2N', 999.00, 'Angela Lou G. Dela Cruz', 'agdelacruz@paterostechnologicalcollege.edu.ph', '+639079128442', NULL, '2026-05-28', 1, '', '', '', 999.00, '$', 'pending', 'unpaid', 'gcash', '12345', 'uploads/receipts/REC_6a150ec18e411_20260526.png', 0, 0, 0, 0, '2026-05-26 03:08:49', '2026-05-26 08:11:53', 'PENDING', 0),
+(0, 2, 'FL-024D5020260629', 'Flight Booking', 'Japan Airlines', '3D/2N', 10000.00, 'Steven Rebancos', 'rebancossteven35@gmail.com', '+639919612457', NULL, '2026-06-29', 1, 'Route: PATEROS -> PATEROS, Return: 2026-06-30, Class: Economy, Meal: regular, Requests: ', NULL, NULL, 10000.00, '₱', 'pending', 'unpaid', 'gcash', 'jhggj', NULL, 0, 0, 0, 0, '2026-06-29 01:53:52', '2026-06-29 01:53:52', 'PENDING', 0),
+(0, 2, 'FO-60E47520260629', 'Foreign Destination', '3D2N HKG FREE 7 EASY (HKFE-3D)', '3D2N', 105.00, 'Steven Rebancos', 'rebancossteven35@gmail.com', '+639919612457', NULL, '2026-06-29', 4, '', NULL, NULL, 420.00, '$', 'pending', 'unpaid', 'gcash', '324242', 'uploads/receipts/REC_6a4216c60de2b_20260629.jpg', 0, 0, 0, 0, '2026-06-29 06:55:02', '2026-06-29 06:55:02', 'PENDING', 0),
+(0, 2, 'LO-3B505D20260629', 'Local Package', '3D2N BORACAY Free and Easy', '3D/2N', 4644.00, 'Steven Rebancos', 'rebancossteven35@gmail.com', '+639919612457', NULL, '2026-06-29', 1, '', NULL, NULL, 4318.92, '₱', 'pending', 'unpaid', 'gcash', '12345', 'uploads/receipts/REC_6a421863b4510_20260629.jpg', 0, 0, 0, 0, '2026-06-29 07:01:55', '2026-06-29 07:01:55', 'PENDING', 0);
 
 -- --------------------------------------------------------
 
@@ -577,14 +525,6 @@ CREATE TABLE `flash_deals` (
   `image_gallery` text DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
---
--- Dumping data for table `flash_deals`
---
-
-INSERT INTO `flash_deals` (`id`, `title`, `short_description`, `category`, `location`, `description`, `price`, `original_price`, `discount_percent`, `duration`, `group_size`, `best_season`, `rating`, `reviews`, `booked_count`, `badge_text`, `itinerary`, `inclusions`, `exclusions`, `image_path`, `image2_path`, `image3_path`, `collage_type`, `is_active`, `display_order`, `created_at`, `updated_at`, `currency`, `hotels`, `remarks`, `promo_start`, `promo_end`, `blocked_months`, `highlight_duration`, `blocked_dates`, `image_gallery`) VALUES
-(1, '3D2N PPS Free & Easy', '', 'Beach activities', 'PUERTO PRINCESA', 'Experience the beauty of Puerto Princesa', 2894.00, 0.00, 0, '3D/2N', '2-20 pax', 'Year Round', 4.5, 12633, '400K+ booked', 'Citystate Asturias Hotel Pala...', '[{\"day\":1,\"title\":\"Day 1\",\"activities\":[\"Arrive at Puerto Princesa International Airport (NO MEALS). Meet and transfer to hotel to check in. Overnight Stay at the hotel.\"]},{\"day\":2,\"title\":\"Day 2\",\"activities\":[\"Breakfast at the hotel. Enjoy whole day free time or join an optional tour. Overnight stay at the hotel.\"]},{\"day\":3,\"title\":\"Day 3\",\"activities\":[\"Breakfast at the hotel. Enjoy free time on own leisure until check out from hotel and transfer to Puerto Princesa International Airport.\",\"Remarks:\",\"*Please be at the hotel lobby at least 15 minutes prior to pick up time.\",\"*For SIC tours & transfers, please expect some delays due to the driver has to pick up other guests from different hotels too.\",\"*Please be on time for the pick up to avoid inconvenience with the other guests.\"]}]', '[\"Round trip airport transfers based on seat in coach via Puero Proncesa Internation Airport\",\"2D \\/ 3D Room Accommodation\",\"Daily Hotel Breakfast\",\"Complimentary travel insurance (up to 75 years old only)\"]', '[\"Any airfare & tax Puerto Princesa International Airport\",\"Any kind of tipping 2N \\/3D Room Accommodation\",\"Peak Season Surcharges (To be collected by VIA) VIEW HOTEL DETAILS\",\"Foreign Passport Surcharge (TBA upon confirmation of booking) Daily hotel breakfast\",\"Anything that is not specifically mentioned in the INCLUSIONS is on pax account\",\"Complimentary travel insurance (up to 75 years old only)\",\"Any kind of personal expenses or Optional tours\\/extra meals ordered by the guests\"]', 'uploads/1776004324_69dbace4dc499.jpg', 'uploads/1776004324_69dbace4dc60f.jpg', 'uploads/1776004324_69dbace4dc7b3.webp', 'three', 1, 1, '2026-03-28 02:29:29', '2026-05-22 05:24:59', '₱', '[{\"name\":\"Wow Hotel\",\"price\":500,\"stars\":3},{\"name\":\"Nuks Hotel\",\"price\":0},{\"name\":\"Loving Hotel\",\"price\":700,\"stars\":4}]', '', '2026-04-07', '2026-08-31', '1,2,3,9,10,11,12', 3, '2026-08-31, 2026-08-30', '[]'),
-(4, '3D2N HKG Free & Easy (HKFE-3D)', '', 'Cultural tours', 'HONGKONG', 'Travel smarter with this affordable Hong Kong getaway', 1250.00, 0.00, 0, '07 April 2026 - 31 Aug 2026', '2-15 pax', 'Year Round', 4.7, 1732, '20K+ booked', 'O Hotel Hongkong', '[{\"day\":1,\"title\":\"Day 1: ARRIVAL IN HONG KONG\",\"activities\":[\"Arrive at Hong Kong International Airport. Proceed to the assigned meet up point then transfer to the hotel to check-in. Overnight in Hong Kong. (Standard check in time: 1500 hrs) Please take note:\",\"Airport transfers are available only from 8:00am to 10:00pm (Hong Kong Time).\",\"Airport transfer will only wait for 90 minutes after the given arrival flight time. Failure to show up in the designated post, pax need to go to the hotel on their own arrangement, and no refund for the transfer fee.\"]},{\"day\":2,\"title\":\"Day 2: SIC HALF DAY HONG KONG CITY TOUR (B)\",\"activities\":[\"Breakfast outside the hotel.\",\"Pick up and proceed to the compulsory city tour to visit the West Kowloon Art Park, free time taking photos of HK Palace Museum & Avenue of Stars, and two shopping stops (compulsory visit). Guests to have lunch on their own arrangement and account. In the afternoon, dismiss then enjoy free time on own leisure. Note:\",\"Guests are required to go back to their hotel on their own arrangement after city tour.\",\"Compulsory tipping of HKD50/pax will be collected after the city tour.\",\"The guests must join the city tour to be able to have FREE breakfast. If the guests will not join the Hong Kong city tour, FREE breakfast will be forfeited.\",\"Complimentary breakfast outside + city tour is fixed on 2nd day.\",\"2 shopping stops after city tour is compulsory. If skip shopping stop, surcharge of USD 30/pax will apply.\",\"Failure to join the compulsory city tour will incur charges that will be collected directly from the guests on the spot. If the guests refuse to pay, it will automatically be charged to the account of the agent.\"]},{\"day\":3,\"title\":\"Day 3: DEPART HONG KONG (B)\",\"activities\":[\"Breakfast outside the hotel.\",\"Enjoy free time on your own leisure until check out and transfer to Hong Kong International Airport. Please Take Note:\",\"Airport transfers are available only from 8:00am to 10:00pm (Hong Kong Time).\",\"Please be at the hotel lobby for at least 15 minutes before pick-up time\"]}]', '[\"Round trip airport transfers based on seat in coach via Hong Kong International Airport.\",\"2N \\/ 3D Room Accommodation\",\"Daily outside breakfast (breakfast coupon only)\",\"Compulsory half day Hong Kong city tour based on seat in coach with complimentary outside breakfast (fixed on day 2)\",\"Complimentary travel insurance (up to 75 years old only)\"]', '[\"Any visa (if required)\",\"Any airfare & taxes\",\"Compulsory tipping for driver & tour guide at HK$50\\/pax (or US$7\\/pax) to pay directly to the guide\",\"Midnight transfer surcharge between 2200 hrs to 0800 hrs (if there is any)\",\"Foreign passport, student and religious group surcharge: USD 30 per person\",\"Flight change notice less than 24 hours will incur surcharge of USD 15\\/pax for the re-arrangement of SIC transfer\",\"Weekend and peak season surcharges (to be collected manually by VIA)\",\"Anything that is not specifically mentioned in the INCLUSIONS is on pax account\",\"Any kind of personal expenses or Optional tours\\/extra meals ordered by the guests\"]', 'uploads/1776006331_69dbb4bb577b7.jpg', 'uploads/1776006331_69dbb4bb57913.jpg', 'uploads/1776006331_69dbb4bb579ad.jpg', 'three', 1, 4, '2026-03-28 02:29:29', '2026-05-22 05:25:17', '$', '[]', '', NULL, NULL, '', 1, '', '[]');
-
 -- --------------------------------------------------------
 
 --
@@ -752,11 +692,7 @@ CREATE TABLE `foreign_destinations` (
 --
 
 INSERT INTO `foreign_destinations` (`id`, `name`, `country`, `city`, `location_name`, `description`, `short_description`, `price`, `duration`, `activities_count`, `group_size`, `best_season`, `itinerary`, `inclusions`, `exclusions`, `image_path`, `category`, `badge_text`, `display_order`, `is_active`, `created_at`, `updated_at`, `dest_key`, `image2_path`, `image3_path`, `collage_type`, `location`, `currency`, `hotels`, `promo_start`, `promo_end`, `blocked_months`, `highlight_duration`, `blocked_dates`, `remarks`, `image_gallery`) VALUES
-(11, '3D2N HKG FREE 7 EASY (HKFE-3D)', 'HONGKONG', 'HONGKONG', NULL, 'Explore Hong Kong – adventure awaits around every corner!', '', 105.00, '3D2N', 10, '2-15 pax', '', '[{\"day\":1,\"title\":\"Day 1\",\"activities\":[\"ARRIVAL IN HONG KONG (No Meals)\",\"Arrive at Hong Kong International Airport. Proceed to the assigned meet-up point, then transfer to the hotel for check-in. \",\"Overnight in Hong Kong. (Standard check-in time: 15:00)\"]},{\"day\":2,\"title\":\"Day 2\",\"activities\":[\"SIC HALF DAY HONG KONG CITY TOUR (B)\",\"Breakfast outside the hotel. Pick up and proceed to the compulsory city tour to visit West Kowloon Art Park, with free time for photos at the Hong Kong Palace Museum and Avenue of Stars, plus two shopping stops (compulsory). \",\"Guests to have lunch on their own arrangement and account. In the afternoon, guests are dismissed to enjoy free time at their own leisure.\"]},{\"day\":3,\"title\":\"Day 3\",\"activities\":[\"DEPART HONG KONG (B)\",\"Breakfast outside the hotel. Enjoy free time at your own leisure until check-out, then transfer to Hong Kong International Airport.\"]}]', '[]', '[]', 'uploads/1776043663_69dc468fe3e4b.jpg', 'city', 'O HOTEL HONGKONG', 1, 1, '2026-04-11 10:08:22', '2026-05-21 07:03:42', '3d2n-hkg-free-7-easy-(hkfe-3d)', '', '', 'three', 'HONGKONG', '$', '[]', NULL, NULL, '', 1, '', '', '[]'),
-(12, '3D2N HKG FREE 7 EASY (HKFE-3D)', 'HONGKONG', 'HONGKONG', NULL, 'Uncover the energy and elegance of Hong Kong!', '', 115.00, '3D2N', 10, '2-15 pax', '', '[{\"day\":1,\"title\":\"Day 1\",\"activities\":[\"ARRIVAL IN HONG KONG (No Meals)\",\"Arrive at Hong Kong International Airport. Proceed to the assigned meet-up point, then transfer to the hotel for check-in. \",\"Overnight in Hong Kong. (Standard check-in time: 15:00)\"]},{\"day\":2,\"title\":\"Day 2\",\"activities\":[\"SIC HALF DAY HONG KONG CITY TOUR (B)\",\"Breakfast outside the hotel. Pick up and proceed to the compulsory city tour to visit West Kowloon Art Park, with free time for photos at the Hong Kong Palace Museum and Avenue of Stars, plus two shopping stops (compulsory). \",\"Guests to have lunch on their own arrangement and account. In the afternoon, guests are dismissed to enjoy free time at their own leisure.\"]},{\"day\":3,\"title\":\"Day 3\",\"activities\":[\"DEPART HONG KONG (B)\",\"Breakfast outside the hotel. Enjoy free time at your own leisure until check-out, then transfer to Hong Kong International Airport.\"]}]', '[]', '[]', 'uploads/1779419566_6a0fc9ae5ed37.jpg', 'city', 'SILKA TSUEN WAN', 2, 1, '2026-04-12 14:46:05', '2026-05-22 03:12:46', '3d2n-hkg-free-7-easy-(hkfe-3d)', '', '', 'three', 'HONGKONG', '$', '[]', NULL, NULL, '', 4, '', '', '[]'),
-(13, '4D3N HKG FREE & EASY (HKFE-4D)</', 'HONGKONG', 'HONGKONG', NULL, 'Discover Hong Kong\'s energy, elegance, and endless adventures daily!', '', 130.00, '4D3N', 10, '2-15 pax', 'Year Round', '[{\"day\":1,\"title\":\"Day 1\",\"activities\":[\"ARRIVAL IN HONG KONG (No Meals)\",\"Arrive at Hong Kong International Airport. Proceed to the assigned meet-up point, then transfer to the hotel for check-in. Overnight in Hong Kong. (Standard check-in time: 15:00)\"]},{\"day\":2,\"title\":\"Day 2\",\"activities\":[\"SIC HALF DAY HONG KONG CITY TOUR (B)\",\"Breakfast outside the hotel. Pick up and proceed to the compulsory city tour to visit West Kowloon Art Park, with free time for photos at the Hong Kong Palace Museum and Avenue of Stars, plus two shopping stops (compulsory). \",\"Guests to have lunch on their own arrangement and account. In the afternoon, guests are dismissed to enjoy free time at their own leisure.\"]},{\"day\":3,\"title\":\"Day 3\",\"activities\":[\"FREE AND EASY (B)\",\"Breakfast outside the hotel. Enjoy free time at your own leisure or join an optional tour.\"]},{\"day\":4,\"title\":\"Day 4\",\"activities\":[\"DEPART HONG KONG (B)\",\"Breakfast outside the hotel. Enjoy free time at your own leisure until check-out, then transfer to Hong Kong International Airport.\"]}]', '[]', '[]', 'uploads/1779418517_6a0fc595aba1a.jpg', 'city', 'O HOTEL HONGKONG', 3, 1, '2026-04-13 01:01:30', '2026-05-22 02:55:17', '4d3n-hkg-free---easy-(hkfe-4d)<-', '', '', 'three', 'HONGKONG', '$', '[]', NULL, NULL, '', 1, '', '', '[]'),
-(14, '3D2N EXPLORE SINGAPORE F&E', 'SINGAPORE', 'SINGAPORE', NULL, 'Uncover the magic of Singapore at your own pace!', '', 164.00, '3D/2N', 10, '2-10', '', '[{\"day\":1,\"title\":\"Day 1\",\"activities\":[\"ARRIVAL IN SINGAPORE (No Meals)\",\"Arrive at Changi International Airport. Meet the driver and transfer to the hotel for check-in. Waiting time: 1 hour after flight lands.\"]},{\"day\":2,\"title\":\"Day 2\",\"activities\":[\"FREE AND EASY (No Meals)\",\"Enjoy free time on your own leisure or join an optional tour.\"]},{\"day\":3,\"title\":\"Day 3\",\"activities\":[\"DEPART SINGAPORE (No Meals)\",\"Enjoy free time on your own leisure until check-out, then transfer to Changi International Airport.\"]}]', '[]', '[]', 'uploads/1779419162_6a0fc81a9e67e.jpg', 'city', 'IBIS BUDGET SINGAPORE SELEGIE', 4, 1, '2026-04-13 01:04:21', '2026-05-22 03:06:02', '3d2n-explore-singapore-f-e', '', '', 'three', 'SINGAPORE', '$', '[]', NULL, NULL, '', 1, '', '', '[]'),
-(15, '4D3N EXPLORE SINGAPORE F&E', 'SINGAPORE', 'SINGAPORE', NULL, 'Capture picture-perfect moments in one of Asia\'s most vibrant cities!', '', 265.00, '4D/3N', 10, '2-10', '', '[{\"day\":1,\"title\":\"Day 1\",\"activities\":[\"ARRIVAL IN SINGAPORE (No Meals)\",\"Arrive at Changi International Airport. \",\"Meet the driver and transfer to the hotel for check-in. \",\"Waiting time: 1.5 hours after flight lands.\"]},{\"day\":2,\"title\":\"Day 2\",\"activities\":[\"FREE AND EASY (B)\",\"Breakfast at the hotel. \",\"Enjoy free time on your own leisure or join an optional tour.\"]},{\"day\":3,\"title\":\"Day 3\",\"activities\":[\"FREE AND EASY (B)\",\"Breakfast at the hotel. \",\"Enjoy free time on your own leisure or join an optional tour.\"]},{\"day\":4,\"title\":\"Day 4\",\"activities\":[\"DEPART SINGAPORE (B)\",\"Breakfast at the hotel. \",\"Enjoy free time on your own leisure until check-out, then transfer to Changi International Airport.\"]}]', '[]', '[]', 'uploads/1776045418_69dc4d6ab4e35.jpg', 'city', 'IBIS BUDGET SINGAPORE SELEGIE', 5, 1, '2026-04-13 01:55:18', '2026-04-13 03:18:30', '4d3n-explore-singapore-f-e', '', '', 'three', 'SINGAPORE', '$', NULL, NULL, NULL, NULL, 1, NULL, NULL, NULL);
+(24, 'Rebancos, Steven', 'Philippines', 'PATEROS', NULL, 'zxc', '', 7788.00, '', 0, '', '', '[]', '[]', '[]', '', 'asia', '', 0, 1, '2026-07-03 19:40:50', '2026-07-03 19:40:50', 'rebancos,-steven', '', '', 'three', 'waaa', '₱', '[]', NULL, NULL, '', 1, '', '', '[]');
 
 -- --------------------------------------------------------
 
@@ -944,6 +880,141 @@ CREATE TABLE `packages` (
   `is_active` tinyint(4) DEFAULT 1,
   `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
   `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `partner_applications`
+--
+
+CREATE TABLE `partner_applications` (
+  `id` int(11) NOT NULL,
+  `company_name` varchar(255) NOT NULL,
+  `contact_person` varchar(255) NOT NULL,
+  `email` varchar(150) NOT NULL,
+  `phone` varchar(50) NOT NULL,
+  `website` varchar(255) DEFAULT NULL,
+  `business_type` varchar(100) NOT NULL,
+  `message` text DEFAULT NULL,
+  `password` varchar(255) NOT NULL,
+  `status` enum('pending','approved','rejected') DEFAULT 'pending',
+  `rejection_reason` text DEFAULT NULL,
+  `approved_at` datetime DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  `is_banned` tinyint(1) DEFAULT 0,
+  `ban_until` datetime DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `partner_applications`
+--
+
+INSERT INTO `partner_applications` (`id`, `company_name`, `contact_person`, `email`, `phone`, `website`, `business_type`, `message`, `password`, `status`, `rejection_reason`, `approved_at`, `created_at`, `updated_at`, `is_banned`, `ban_until`) VALUES
+(1, 'HeyDream Travel and Tours', 'Steven Fernandez Rebancos', 'rebancossteven35@gmail.com', '09919612457', '', 'Travel Agency', '', '$2y$10$3.PS8o8/tpjOesGCMN6AcO2cELKuh2YfE197z8.C7Zi3hK1N5f9ai', 'approved', NULL, '2026-07-01 16:48:39', '2026-07-01 08:48:21', '2026-07-04 16:50:34', 0, NULL);
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `partner_package_uploads`
+--
+
+CREATE TABLE `partner_package_uploads` (
+  `id` int(11) NOT NULL,
+  `partner_id` int(11) NOT NULL,
+  `partner_company` varchar(255) NOT NULL,
+  `uploaded_by_name` varchar(255) NOT NULL,
+  `uploaded_by_email` varchar(255) NOT NULL,
+  `package_name` varchar(255) NOT NULL,
+  `destination_name` varchar(255) DEFAULT '',
+  `duration` varchar(80) DEFAULT '',
+  `price` decimal(10,2) DEFAULT 0.00,
+  `description` text DEFAULT NULL,
+  `upload_status` varchar(30) DEFAULT 'approved',
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  `image_path` varchar(500) DEFAULT NULL,
+  `is_active` tinyint(4) DEFAULT 1,
+  `destination_type` enum('foreign','local') DEFAULT 'foreign',
+  `image2_path` varchar(500) DEFAULT NULL,
+  `image3_path` varchar(500) DEFAULT NULL,
+  `image_gallery` text DEFAULT NULL,
+  `inclusions` text DEFAULT NULL,
+  `exclusions` text DEFAULT NULL,
+  `itinerary` text DEFAULT NULL,
+  `hotels` text DEFAULT NULL,
+  `remarks` text DEFAULT NULL,
+  `blocked_dates` text DEFAULT NULL,
+  `promo_start` date DEFAULT NULL,
+  `promo_end` date DEFAULT NULL,
+  `blocked_months` text DEFAULT NULL,
+  `highlight_duration` int(11) DEFAULT 1,
+  `currency` varchar(10) DEFAULT '₱',
+  `group_size` varchar(50) DEFAULT '2-15 pax',
+  `best_season` varchar(100) DEFAULT 'Year Round',
+  `activities_count` int(11) DEFAULT 0,
+  `badge_text` varchar(100) DEFAULT NULL,
+  `display_order` int(11) DEFAULT 0
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `partner_package_uploads`
+--
+
+INSERT INTO `partner_package_uploads` (`id`, `partner_id`, `partner_company`, `uploaded_by_name`, `uploaded_by_email`, `package_name`, `destination_name`, `duration`, `price`, `description`, `upload_status`, `created_at`, `updated_at`, `image_path`, `is_active`, `destination_type`, `image2_path`, `image3_path`, `image_gallery`, `inclusions`, `exclusions`, `itinerary`, `hotels`, `remarks`, `blocked_dates`, `promo_start`, `promo_end`, `blocked_months`, `highlight_duration`, `currency`, `group_size`, `best_season`, `activities_count`, `badge_text`, `display_order`) VALUES
+(3, 1, 'HeyDream Travel and Tours', 'Steven Fernandez Rebancos', 'rebancossteven35@gmail.com', 'weweeweewe', 'wewewe', '1 Day', 9999.00, 'wee', 'approved', '2026-07-03 20:11:14', '2026-07-04 17:32:56', 'uploads/1783185693_6a49411d9899e.jpg', 1, 'foreign', '', '', '[]', '[]', '[]', '[]', '[{\"name\":\"\",\"price\":0}]', '', '', NULL, NULL, '', 1, '₱', '', '', 0, 'nice', 0);
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `partner_profiles`
+--
+
+CREATE TABLE `partner_profiles` (
+  `id` int(11) NOT NULL,
+  `partner_id` int(11) NOT NULL,
+  `business_display_name` varchar(255) DEFAULT NULL,
+  `bio` text DEFAULT NULL,
+  `description` text DEFAULT NULL,
+  `phone` varchar(50) DEFAULT NULL,
+  `address` varchar(255) DEFAULT NULL,
+  `city` varchar(100) DEFAULT NULL,
+  `country` varchar(100) DEFAULT NULL,
+  `website` varchar(255) DEFAULT NULL,
+  `logo_path` varchar(500) DEFAULT NULL,
+  `banner_image_path` varchar(500) DEFAULT NULL,
+  `specialties` varchar(500) DEFAULT NULL,
+  `years_in_business` int(11) DEFAULT NULL,
+  `team_size` int(11) DEFAULT NULL,
+  `certifications` text DEFAULT NULL,
+  `social_media_links` text DEFAULT NULL,
+  `is_verified` tinyint(4) DEFAULT 0,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `partner_profiles`
+--
+
+INSERT INTO `partner_profiles` (`id`, `partner_id`, `business_display_name`, `bio`, `description`, `phone`, `address`, `city`, `country`, `website`, `logo_path`, `banner_image_path`, `specialties`, `years_in_business`, `team_size`, `certifications`, `social_media_links`, `is_verified`, `created_at`, `updated_at`) VALUES
+(1, 1, 'HeyDream Travel and Tours', 'BLABLABLABLA', 'ASDADADSSAD', '+639919612457', 'Pasig Metro Manila', 'PATEROS', 'Philippines', '', NULL, NULL, 'ASDAD', 2, 1, 'ADSADS', NULL, 0, '2026-07-03 06:21:58', '2026-07-03 09:02:14');
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `partner_support_reports`
+--
+
+CREATE TABLE `partner_support_reports` (
+  `id` int(11) NOT NULL,
+  `partner_id` int(11) NOT NULL,
+  `subject` varchar(255) NOT NULL,
+  `message` text NOT NULL,
+  `priority` varchar(30) DEFAULT 'medium',
+  `status` varchar(30) DEFAULT 'open',
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- --------------------------------------------------------
@@ -1177,7 +1248,43 @@ INSERT INTO `user_sessions` (`id`, `user_id`, `session_token`, `ip_address`, `us
 (95, 16, '3cbce622ba8ae7f33cac939fcb848ef7dfd1005735f89fd1abe3d74885c186bb', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36 Edg/148.0.0.0', '2026-05-27 10:52:19', '2026-05-26 08:52:19'),
 (120, 16, '4e37c9ce57ae424fb54d64bc822e45db9441d3069fdf2ccc0e031da416777082', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36 Edg/148.0.0.0', '2026-05-30 10:03:41', '2026-05-29 08:03:41'),
 (133, 16, '6465c3e8724e7bd06b18d7905f3becc3bce2c067ab654fdf9790b6280b09a219', '::1', 'Mozilla/5.0 (Linux; Android 13; SM-G981B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Mobile Safari/537.36 Edg/148.0.0.0', '2026-06-02 04:18:51', '2026-06-01 02:18:51'),
-(155, 6, 'a89b16f8919f3789663914a51126872c06a3477903e4d7a05ba4b8b04b6f68a9', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36 Edg/148.0.0.0', '2026-06-02 10:53:21', '2026-06-01 08:53:21');
+(155, 6, 'a89b16f8919f3789663914a51126872c06a3477903e4d7a05ba4b8b04b6f68a9', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36 Edg/148.0.0.0', '2026-06-02 10:53:21', '2026-06-01 08:53:21'),
+(157, 2, '19d2291b71bd02ee0e3d602acbd95ef9ec552363cb62a70a9f45a8388545741f', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36 Edg/149.0.0.0', '2026-06-30 03:35:29', '2026-06-29 01:35:29'),
+(158, 2, 'c80d9fe081f847157807c96b80fcb855de5a187763a1d1fd4f120f959a3e4af6', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36 Edg/149.0.0.0', '2026-06-30 08:29:27', '2026-06-29 06:29:27'),
+(159, 2, 'a0167f1f0c38f32346cc91e117ad943c18eeaa6382b01f8ec4c63054e613d6ab', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36 Edg/149.0.0.0', '2026-06-30 11:13:16', '2026-06-29 09:13:16'),
+(160, 2, '07140253a1c05d8eb1e18ca4d8347f5fe2bb78112f375e71e4188aab85681ee3', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36 Edg/149.0.0.0', '2026-07-01 07:16:49', '2026-06-30 05:16:49'),
+(161, 2, '4008b33466817284ed115434ed1567199489ee28e1733f269448736cab25fe83', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36 Edg/149.0.0.0', '2026-07-02 05:42:33', '2026-07-01 03:42:33'),
+(162, 2, 'bf73c23db403bdffbe78a4360918a9b10dfc45563df01bb678eb6572495038a8', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36 Edg/149.0.0.0', '2026-07-02 08:17:50', '2026-07-01 06:17:50'),
+(163, 2, '4168a62e2f10557bfe8c78e24734ef2a4c940fb7a6e9b1e2d91fe19fbe76c43c', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36 Edg/149.0.0.0', '2026-07-02 08:54:01', '2026-07-01 06:54:01'),
+(164, 2, '97c55bac543f075368eae062b369b93656da4ab6f2083403447b2c7732812559', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36 Edg/149.0.0.0', '2026-07-02 11:04:14', '2026-07-01 09:04:14'),
+(165, 2, '1abef73e781d585ff185a86451a73a75260a1c11105b821de36d2b2d34b50b9b', '::1', 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.5 Mobile/15E148 Safari/604.1 Edg/150.0.0.0', '2026-07-04 08:11:08', '2026-07-03 06:11:08');
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `user_vouchers`
+--
+
+CREATE TABLE `user_vouchers` (
+  `id` int(11) NOT NULL,
+  `user_id` int(11) NOT NULL,
+  `voucher_id` int(11) NOT NULL,
+  `is_collected` tinyint(1) DEFAULT 1,
+  `is_used` tinyint(1) DEFAULT 0,
+  `collected_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `used_at` timestamp NULL DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `user_vouchers`
+--
+
+INSERT INTO `user_vouchers` (`id`, `user_id`, `voucher_id`, `is_collected`, `is_used`, `collected_at`, `used_at`) VALUES
+(11, 2, 19, 1, 0, '2026-07-01 07:05:27', NULL),
+(12, 2, 21, 1, 0, '2026-07-04 16:10:28', NULL),
+(13, 2, 20, 1, 0, '2026-07-04 16:16:10', NULL),
+(14, 2, 23, 1, 0, '2026-07-04 16:25:42', NULL),
+(15, 2, 22, 1, 0, '2026-07-04 16:25:44', NULL);
 
 -- --------------------------------------------------------
 
@@ -1217,6 +1324,88 @@ INSERT INTO `visas` (`id`, `title`, `category`, `description`, `price`, `currenc
 (5, 'Vietnam', 'Asia', 'Complete entry document preparation and proofs.', 999.00, '₱', 'Visa-Free (21 Days)', '[\"Passport valid for 6 months\",\"Confirmed Round-trip Ticket\",\"Confirmed Hotel\\/Tour Booking\"]', 'image', 'https://flagcdn.com/w80/vn.png', 1, 5, '2026-04-14 14:09:05', '2026-04-14 14:09:05', NULL, NULL, 'required'),
 (6, 'Schengen Visa', 'Europe', 'Travel to 27 European countries with a single visa. Expert assistance with documentation.', 8999.00, '₱', 'Standard Processing', '[\"Passport valid for 6 months\",\"2x2 photo with white background\",\"Detailed Flight Itinerary\",\"Confirmed Hotel Booking\",\"Bank Certificate (3-6 Months)\",\"Certificate of Employment\",\"Travel Insurance\"]', 'image', 'https://flagcdn.com/w80/eu.png', 1, 6, '2026-04-14 14:09:05', '2026-04-14 14:09:05', NULL, NULL, 'required'),
 (7, 'US Visa', 'North America', 'B1/B2 tourist visa assistance. Interview preparation and DS-160 form assistance.', 12999.00, '₱', 'Regular Processing', '[\"Passport valid for 6 months\",\"2x2 photo (Recent, white background)\",\"DS-160 Confirmation\",\"Proof of strong ties to Philippines\",\"Financial Documents\",\"Employment Documents\"]', 'image', 'https://flagcdn.com/w80/us.png', 1, 7, '2026-04-14 14:09:05', '2026-04-14 14:09:05', NULL, NULL, 'required');
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `vouchers`
+--
+
+CREATE TABLE `vouchers` (
+  `id` int(11) NOT NULL,
+  `voucher_name` varchar(255) NOT NULL,
+  `voucher_code` varchar(50) NOT NULL,
+  `description` text DEFAULT NULL,
+  `discount_type` enum('percentage','fixed_amount') NOT NULL,
+  `discount_value` decimal(10,2) NOT NULL,
+  `minimum_spend` decimal(12,2) DEFAULT 0.00,
+  `maximum_discount` decimal(12,2) DEFAULT NULL,
+  `max_discounted_travelers` int(11) DEFAULT 0,
+  `max_total_redemptions` int(11) DEFAULT 0,
+  `max_redemptions_per_user` int(11) DEFAULT 1,
+  `start_date` datetime NOT NULL,
+  `end_date` datetime NOT NULL,
+  `status` enum('active','inactive') DEFAULT 'active',
+  `priority` int(11) DEFAULT 0,
+  `display_order` int(11) DEFAULT 0,
+  `banner_image_url` varchar(255) DEFAULT NULL,
+  `color_theme` varchar(50) DEFAULT NULL,
+  `audience` enum('everyone','logged_in_only','first_time_customers','returning_customers','selected_users','vip_members') DEFAULT 'everyone',
+  `collection_method` enum('auto_available','user_collect','admin_assign','welcome_voucher','birthday_voucher') DEFAULT 'auto_available',
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `vouchers`
+--
+
+INSERT INTO `vouchers` (`id`, `voucher_name`, `voucher_code`, `description`, `discount_type`, `discount_value`, `minimum_spend`, `maximum_discount`, `max_discounted_travelers`, `max_total_redemptions`, `max_redemptions_per_user`, `start_date`, `end_date`, `status`, `priority`, `display_order`, `banner_image_url`, `color_theme`, `audience`, `collection_method`, `created_at`, `updated_at`) VALUES
+(19, 'asd', 'ASD', 'asd', 'percentage', 10.00, 0.00, NULL, 0, 0, 1, '2026-07-02 15:01:00', '2026-07-23 15:10:00', 'active', 0, 0, NULL, '#003580', 'everyone', 'user_collect', '2026-07-01 07:01:40', '2026-07-04 15:58:31'),
+(20, 'qeeqe', 'QWEQE', 'qweqe', 'percentage', 34.00, 0.00, NULL, 0, 0, 1, '2026-07-04 23:59:00', '2026-07-28 23:59:00', 'active', 0, 0, NULL, '#003580', 'everyone', 'user_collect', '2026-07-04 15:59:16', '2026-07-04 16:09:57'),
+(21, 'testing', 'TESTUNG', 'asdad', 'percentage', 19.00, 0.00, NULL, 0, 0, 1, '2026-07-05 00:10:00', '2026-07-27 00:10:00', 'active', 0, 0, NULL, '#003580', 'everyone', 'user_collect', '2026-07-04 16:10:20', '2026-07-04 16:10:20'),
+(22, 'asdasdasd', 'ASDADA', '', 'percentage', 12.00, 0.00, NULL, 0, 0, 1, '2026-07-05 00:23:00', '2026-07-22 00:23:00', 'active', 0, 0, NULL, '#003580', 'everyone', 'user_collect', '2026-07-04 16:24:04', '2026-07-04 16:24:04'),
+(23, 'asdasd', 'ASDADDADAD', 'asd', 'percentage', 34.00, 0.00, NULL, 0, 0, 1, '2026-07-05 00:24:00', '2026-07-05 04:24:00', 'active', 0, 0, NULL, '#003580', 'everyone', 'user_collect', '2026-07-04 16:24:26', '2026-07-04 16:24:49');
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `voucher_packages`
+--
+
+CREATE TABLE `voucher_packages` (
+  `id` int(11) NOT NULL,
+  `voucher_id` int(11) NOT NULL,
+  `target_type` enum('flash_deals','local_destinations','foreign_destinations','flights','flight_packages','cruises','experiences','premium_services','visa_services') NOT NULL,
+  `package_id` int(11) NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `voucher_redemptions`
+--
+
+CREATE TABLE `voucher_redemptions` (
+  `id` int(11) NOT NULL,
+  `voucher_id` int(11) NOT NULL,
+  `user_id` int(11) DEFAULT NULL,
+  `booking_id` int(11) NOT NULL,
+  `redemption_amount` decimal(12,2) NOT NULL,
+  `redemption_date` timestamp NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `voucher_targets`
+--
+
+CREATE TABLE `voucher_targets` (
+  `id` int(11) NOT NULL,
+  `voucher_id` int(11) NOT NULL,
+  `target_type` enum('flash_deals','local_destinations','foreign_destinations','flights','flight_packages','cruises','experiences','premium_services','visa_services') NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
 -- Indexes for dumped tables
@@ -1379,6 +1568,35 @@ ALTER TABLE `packages`
   ADD KEY `idx_packages_active` (`is_active`);
 
 --
+-- Indexes for table `partner_applications`
+--
+ALTER TABLE `partner_applications`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `email` (`email`),
+  ADD KEY `idx_status` (`status`);
+
+--
+-- Indexes for table `partner_package_uploads`
+--
+ALTER TABLE `partner_package_uploads`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `idx_partner_uploads_partner` (`partner_id`),
+  ADD KEY `idx_partner_uploads_status` (`upload_status`);
+
+--
+-- Indexes for table `partner_profiles`
+--
+ALTER TABLE `partner_profiles`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `partner_id` (`partner_id`);
+
+--
+-- Indexes for table `partner_support_reports`
+--
+ALTER TABLE `partner_support_reports`
+  ADD PRIMARY KEY (`id`);
+
+--
 -- Indexes for table `password_resets`
 --
 ALTER TABLE `password_resets`
@@ -1424,10 +1642,47 @@ ALTER TABLE `user_sessions`
   ADD KEY `idx_session_token` (`session_token`);
 
 --
+-- Indexes for table `user_vouchers`
+--
+ALTER TABLE `user_vouchers`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `user_id` (`user_id`,`voucher_id`),
+  ADD KEY `voucher_id` (`voucher_id`);
+
+--
 -- Indexes for table `visas`
 --
 ALTER TABLE `visas`
   ADD PRIMARY KEY (`id`);
+
+--
+-- Indexes for table `vouchers`
+--
+ALTER TABLE `vouchers`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `voucher_code` (`voucher_code`);
+
+--
+-- Indexes for table `voucher_packages`
+--
+ALTER TABLE `voucher_packages`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `voucher_id` (`voucher_id`,`target_type`,`package_id`);
+
+--
+-- Indexes for table `voucher_redemptions`
+--
+ALTER TABLE `voucher_redemptions`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `voucher_id` (`voucher_id`),
+  ADD KEY `user_id` (`user_id`);
+
+--
+-- Indexes for table `voucher_targets`
+--
+ALTER TABLE `voucher_targets`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `voucher_id` (`voucher_id`,`target_type`);
 
 --
 -- AUTO_INCREMENT for dumped tables
@@ -1449,7 +1704,7 @@ ALTER TABLE `admin_users`
 -- AUTO_INCREMENT for table `ai_chat_messages`
 --
 ALTER TABLE `ai_chat_messages`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=725;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=748;
 
 --
 -- AUTO_INCREMENT for table `block_unlock_requests`
@@ -1491,13 +1746,13 @@ ALTER TABLE `customer_messages`
 -- AUTO_INCREMENT for table `destinations`
 --
 ALTER TABLE `destinations`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=37;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=38;
 
 --
 -- AUTO_INCREMENT for table `flash_deals`
 --
 ALTER TABLE `flash_deals`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=7;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=13;
 
 --
 -- AUTO_INCREMENT for table `flash_deals_fixed`
@@ -1515,7 +1770,7 @@ ALTER TABLE `flight_booking_settings`
 -- AUTO_INCREMENT for table `foreign_destinations`
 --
 ALTER TABLE `foreign_destinations`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=20;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=25;
 
 --
 -- AUTO_INCREMENT for table `hotel_booking_settings`
@@ -1546,6 +1801,30 @@ ALTER TABLE `marketing_tracking`
 --
 ALTER TABLE `packages`
   MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
+
+--
+-- AUTO_INCREMENT for table `partner_applications`
+--
+ALTER TABLE `partner_applications`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
+
+--
+-- AUTO_INCREMENT for table `partner_package_uploads`
+--
+ALTER TABLE `partner_package_uploads`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
+
+--
+-- AUTO_INCREMENT for table `partner_profiles`
+--
+ALTER TABLE `partner_profiles`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
+
+--
+-- AUTO_INCREMENT for table `partner_support_reports`
+--
+ALTER TABLE `partner_support_reports`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT for table `password_resets`
@@ -1581,13 +1860,43 @@ ALTER TABLE `users`
 -- AUTO_INCREMENT for table `user_sessions`
 --
 ALTER TABLE `user_sessions`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=157;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=167;
+
+--
+-- AUTO_INCREMENT for table `user_vouchers`
+--
+ALTER TABLE `user_vouchers`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=16;
 
 --
 -- AUTO_INCREMENT for table `visas`
 --
 ALTER TABLE `visas`
   MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=9;
+
+--
+-- AUTO_INCREMENT for table `vouchers`
+--
+ALTER TABLE `vouchers`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=24;
+
+--
+-- AUTO_INCREMENT for table `voucher_packages`
+--
+ALTER TABLE `voucher_packages`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
+
+--
+-- AUTO_INCREMENT for table `voucher_redemptions`
+--
+ALTER TABLE `voucher_redemptions`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
+
+--
+-- AUTO_INCREMENT for table `voucher_targets`
+--
+ALTER TABLE `voucher_targets`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=44;
 
 --
 -- Constraints for dumped tables
@@ -1610,6 +1919,38 @@ ALTER TABLE `cruise_itinerary`
 --
 ALTER TABLE `customer_messages`
   ADD CONSTRAINT `customer_messages_ibfk_1` FOREIGN KEY (`conversation_id`) REFERENCES `customer_conversations` (`id`) ON DELETE CASCADE;
+
+--
+-- Constraints for table `partner_profiles`
+--
+ALTER TABLE `partner_profiles`
+  ADD CONSTRAINT `partner_profiles_ibfk_1` FOREIGN KEY (`partner_id`) REFERENCES `partner_applications` (`id`) ON DELETE CASCADE;
+
+--
+-- Constraints for table `user_vouchers`
+--
+ALTER TABLE `user_vouchers`
+  ADD CONSTRAINT `user_vouchers_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `user_vouchers_ibfk_2` FOREIGN KEY (`voucher_id`) REFERENCES `vouchers` (`id`) ON DELETE CASCADE;
+
+--
+-- Constraints for table `voucher_packages`
+--
+ALTER TABLE `voucher_packages`
+  ADD CONSTRAINT `voucher_packages_ibfk_1` FOREIGN KEY (`voucher_id`) REFERENCES `vouchers` (`id`) ON DELETE CASCADE;
+
+--
+-- Constraints for table `voucher_redemptions`
+--
+ALTER TABLE `voucher_redemptions`
+  ADD CONSTRAINT `voucher_redemptions_ibfk_1` FOREIGN KEY (`voucher_id`) REFERENCES `vouchers` (`id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `voucher_redemptions_ibfk_2` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE SET NULL;
+
+--
+-- Constraints for table `voucher_targets`
+--
+ALTER TABLE `voucher_targets`
+  ADD CONSTRAINT `voucher_targets_ibfk_1` FOREIGN KEY (`voucher_id`) REFERENCES `vouchers` (`id`) ON DELETE CASCADE;
 COMMIT;
 
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;

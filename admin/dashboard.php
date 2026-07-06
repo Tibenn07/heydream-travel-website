@@ -61,6 +61,15 @@ if ($_SESSION['admin_role'] === 'super_admin') {
     $pendingRequestsCount = $stmt->fetchColumn();
 }
 
+// Get pending partner package approvals count for badge
+$pendingPartnerPackagesCount = 0;
+try {
+    $stmt = $pdo->query("SELECT COUNT(*) FROM partner_package_uploads WHERE upload_status = 'pending'");
+    $pendingPartnerPackagesCount = (int) $stmt->fetchColumn();
+} catch (Exception $e) {
+    $pendingPartnerPackagesCount = 0;
+}
+
 // Get pending inquiries count for marketing badge
 $stmtInqCount = $pdo->query("SELECT COUNT(*) FROM bookings WHERE payment_method = 'Inquiry Only'");
 $pendingInquiriesCount = $stmtInqCount->fetchColumn();
@@ -1632,7 +1641,36 @@ $unreadMessagesCount = $stmtMessagesCount ? $stmtMessagesCount->fetchColumn() : 
                 </a>
             <?php endif; ?>
 
-            <!-- Pending Requests -->
+            <!-- Partnership (Dropdown) -->
+            <?php if ($_SESSION['admin_role'] === 'super_admin' || $_SESSION['admin_role'] === 'admin'): ?>
+                <div class="menu-dropdown-wrapper">
+                    <a class="menu-item dropdown-toggle" style="cursor: pointer;" onclick="const content = document.getElementById('partnershipDropdown'); const icon = this.querySelector('.fa-chevron-down'); if(content.style.display === 'none') { content.style.display = 'flex'; icon.style.transform = 'rotate(180deg)'; } else { content.style.display = 'none'; icon.style.transform = 'none'; }">
+                        <i class="fas fa-handshake"></i>
+                        <span>Partnership</span>
+                        <i class="fas fa-chevron-down" style="margin-left: auto; font-size: 0.8rem; transition: transform 0.3s;"></i>
+                    </a>
+                    <div class="menu-dropdown-content" id="partnershipDropdown" style="display: none; padding-left: 20px; flex-direction: column;">
+                        <a class="menu-item" data-page="partner-applications">
+                            <i class="fas fa-file-contract" style="font-size: 0.9rem;"></i>
+                            <span style="font-size: 0.9rem;">Pending Partners</span>
+                        </a>
+                        <a class="menu-item" data-page="approved-partners">
+                            <i class="fas fa-star" style="font-size: 0.9rem;"></i>
+                            <span style="font-size: 0.9rem;">Approved Partners</span>
+                            <span class="badge-count sidebar-badge" id="menuApprovedPartnersCount"
+                                style="background: #10b981; box-shadow: 0 0 15px rgba(16, 185, 129, 0.4); transform: scale(0.9);">0</span>
+                        </a>
+                        <a class="menu-item" data-page="packages-approval">
+                            <i class="fas fa-box-open" style="font-size: 0.9rem;"></i>
+                            <span style="font-size: 0.9rem;">Packages Approval</span>
+                            <?php if ($pendingPartnerPackagesCount > 0): ?>
+                                <span class="badge-count sidebar-badge" id="menuPartnerPackageApprovalCount"
+                                    style="background: #f59e0b; box-shadow: 0 0 15px rgba(245, 158, 11, 0.35); transform: scale(0.9);"><?= $pendingPartnerPackagesCount ?></span>
+                            <?php endif; ?>
+                        </a>
+                    </div>
+                </div>
+            <?php endif; ?>
             <?php if ($_SESSION['admin_role'] === 'super_admin'): ?>
                 <a class="menu-item" data-page="pending-requests">
                     <i class="fas fa-user-plus"></i>
@@ -1944,7 +1982,7 @@ $unreadMessagesCount = $stmtMessagesCount ? $stmtMessagesCount->fetchColumn() : 
                                             <i class="fas fa-edit"></i>
                                             <span>Edit</span>
                                         </button>
-                                        <button class="delete-btn" onclick="deleteBooking(<?= $booking['id'] ?>)" title="Delete">
+                                        <button type="button" class="delete-btn" onclick="event.stopPropagation(); deleteBooking(<?= (int)($booking['id'] ?? 0) ?>, <?= htmlspecialchars(json_encode((string)($booking['booking_number'] ?? '')), ENT_QUOTES, 'UTF-8') ?>)" title="Delete">
                                             <i class="fas fa-trash"></i>
                                             <span>Delete</span>
                                         </button>
@@ -2855,6 +2893,129 @@ $unreadMessagesCount = $stmtMessagesCount ? $stmtMessagesCount->fetchColumn() : 
         </div>
 
         <!-- Pending Requests Page -->
+        <?php if ($_SESSION['admin_role'] === 'super_admin' || $_SESSION['admin_role'] === 'admin'): ?>
+            <div id="partner-applications-page" style="display: none;">
+                <div class="data-table">
+                    <div class="table-header">
+                        <h2><i class="fas fa-handshake"></i> Partner Applications</h2>
+                        <div class="inline-flex">
+                            <span class="status-badge status-confirmed" id="partnerApplicationCount">0 applications</span>
+                            <button class="edit-btn" onclick="loadPartnerApplications()">
+                                <i class="fas fa-rotate"></i>
+                                <span>Refresh</span>
+                            </button>
+                        </div>
+                    </div>
+                    <!-- Status Filter Tabs -->
+                    <div style="display:flex; gap:10px; padding: 16px 24px; border-bottom: 1px solid #f1f5f9; background:#fafafa;">
+                        <button id="pa-tab-pending" onclick="filterPartnerApplications('pending')" style="padding:8px 20px; border-radius:999px; border:none; background:#003580; color:white; font-weight:700; cursor:pointer; font-family:inherit; font-size:0.85rem;">Pending</button>
+                        <button id="pa-tab-approved" onclick="filterPartnerApplications('approved')" style="padding:8px 20px; border-radius:999px; border:1px solid #cbd5e1; background:white; color:#475569; font-weight:700; cursor:pointer; font-family:inherit; font-size:0.85rem;">Approved</button>
+                        <button id="pa-tab-rejected" onclick="filterPartnerApplications('rejected')" style="padding:8px 20px; border-radius:999px; border:1px solid #cbd5e1; background:white; color:#475569; font-weight:700; cursor:pointer; font-family:inherit; font-size:0.85rem;">Rejected</button>
+                        <button id="pa-tab-all" onclick="filterPartnerApplications('all')" style="padding:8px 20px; border-radius:999px; border:1px solid #cbd5e1; background:white; color:#475569; font-weight:700; cursor:pointer; font-family:inherit; font-size:0.85rem;">All</button>
+                    </div>
+                    <div class="table-responsive">
+                        <table id="partner-applications-table">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Company</th>
+                                    <th>Contact</th>
+                                    <th>Email</th>
+                                    <th>Type</th>
+                                    <th>Status</th>
+                                    <th>Applied</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="partner-applications-list">
+                                <tr>
+                                    <td colspan="8" style="text-align: center; padding: 40px;"><i class="fas fa-spinner fa-spin"></i> Loading partner applications...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+        <!-- List of Partners Page -->
+        <?php if ($_SESSION['admin_role'] === 'super_admin' || $_SESSION['admin_role'] === 'admin'): ?>
+            <div id="approved-partners-page" style="display: none;">
+                <div class="data-table">
+                    <div class="table-header">
+                        <h2><i class="fas fa-users"></i> List of Partners</h2>
+                        <div class="inline-flex">
+                            <span class="status-badge status-confirmed" id="approvedPartnersCount">0 partners</span>
+                            <button class="edit-btn" onclick="loadApprovedPartners()">
+                                <i class="fas fa-rotate"></i>
+                                <span>Refresh Data</span>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="table-responsive">
+                        <table id="approved-partners-table">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Company</th>
+                                    <th>Contact</th>
+                                    <th>Email</th>
+                                    <th>Business Type</th>
+                                    <th>Website</th>
+                                    <th>Approved Date</th>
+                                    <th>Ban Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="approved-partners-list">
+                                <tr>
+                                    <td colspan="9" style="text-align: center; padding: 40px;"><i class="fas fa-spinner fa-spin"></i> Loading partners...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        <?php endif; ?>
+        <?php endif; ?>
+
+        <?php if ($_SESSION['admin_role'] === 'super_admin' || $_SESSION['admin_role'] === 'admin'): ?>
+            <div id="packages-approval-page" style="display: none;">
+                <div class="data-table">
+                    <div class="table-header">
+                        <h2><i class="fas fa-box-open"></i> Packages Approval</h2>
+                        <div class="inline-flex">
+                            <span class="status-badge status-pending" id="partnerPackageApprovalCount">0 pending</span>
+                            <button class="edit-btn" onclick="loadPartnerPackagesApproval()">
+                                <i class="fas fa-rotate"></i>
+                                <span>Refresh Data</span>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="table-responsive">
+                        <table id="packages-approval-table">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Package</th>
+                                    <th>Destination</th>
+                                    <th>Partner</th>
+                                    <th>Status</th>
+                                    <th>Submitted</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="partner-packages-approval-list">
+                                <tr>
+                                    <td colspan="7" style="text-align: center; padding: 40px;"><i
+                                            class="fas fa-spinner fa-spin"></i> Loading package submissions...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        <?php endif; ?>
+
         <?php if ($_SESSION['admin_role'] === 'super_admin'): ?>
             <div id="pending-requests-page" style="display: none;">
                 <div class="data-table">
@@ -3074,7 +3235,7 @@ $unreadMessagesCount = $stmtMessagesCount ? $stmtMessagesCount->fetchColumn() : 
             if (activeItem) activeItem.classList.add('active');
 
             // 2. Hide all pages
-            const pages = ['dashboard-page', 'bookings-page', 'users-page', 'admins-page', 'pending-requests-page', 'visa-page'];
+            const pages = ['dashboard-page', 'bookings-page', 'users-page', 'admins-page', 'partner-applications-page', 'approved-partners-page', 'packages-approval-page', 'pending-requests-page', 'visa-page'];
             pages.forEach(id => {
                 const el = document.getElementById(id);
                 if (el) el.style.display = 'none';
@@ -3091,6 +3252,9 @@ $unreadMessagesCount = $stmtMessagesCount ? $stmtMessagesCount->fetchColumn() : 
             if (pageId === 'dashboard') title = 'Command Center';
             if (pageId === 'users') title = 'Customer Database';
             if (pageId === 'admins') title = 'Staff Control';
+            if (pageId === 'partner-applications') title = 'Partner Applications';
+            if (pageId === 'approved-partners') title = 'Approved Partners';
+            if (pageId === 'packages-approval') title = 'Packages Approval';
 
             const titleEl = document.getElementById('page-title');
             if (titleEl) titleEl.innerText = title;
@@ -3100,6 +3264,12 @@ $unreadMessagesCount = $stmtMessagesCount ? $stmtMessagesCount->fetchColumn() : 
                 if (typeof resetFilters === 'function') resetFilters();
             } else if (pageId === 'pending-requests') {
                 if (typeof loadPendingRequests === 'function') loadPendingRequests();
+            } else if (pageId === 'partner-applications') {
+                if (typeof loadPartnerApplications === 'function') loadPartnerApplications();
+            } else if (pageId === 'approved-partners') {
+                if (typeof loadApprovedPartners === 'function') loadApprovedPartners();
+            } else if (pageId === 'packages-approval') {
+                if (typeof loadPartnerPackagesApproval === 'function') loadPartnerPackagesApproval();
             } else if (pageId === 'visa') {
                 if (typeof loadVisaBookings === 'function') loadVisaBookings();
             }
@@ -3449,6 +3619,153 @@ $unreadMessagesCount = $stmtMessagesCount ? $stmtMessagesCount->fetchColumn() : 
 
 
 
+        async function parseJsonResponse(response) {
+            const text = await response.text();
+            if (!text) {
+                return { success: false, message: 'Empty response from server.' };
+            }
+
+            try {
+                return JSON.parse(text);
+            } catch (error) {
+                return { success: false, message: 'Invalid server response.', raw: text };
+            }
+        }
+
+        function loadPartnerPackagesApproval() {
+            fetch('admin-api.php?action=get_partner_packages_for_approval')
+                .then(async response => {
+                    const data = await parseJsonResponse(response);
+                    if (!data.success) {
+                        console.error('Failed to load partner package approvals', data.message);
+                        return;
+                    }
+
+                    const packages = data.data || [];
+                    const pendingPackages = packages.filter(pkg => (pkg.upload_status || 'pending').toLowerCase() === 'pending');
+                    const tbody = document.getElementById('partner-packages-approval-list');
+                    const countBadge = document.getElementById('partnerPackageApprovalCount');
+                    const menuBadge = document.getElementById('menuPartnerPackageApprovalCount');
+
+                    if (countBadge) countBadge.textContent = `${pendingPackages.length} pending`;
+                    if (menuBadge) menuBadge.textContent = pendingPackages.length;
+
+                    if (tbody) {
+                        if (pendingPackages.length === 0) {
+                            tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 40px;"><i class="fas fa-check-circle"></i> No pending packages to review.</td></tr>';
+                        } else {
+                            tbody.innerHTML = pendingPackages.map(pkg => {
+                                const packageName = escapeHtml(pkg.package_name || 'Untitled Package');
+                                const destination = escapeHtml(pkg.destination_name || 'Unnamed Destination');
+                                const partner = escapeHtml(pkg.partner_company || pkg.uploaded_by_name || 'Partner');
+                                const submittedAt = pkg.created_at ? new Date(pkg.created_at).toLocaleString() : 'N/A';
+                                const price = pkg.price !== null && pkg.price !== '' ? `₱${parseFloat(pkg.price).toLocaleString()}` : 'N/A';
+
+                                return `
+                                    <tr data-id="${pkg.id}">
+                                        <td>${pkg.id}</td>
+                                        <td>
+                                            <strong>${packageName}</strong><br>
+                                            <span style="font-size:0.8rem;color:#64748b;">${price}</span>
+                                        </td>
+                                        <td>${destination}</td>
+                                        <td>${partner}</td>
+                                        <td><span class="status-badge status-pending">PENDING</span></td>
+                                        <td>${submittedAt}</td>
+                                        <td class="action-buttons">
+                                            <button class="approve-btn" onclick="approvePartnerPackageSubmission(${pkg.id}, '${escapeHtml(pkg.package_name || 'package')}')"><i class="fas fa-check"></i> Approve</button>
+                                            <button class="reject-btn" onclick="rejectPartnerPackageSubmission(${pkg.id}, '${escapeHtml(pkg.package_name || 'package')}')"><i class="fas fa-times"></i> Reject</button>
+                                        </td>
+                                    </tr>
+                                `;
+                            }).join('');
+                        }
+                    }
+                })
+                .catch(error => {
+                    console.error('Error loading package approvals:', error);
+                });
+        }
+
+        function approvePartnerPackageSubmission(id, packageName) {
+            Swal.fire({
+                title: 'Approve Package',
+                html: `Approve <strong>${packageName}</strong> for public listing?`,
+                iconHtml: '<div class="custom-approve-icon"></div>',
+                showCancelButton: true,
+                confirmButtonColor: '#28a745',
+                cancelButtonColor: '#e2e8f0',
+                confirmButtonText: 'Yes, Approve',
+                customClass: { icon: 'no-border-icon', popup: 'modern-modal-popup' }
+            }).then(result => {
+                if (result.isConfirmed) {
+                    const formData = new URLSearchParams();
+                    formData.append('action', 'approve_partner_package_submission');
+                    formData.append('package_id', id);
+
+                    fetch('admin-api.php', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                        body: formData.toString()
+                    })
+                        .then(async response => {
+                            const data = await parseJsonResponse(response);
+                            if (data.success) {
+                                Swal.fire('Approved', data.message, 'success');
+                                loadPartnerPackagesApproval();
+                            } else {
+                                Swal.fire('Error', data.message || 'Unable to approve package', 'error');
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Approve package error:', error);
+                            Swal.fire('Error', 'Unable to approve package right now. Please refresh and try again.', 'error');
+                        });
+                }
+            });
+        }
+
+        function rejectPartnerPackageSubmission(id, packageName) {
+            Swal.fire({
+                title: 'Reject Package',
+                html: `Provide a reason for rejecting <strong>${packageName}</strong>:`,
+                input: 'textarea',
+                inputPlaceholder: 'Enter rejection reason...',
+                showCancelButton: true,
+                confirmButtonText: 'Reject Package',
+                cancelButtonText: 'Cancel',
+                inputValidator: value => {
+                    if (!value || !value.trim()) return 'A rejection reason is required.';
+                }
+            }).then(result => {
+                if (result.isConfirmed) {
+                    const formData = new URLSearchParams();
+                    formData.append('action', 'reject_partner_package_submission');
+                    formData.append('package_id', id);
+                    formData.append('reason', result.value || '');
+
+                    fetch('admin-api.php', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                        body: formData.toString()
+                    })
+                        .then(async response => {
+                            const data = await parseJsonResponse(response);
+                            if (data.success) {
+                                Swal.fire('Rejected', data.message, 'success');
+                                loadPartnerPackagesApproval();
+                            } else {
+                                Swal.fire('Error', data.message || 'Unable to reject package', 'error');
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Reject package error:', error);
+                            Swal.fire('Error', 'Unable to reject package right now. Please refresh and try again.', 'error');
+                        });
+                }
+            });
+        }
+
         function loadPendingRequests() {
             if (adminRole !== 'super_admin') return;
 
@@ -3509,6 +3826,256 @@ $unreadMessagesCount = $stmtMessagesCount ? $stmtMessagesCount->fetchColumn() : 
                 .catch(error => {
                     console.error('Error loading requests:', error);
                 });
+        }
+
+        let _allPartnerApplications = [];
+
+        function filterPartnerApplications(status) {
+            ['pending','approved','rejected','all'].forEach(s => {
+                const btn = document.getElementById('pa-tab-' + s);
+                if (!btn) return;
+                btn.style.background = s === status ? '#003580' : 'white';
+                btn.style.color = s === status ? 'white' : '#475569';
+                btn.style.border = s === status ? 'none' : '1px solid #cbd5e1';
+            });
+            const filtered = status === 'all' ? _allPartnerApplications : _allPartnerApplications.filter(a => a.status === status);
+            const tbody = document.getElementById('partner-applications-list');
+            const countBadge = document.getElementById('partnerApplicationCount');
+            if (countBadge) countBadge.textContent = `${filtered.length} applications`;
+            if (!tbody) return;
+            if (filtered.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:40px;"><i class="fas fa-inbox"></i> No applications found.</td></tr>';
+                return;
+            }
+            tbody.innerHTML = filtered.map(app => {
+                const statusClass = app.status === 'approved' ? 'status-confirmed' : (app.status === 'rejected' ? 'status-cancelled' : 'status-pending');
+                const appliedAt = app.created_at ? new Date(app.created_at).toLocaleString() : 'N/A';
+                return `<tr data-id="${app.id}">
+                    <td>${app.id}</td>
+                    <td><strong>${escapeHtml(app.company_name)}</strong></td>
+                    <td>${escapeHtml(app.contact_person)}<br><span style="font-size:0.8rem;color:#64748b;">${escapeHtml(app.phone)}</span></td>
+                    <td>${escapeHtml(app.email)}</td>
+                    <td>${escapeHtml(app.business_type)}</td>
+                    <td><span class="status-badge ${statusClass}">${app.status.toUpperCase()}</span></td>
+                    <td>${appliedAt}</td>
+                    <td class="action-buttons">
+                        ${app.status === 'pending' ? `
+                            <button class="approve-btn" onclick="approvePartnerApplication(${app.id}, '${escapeHtml(app.company_name)}')"><i class="fas fa-check"></i> Approve</button>
+                            <button class="reject-btn" onclick="promptRejectPartnerApplication(${app.id}, '${escapeHtml(app.company_name)}')"><i class="fas fa-times"></i> Reject</button>
+                        ` : `<span style="color:#64748b;font-size:0.85rem;">No actions</span>`}
+                    </td>
+                </tr>`;
+            }).join('');
+        }
+
+        function loadPartnerApplications() {
+            fetch('admin-api.php?action=get_partner_applications')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        _allPartnerApplications = data.data;
+                        filterPartnerApplications('pending');
+                    } else {
+                        console.error('Failed to load partner applications', data.message);
+                    }
+                })
+                .catch(error => console.error('Error loading partner applications:', error));
+        }
+
+        function approvePartnerApplication(id, companyName) {
+            Swal.fire({
+                title: 'Approve Partner',
+                html: `Approve partner application for <strong>${companyName}</strong>?`,
+                iconHtml: '<div class="custom-approve-icon"></div>',
+                showCancelButton: true,
+                confirmButtonColor: '#28a745',
+                cancelButtonColor: '#e2e8f0',
+                confirmButtonText: 'Yes, Approve',
+                customClass: { icon: 'no-border-icon', popup: 'modern-modal-popup' }
+            }).then(result => {
+                if (result.isConfirmed) {
+                    fetch('admin-api.php', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                        body: `action=approve_partner_application&request_id=${id}`
+                    }).then(r => r.json()).then(data => {
+                        if (data.success) {
+                            Swal.fire('Approved', data.message, 'success');
+                            loadPartnerApplications();
+                        } else {
+                            Swal.fire('Error', data.message || 'Unable to approve', 'error');
+                        }
+                    });
+                }
+            });
+        }
+
+        function promptRejectPartnerApplication(id, companyName) {
+            Swal.fire({
+                title: 'Reject Partner Application',
+                html: `Provide a rejection reason for <strong>${companyName}</strong>:`,
+                input: 'textarea',
+                inputPlaceholder: 'Enter rejection reason...',
+                showCancelButton: true,
+                confirmButtonText: 'Reject',
+                inputValidator: value => { if (!value) return 'A rejection reason is required.'; }
+            }).then(result => {
+                if (result.isConfirmed) {
+                    fetch('admin-api.php', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                        body: `action=reject_partner_application&request_id=${id}&reason=${encodeURIComponent(result.value)}`
+                    }).then(r => r.json()).then(data => {
+                        if (data.success) {
+                            Swal.fire('Rejected', data.message, 'success');
+                            loadPartnerApplications();
+                        } else {
+                            Swal.fire('Error', data.message || 'Unable to reject', 'error');
+                        }
+                    });
+                }
+            });
+        }
+
+        function loadApprovedPartners() {
+            fetch('admin-api.php?action=get_approved_partners')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        const partners = data.data;
+                        const tbody = document.getElementById('approved-partners-list');
+                        const countBadge = document.getElementById('approvedPartnersCount');
+                        const menuBadge = document.getElementById('menuApprovedPartnersCount');
+                        if (countBadge) countBadge.textContent = `${partners.length} partner${partners.length !== 1 ? 's' : ''}`;
+                        if (menuBadge) menuBadge.textContent = partners.length;
+                        if (!tbody) return;
+                        if (partners.length === 0) {
+                            tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:40px;"><i class="fas fa-check-circle"></i> No partners yet.</td></tr>';
+                            return;
+                        }
+                        tbody.innerHTML = partners.map(partner => {
+                            const approvedAt = partner.approved_at ? new Date(partner.approved_at).toLocaleString() : 'N/A';
+                            const website = partner.website ? `<a href="${escapeHtml(partner.website)}" target="_blank" style="color:var(--primary);text-decoration:none;">${escapeHtml(partner.website)}</a>` : 'N/A';
+                            let banHtml = '';
+                            if (parseInt(partner.is_banned) === 1) {
+                                if (partner.ban_until) {
+                                    const banUntil = new Date(partner.ban_until);
+                                    if (banUntil > new Date()) {
+                                        const diffDays = Math.ceil((banUntil - new Date()) / (1000*60*60*24));
+                                        banHtml = `<span class="status-badge status-cancelled"><i class="fas fa-ban"></i> Banned (${diffDays}d left)</span>`;
+                                    } else {
+                                        banHtml = `<span class="status-badge status-incomplete">Ban Expired</span>`;
+                                    }
+                                } else {
+                                    banHtml = `<span class="status-badge status-cancelled"><i class="fas fa-ban"></i> Permanent Ban</span>`;
+                                }
+                            } else {
+                                banHtml = `<span class="status-badge status-confirmed"><i class="fas fa-check-circle"></i> Active</span>`;
+                            }
+                            const isBanned = parseInt(partner.is_banned) === 1;
+                            return `<tr data-id="${partner.id}">
+                                <td>${partner.id}</td>
+                                <td><strong>${escapeHtml(partner.company_name)}</strong></td>
+                                <td>${escapeHtml(partner.contact_person)}<br><span style="font-size:0.8rem;color:#64748b;">${escapeHtml(partner.phone)}</span></td>
+                                <td>${escapeHtml(partner.email)}</td>
+                                <td>${escapeHtml(partner.business_type)}</td>
+                                <td>${website}</td>
+                                <td>${approvedAt}</td>
+                                <td>${banHtml}</td>
+                                <td class="action-buttons">
+                                    <button class="view-btn" onclick="viewPartnerDetails(${partner.id})"><i class="fas fa-eye"></i></button>
+                                    <button class="${isBanned ? 'approve-btn' : 'incomplete-btn'}" onclick="promptBanPartner(${partner.id}, '${escapeHtml(partner.company_name)}', ${isBanned ? 1 : 0})">
+                                        <i class="fas fa-${isBanned ? 'lock-open' : 'ban'}"></i> ${isBanned ? 'Unban' : 'Ban'}
+                                    </button>
+                                    <button class="delete-btn" onclick="deletePartner(${partner.id}, '${escapeHtml(partner.company_name)}')"><i class="fas fa-trash"></i></button>
+                                </td>
+                            </tr>`;
+                        }).join('');
+                    } else {
+                        console.error('Failed to load approved partners', data.message);
+                    }
+                })
+                .catch(error => console.error('Error loading approved partners:', error));
+        }
+
+        function promptBanPartner(partnerId, companyName, isBanned) {
+            if (isBanned) {
+                Swal.fire({
+                    title: 'Unban Partner',
+                    html: `Unban <strong>${companyName}</strong>? They will regain access immediately.`,
+                    icon: 'question', showCancelButton: true,
+                    confirmButtonColor: '#16a34a', confirmButtonText: 'Yes, Unban'
+                }).then(result => {
+                    if (result.isConfirmed) submitPartnerBan(partnerId, 'unban', null);
+                });
+            } else {
+                Swal.fire({
+                    title: 'Ban Partner',
+                    html: `<p style="margin-bottom:12px;">Ban <strong>${companyName}</strong>?</p>
+                        <select id="banTypeSelect" style="width:100%;padding:10px;border-radius:10px;border:1px solid #cbd5e1;font-family:inherit;">
+                            <option value="1">1 Day</option>
+                            <option value="7">7 Days</option>
+                            <option value="30">30 Days</option>
+                            <option value="90">90 Days</option>
+                            <option value="permanent">Permanent</option>
+                        </select>`,
+                    icon: 'warning', showCancelButton: true,
+                    confirmButtonColor: '#dc2626', confirmButtonText: 'Ban Partner',
+                    preConfirm: () => document.getElementById('banTypeSelect').value
+                }).then(result => {
+                    if (result.isConfirmed) {
+                        const days = result.value === 'permanent' ? null : parseInt(result.value);
+                        submitPartnerBan(partnerId, 'ban', days);
+                    }
+                });
+            }
+        }
+
+        function submitPartnerBan(partnerId, banAction, days) {
+            const formData = new FormData();
+            formData.append('action', 'ban_partner');
+            formData.append('partner_id', partnerId);
+            formData.append('ban_action', banAction);
+            if (days !== null && days !== undefined) formData.append('ban_days', days);
+            fetch('admin-api.php', { method: 'POST', body: formData })
+                .then(r => r.json())
+                .then(data => {
+                    if (data.success) {
+                        Swal.fire({ icon: 'success', title: 'Done!', text: data.message, timer: 2000, showConfirmButton: false });
+                        loadApprovedPartners();
+                    } else {
+                        Swal.fire('Error', data.message, 'error');
+                    }
+                });
+        }
+
+        function deletePartner(partnerId, companyName) {
+            Swal.fire({
+                title: 'Delete Partner Account',
+                html: `Permanently delete <strong>${companyName}</strong>? This cannot be undone.`,
+                icon: 'warning', showCancelButton: true,
+                confirmButtonColor: '#dc2626', confirmButtonText: 'Yes, Delete'
+            }).then(result => {
+                if (result.isConfirmed) {
+                    const formData = new FormData();
+                    formData.append('action', 'delete_partner');
+                    formData.append('partner_id', partnerId);
+                    fetch('admin-api.php', { method: 'POST', body: formData })
+                        .then(r => r.json())
+                        .then(data => {
+                            if (data.success) {
+                                Swal.fire({ icon: 'success', title: 'Deleted!', text: data.message, timer: 2000, showConfirmButton: false });
+                                loadApprovedPartners();
+                            } else {
+                                Swal.fire('Error', data.message, 'error');
+                            }
+                        });
+                }
+            });
+        }
+
+        function viewPartnerDetails(partnerId) {
+            window.open(`../view-partner-profile.php?id=${partnerId}`, '_blank');
         }
 
         function approveRequest(requestId, username) {
@@ -4187,9 +4754,11 @@ $unreadMessagesCount = $stmtMessagesCount ? $stmtMessagesCount->fetchColumn() : 
             }
         }
 
-        function deleteBooking(id) {
+        function deleteBooking(id, bookingNumber = '') {
             const bookingId = parseInt(id, 10);
-            if (!bookingId || isNaN(bookingId)) {
+            const bookingNumberValue = String(bookingNumber || '').trim();
+
+            if ((isNaN(bookingId) || bookingId < 0) && !bookingNumberValue) {
                 Swal.fire('Error', 'Invalid booking ID. Please refresh the page and try again.', 'error');
                 return;
             }
@@ -4214,7 +4783,12 @@ $unreadMessagesCount = $stmtMessagesCount ? $stmtMessagesCount->fetchColumn() : 
                     Swal.fire({ title: 'Processing...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
                     const formData = new URLSearchParams();
                     formData.append('action', 'delete_booking');
-                    formData.append('id', bookingId);
+                    if (bookingId > 0) {
+                        formData.append('id', bookingId);
+                    }
+                    if (bookingNumberValue) {
+                        formData.append('booking_number', bookingNumberValue);
+                    }
 
                     fetch('admin-api.php', {
                         method: 'POST',
@@ -4653,7 +5227,7 @@ $unreadMessagesCount = $stmtMessagesCount ? $stmtMessagesCount->fetchColumn() : 
                         ${!isInquiryView ? `<button class="edit-btn" onclick="editBooking(${booking.id}, '${booking.booking_number}')" title="Edit">
                             <i class="fas fa-edit"></i>
                         </button>
-                        <button class="delete-btn" onclick="deleteBooking(${booking.id})" title="Delete">
+                        <button type="button" class="delete-btn" onclick="event.stopPropagation(); deleteBooking(${booking.id}, ${JSON.stringify(booking.booking_number || '')})" title="Delete">
                             <i class="fas fa-trash"></i>
                         </button>` : ''}
                         ${isFullyCompleted(booking) ? `

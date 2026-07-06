@@ -48,7 +48,8 @@ function countRedemptions($pdo, $voucherId) {
 }
 
 function currentDateTimeValue() {
-    return date('Y-m-d H:i:s');
+    $tz = new DateTimeZone('Asia/Manila');
+    return (new DateTime('now', $tz))->format('Y-m-d H:i:s');
 }
 
 function isVoucherActiveNow($startDate, $endDate, $now) {
@@ -56,9 +57,10 @@ function isVoucherActiveNow($startDate, $endDate, $now) {
         return false;
     }
 
-    $start = new DateTime($startDate);
-    $end   = new DateTime($endDate);
-    $nowDt = new DateTime($now);
+    $tz = new DateTimeZone('Asia/Manila');
+    $start = new DateTime($startDate, $tz);
+    $end   = new DateTime($endDate, $tz);
+    $nowDt = new DateTime($now, $tz);
 
     if ($start > $nowDt) {
         return false;
@@ -134,7 +136,8 @@ switch ($action) {
             $stmt->execute();
             $vouchers = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-            foreach ($vouchers as &$v) {
+            $validVouchers = [];
+            foreach ($vouchers as $v) {
                 $v['targets'] = getVoucherTargets($pdo, $v['id']);
                 $v['package_targets'] = getVoucherPackageTargets($pdo, $v['id']);
 
@@ -152,10 +155,11 @@ switch ($action) {
                         continue; // Skip exhausted vouchers
                     }
                 }
+
+                $validVouchers[] = $v;
             }
 
-            // Filter out null entries from exhausted vouchers
-            $vouchers = array_values(array_filter($vouchers));
+            $vouchers = array_values($validVouchers);
 
             respond(true, $vouchers);
         } catch (PDOException $e) {

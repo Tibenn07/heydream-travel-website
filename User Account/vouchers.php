@@ -1,13 +1,19 @@
 <?php
 require_once __DIR__ . '/../config/database.php';
 
-requireLogin();
-
 $user = $auth->getCurrentUser();
-if (!$user) {
-    $auth->logout();
-    header('Location: login.php');
-    exit;
+$guestMode = empty($user);
+
+if ($guestMode) {
+    $displayName = 'Guest';
+    $displayRole = 'Guest';
+    $profileInitials = 'G';
+    $profilePic = '';
+} else {
+    $displayName = $user['full_name'] ?? 'Member';
+    $displayRole = 'Member';
+    $profileInitials = strtoupper(substr($displayName, 0, 2));
+    $profilePic = !empty($user['profile_pic']) ? '../' . $user['profile_pic'] : '';
 }
 ?>
 <!DOCTYPE html>
@@ -81,8 +87,21 @@ if (!$user) {
 
         .voucher-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            grid-template-columns: repeat(2, 1fr);
             gap: 22px;
+        }
+
+        @media (max-width: 768px) {
+            .voucher-grid {
+                grid-template-columns: 1fr;
+                gap: 16px;
+            }
+            .voucher-card {
+                min-height: auto;
+            }
+            .voucher-discount {
+                font-size: 1.5rem;
+            }
         }
 
         .voucher-card {
@@ -249,16 +268,16 @@ if (!$user) {
     <div class="side-panel" id="sidePanel">
         <div class="sidebar-profile">
             <div class="sidebar-avatar" id="sidebarAvatar">
-                <?php if (!empty($user['profile_pic'])): ?>
-                    <img src="../<?= htmlspecialchars($user['profile_pic']) ?>" alt="Profile"
+                <?php if (!empty($profilePic)): ?>
+                    <img src="<?= htmlspecialchars($profilePic) ?>" alt="Profile"
                         style="width:100%;height:100%;border-radius:50%;object-fit:cover;">
                 <?php else: ?>
-                    <?= htmlspecialchars(strtoupper(substr($user['full_name'], 0, 2))) ?>
+                    <?= htmlspecialchars($profileInitials) ?>
                 <?php endif; ?>
             </div>
             <div class="sidebar-user-info" id="sidebarUserInfo">
-                <div class="sidebar-user-role" id="sidebarUserRole">Member</div>
-                <div class="sidebar-user-name" id="sidebarUserName"><?= htmlspecialchars($user['full_name']) ?></div>
+                <div class="sidebar-user-role" id="sidebarUserRole"><?= htmlspecialchars($displayRole) ?></div>
+                <div class="sidebar-user-name" id="sidebarUserName"><?= htmlspecialchars($displayName) ?></div>
             </div>
         </div>
 
@@ -409,6 +428,61 @@ if (!$user) {
     <script>
     (function() {
         let voucherTabActive = 'collected';
+        let allMyVouchers = [];
+        let allAvailableVouchers = [];
+        let currentPageMy = 1;
+        let currentPageAvailable = 1;
+        const ITEMS_PER_PAGE = 4;
+
+        function renderPagination(totalItems, currentPage, pageChangeCallback) {
+            const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE);
+            if (totalPages <= 1) return '';
+            
+            let html = '<div class="pagination-controls" style="display:flex; justify-content:center; gap:10px; margin-top:30px; grid-column: 1 / -1;">';
+            
+            html += `<button style="padding:8px 16px; border-radius:8px; border:1px solid #cbd5e1; background:${currentPage === 1 ? '#f8fafc' : 'white'}; cursor:${currentPage === 1 ? 'not-allowed' : 'pointer'}; font-family:'Poppins',sans-serif;" onclick="${currentPage > 1 ? pageChangeCallback + '(' + (currentPage - 1) + ')' : 'return false;'}" ${currentPage === 1 ? 'disabled' : ''}>Prev</button>`;
+            
+            for (let i = 1; i <= totalPages; i++) {
+                html += `<button style="padding:8px 16px; border-radius:8px; border:1px solid ${i === currentPage ? '#003580' : '#cbd5e1'}; background:${i === currentPage ? '#003580' : 'white'}; color:${i === currentPage ? 'white' : '#475569'}; cursor:pointer; font-family:'Poppins',sans-serif;" onclick="${pageChangeCallback}(${i})">${i}</button>`;
+            }
+            
+            html += `<button style="padding:8px 16px; border-radius:8px; border:1px solid #cbd5e1; background:${currentPage === totalPages ? '#f8fafc' : 'white'}; cursor:${currentPage === totalPages ? 'not-allowed' : 'pointer'}; font-family:'Poppins',sans-serif;" onclick="${currentPage < totalPages ? pageChangeCallback + '(' + (currentPage + 1) + ')' : 'return false;'}" ${currentPage === totalPages ? 'disabled' : ''}>Next</button>`;
+            
+            html += '</div>';
+            return html;
+        }
+
+        window.changePageMy = function(page) {
+            currentPageMy = page;
+            renderMyVouchers();
+        };
+
+        window.changePageAvailable = function(page) {
+            currentPageAvailable = page;
+            renderAvailableVouchers();
+        };
+
+        function renderMyVouchers() {
+            const container = document.getElementById('collected-vouchers-container');
+            const startIndex = (currentPageMy - 1) * ITEMS_PER_PAGE;
+            const paginated = allMyVouchers.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+            
+            let html = paginated.map(v => buildVoucherCard(v, 'collected')).join('');
+            html += renderPagination(allMyVouchers.length, currentPageMy, 'changePageMy');
+            
+            container.innerHTML = html;
+        }
+
+        function renderAvailableVouchers() {
+            const container = document.getElementById('available-vouchers-container');
+            const startIndex = (currentPageAvailable - 1) * ITEMS_PER_PAGE;
+            const paginated = allAvailableVouchers.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+            
+            let html = paginated.map(v => buildVoucherCard(v, 'available')).join('');
+            html += renderPagination(allAvailableVouchers.length, currentPageAvailable, 'changePageAvailable');
+            
+            container.innerHTML = html;
+        }
 
         function switchVoucherTab(tab) {
             voucherTabActive = tab;
@@ -422,13 +496,13 @@ if (!$user) {
                 available.style.display = 'none';
                 btnCollected.classList.add('active');
                 btnAvailable.classList.remove('active');
-                loadMyVouchers();
+                if (allMyVouchers.length === 0) loadMyVouchers();
             } else {
                 collected.style.display = 'none';
                 available.style.display = '';
                 btnAvailable.classList.add('active');
                 btnCollected.classList.remove('active');
-                loadAvailableVouchers();
+                if (allAvailableVouchers.length === 0) loadAvailableVouchers();
             }
         }
         window.switchVoucherTab = switchVoucherTab;
@@ -490,7 +564,7 @@ if (!$user) {
                     ? `<span class="voucher-badge-status" style="background:#d1fae5;color:#059669;"><span style="width:6px;height:6px;border-radius:50%;background:#059669;"></span> Already Claimed</span>`
                     : isAutoApply
                     ? `<span class="voucher-badge-status" style="background:#e0f2fe;color:#0369a1;"><i class="fas fa-bolt" style="font-size:0.7rem;"></i> Auto-applies at checkout</span>`
-                    : `<button class="btn-claim-voucher" onclick="claimVoucher(${v.id}, this)"><i class="fas fa-plus"></i> Claim</button>`;
+                    : `<button class="btn-claim-voucher" data-voucher-id="${v.id}" onclick="requireLogin('handleVoucherClaim', ${v.id})"><i class="fas fa-plus"></i> Claim</button>`;
                 footerHtml += `<span style="font-size: 0.75rem; color: #94a3b8;">${timeLabel}</span>`;
             }
 
@@ -546,7 +620,9 @@ if (!$user) {
                             </div>`;
                         return;
                     }
-                    container.innerHTML = res.data.map(v => buildVoucherCard(v, 'collected')).join('');
+                    allMyVouchers = res.data;
+                    currentPageMy = 1;
+                    renderMyVouchers();
                 })
                 .catch(() => {
                     container.innerHTML = `<div class="voucher-empty-state">Error connecting to server.</div>`;
@@ -573,16 +649,30 @@ if (!$user) {
                             </div>`;
                         return;
                     }
-                    container.innerHTML = res.data.map(v => buildVoucherCard(v, 'available')).join('');
+                    allAvailableVouchers = res.data;
+                    currentPageAvailable = 1;
+                    renderAvailableVouchers();
                 })
                 .catch(() => {
                     container.innerHTML = `<div class="voucher-empty-state">Error connecting to server.</div>`;
                 });
         }
 
+        function getClaimButtonElement(voucherId) {
+            return document.querySelector(`.btn-claim-voucher[data-voucher-id="${voucherId}"]`);
+        }
+
+        function handleVoucherClaim(voucherId) {
+            const btn = getClaimButtonElement(voucherId);
+            claimVoucher(voucherId, btn);
+        }
+        window.handleVoucherClaim = handleVoucherClaim;
+
         function claimVoucher(voucherId, btn) {
-            btn.disabled = true;
-            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+            if (btn) {
+                btn.disabled = true;
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+            }
 
             const formData = new FormData();
             formData.append('action', 'claim_voucher');
@@ -608,7 +698,15 @@ if (!$user) {
         }
         window.claimVoucher = claimVoucher;
 
-        document.addEventListener('DOMContentLoaded', loadMyVouchers);
+        document.addEventListener('DOMContentLoaded', () => {
+            const guestMode = <?= $guestMode ? 'true' : 'false' ?>;
+            if (guestMode) {
+                switchVoucherTab('available');
+                loadAvailableVouchers();
+            } else {
+                loadMyVouchers();
+            }
+        });
     })();
     </script>
 </body>

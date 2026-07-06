@@ -1085,6 +1085,10 @@ $auth = new Auth($pdo);
             <p>HeyDream Travel and Tours welcomes partnerships with travel agencies, tour operators, airlines, hotels,
                 and corporate organizations. We are open to B2B collaborations to expand travel opportunities for our
                 clients and partners.</p>
+            <div style="margin-top: 20px; display: flex; flex-wrap: wrap; gap: 14px; justify-content: center;">
+                <a href="partnership.php" class="btn" style="background: #003580; color: white; padding: 12px 28px; border-radius: 999px; text-decoration: none; font-weight: 700;">Partner with Us</a>
+                <a href="../admin/Partnership/partner-register.php" class="btn" style="background: transparent; color: #003580; border: 2px solid #003580; padding: 12px 28px; border-radius: 999px; text-decoration: none; font-weight: 700;">Apply Now</a>
+            </div>
         </div>
     </div>
 

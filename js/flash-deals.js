@@ -417,6 +417,7 @@ window.showFlashDealPopup = async function (dealId) {
                     <div class="summary-item"><span>Duration:</span><span>${escapeHtmlFlash(deal.duration || '3D/2N')}</span></div>
                     <div class="summary-item"><span>Price per Person:</span><span>${deal.currency || '₱'}${formatNumberFlash(deal.price)}</span></div>
                     <div class="summary-item"><span>Travelers:</span><span id="flashStepSummaryTravelers">1</span></div>
+                    <div class="summary-item discounted" id="flashStepSummaryDiscountedRow" style="display:none;"><span>Discounted:</span><span id="flashStepSummaryDiscounted">₱0</span></div>
                     <div class="summary-item total"><span>Total:</span><span id="flashStepSummaryTotal">${deal.currency || '₱'}${formatNumberFlash(deal.price)}</span></div>
                 </div>
 
@@ -430,6 +431,7 @@ window.showFlashDealPopup = async function (dealId) {
                     <div class="form-group"><label>Phone *</label><input type="tel" id="flashStepPhone" placeholder="+63 912 345 6789"></div>
                     <div class="form-group"><label>Travelers *</label><input type="number" id="flashStepTravelers" min="1" value="1" onchange="updateFlashStepTotal(${deal.price})"></div>
                 </div>
+                <div id="flashStep2VoucherArea" style="margin-bottom:18px;"></div>
                 <div class="form-group"><label>Special Requests</label><textarea id="flashStepRequests" rows="3" placeholder="Any special requirements, dietary restrictions, etc."></textarea></div>
                 <div id="flashStep2Errors" class="error-message" style="display: none;"></div>
                 <div class="action-buttons">

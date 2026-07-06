@@ -1858,8 +1858,7 @@ function getStatusInfo($status)
                                 <div>
                                     <label style="display: block; font-size: 0.82rem; font-weight: 600; color: #334155; margin-bottom: 6px;">Collection Method</label>
                                     <select id="v-collection-method" name="collection_method" style="width: 100%; padding: 10px 14px; border-radius: 10px; border: 1.5px solid #cbd5e1; font-family: inherit; font-size: 0.88rem; outline: none; background: white; cursor: pointer;">
-                                        <option value="auto_available">Auto Available</option>
-                                        <option value="user_collect">User Claimable (Save to Wallet First)</option>
+                                        <option value="user_collect" selected>User Claimable (Save to Wallet First)</option>
                                     </select>
                                 </div>
                             </div>

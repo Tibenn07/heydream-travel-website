@@ -7,6 +7,11 @@ header("X-Content-Type-Options: nosniff");
 header("Referrer-Policy: strict-origin-when-cross-origin");
 header("X-XSS-Protection: 1; mode=block");
 
+// Ensure app-wide date/time uses local Philippine time for vouchers and bookings
+if (!ini_get('date.timezone')) {
+    date_default_timezone_set('Asia/Manila');
+}
+
 // Start session if not already started
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
@@ -33,12 +38,12 @@ if ($is_localhost) {
     ini_set('display_errors', 0);
     ini_set('log_errors', 1);
 
-    // LIVE HOST (InfinityFree) Configuration
-    // TODO: Update these with your actual InfinityFree MySQL credentials from your InfinityFree Client Area!
-    $host = 'sqlXXX.infinityfree.com';              // e.g., sql208.infinityfree.com
-    $dbname = 'if0_XXXXXXXX_heydream_travel';       // e.g., if0_34567890_heydream_travel
-    $username = 'if0_XXXXXXXX';                     // e.g., if0_34567890
-    $password = 'your_infinityfree_password';       // Your InfinityFree Account Password
+    // LIVE HOST (Hostinger) Configuration
+    // Use environment variables when available, otherwise fall back to provided Hostinger credentials
+    $host = getenv('DB_HOST') ?: 'localhost';
+    $dbname = getenv('DB_NAME') ?: 'u796368004_heydream';
+    $username = getenv('DB_USER') ?: 'u796368004_heywebsite';
+    $password = getenv('DB_PASS') ?: 'Heydream@12345';
 }
 
 // ============================================
@@ -81,6 +86,24 @@ if ($pdo !== null) {
                   AND UPPER(COALESCE(visa_status, 'N/A')) IN ('APPROVED', 'N/A')
               )
         ");
+
+        $pdo->exec("CREATE TABLE IF NOT EXISTS partner_applications (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            company_name VARCHAR(255) NOT NULL,
+            contact_person VARCHAR(255) NOT NULL,
+            email VARCHAR(150) NOT NULL UNIQUE,
+            phone VARCHAR(50) NOT NULL,
+            website VARCHAR(255) DEFAULT NULL,
+            business_type VARCHAR(100) NOT NULL,
+            message TEXT,
+            password VARCHAR(255) NOT NULL,
+            status ENUM('pending','approved','rejected') DEFAULT 'pending',
+            rejection_reason TEXT DEFAULT NULL,
+            approved_at DATETIME DEFAULT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            INDEX idx_status (status)
+        )");
     } catch (Throwable $e) {
         // Fail silently so database connectivity is never interrupted
     }

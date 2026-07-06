@@ -2011,12 +2011,11 @@ foreach ($home_local_destinations as &$dest) {
                         <i class="fas fa-gift"></i>
                     </div>
                     <div>
-                        <h1 class="section-title-popular" style="margin: 0; font-size: 1.6rem; border-left: none; padding-left: 0; color: #003580; font-weight: 800; font-family: 'Outfit', sans-serif;">HeyDream Voucher Center</h1>
-                        <p style="margin: 2px 0 0; font-size: 0.8rem; color: #64748b;">Collect exclusive coupons and enjoy discounts at checkout!</p>
+                        <h1 class="section-title-popular animated-title-glow" style="margin: 0; font-size: 1.6rem; border-left: none; padding-left: 0; color: #003580; font-weight: 800; font-family: 'Outfit', sans-serif;">Exclusive Vouchers</h1>
                     </div>
                 </div>
-                <a href="User Account/profile.php" class="view-all-link" style="color: #003580; font-weight: 700; font-size: 0.85rem; text-decoration: none; border: 1.5px solid #003580; padding: 6px 16px; border-radius: 50px; transition: all 0.3s ease; background: transparent;">
-                    My Wallet <i class="fas fa-wallet"></i>
+                <a href="User Account/vouchers.php" class="view-all-link" style="color: #003580; font-weight: 700; font-size: 0.85rem; text-decoration: none; border: 1.5px solid #003580; padding: 6px 16px; border-radius: 50px; transition: all 0.3s ease; background: transparent;">
+                    View all <i class="fas fa-arrow-right"></i>
                 </a>
             </div>
 
@@ -2033,6 +2032,26 @@ foreach ($home_local_destinations as &$dest) {
     </section>
 
     <style>
+        @keyframes colorShimmer {
+            0% { color: #003580; text-shadow: 0 0 0px rgba(0,53,128,0); transform: scale(1); }
+            50% { color: #0055c8; text-shadow: 0 0 10px rgba(0,85,200,0.4); transform: scale(1.02); }
+            100% { color: #003580; text-shadow: 0 0 0px rgba(0,53,128,0); transform: scale(1); }
+        }
+        .animated-title-glow {
+            animation: colorShimmer 3s infinite alternate;
+            display: inline-block;
+        }
+
+        @keyframes fadeInUpVoucher {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes shineSweep {
+            0% { left: -100%; }
+            20% { left: 200%; }
+            100% { left: 200%; }
+        }
+
         .home-voucher-card {
             background: white;
             border-radius: 16px;
@@ -2045,6 +2064,18 @@ foreach ($home_local_destinations as &$dest) {
             min-width: 340px;
             transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
             position: relative;
+            animation: fadeInUpVoucher 0.6s ease-out forwards;
+        }
+        .home-voucher-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: -100%;
+            width: 50%; height: 100%;
+            background: linear-gradient(to right, rgba(255,255,255,0) 0%, rgba(255,255,255,0.6) 50%, rgba(255,255,255,0) 100%);
+            transform: skewX(-25deg);
+            animation: shineSweep 4s infinite;
+            z-index: 10;
+            pointer-events: none;
         }
         .home-voucher-card:hover {
             transform: translateY(-3px);
@@ -2262,6 +2293,88 @@ foreach ($home_local_destinations as &$dest) {
                     </div>
                 </div>
             </div>
+
+            <?php
+            function normalizePartnerPackageDisplayValue($value)
+            {
+                return strtolower(trim(preg_replace('/\s+/', ' ', (string) $value)));
+            }
+
+            $partnerUploadsStmt = $pdo->prepare("SELECT * FROM partner_package_uploads WHERE upload_status = 'approved' ORDER BY created_at DESC LIMIT 6");
+            $partnerUploadsStmt->execute();
+            $partnerUploads = $partnerUploadsStmt->fetchAll(PDO::FETCH_ASSOC);
+
+            $existingHomepagePartnerPackageNames = [];
+            $existingHomepagePartnerPackageQueries = [
+                "SELECT name FROM foreign_destinations WHERE is_active = 1 AND name IS NOT NULL AND name <> ''",
+                "SELECT name FROM destinations WHERE type = 'local' AND is_active = 1 AND name IS NOT NULL AND name <> ''",
+                "SELECT destination_name FROM hotel_booking_settings WHERE is_active = 1 AND destination_name IS NOT NULL AND destination_name <> ''",
+                "SELECT title FROM site_services WHERE is_active = 1 AND title IS NOT NULL AND title <> '' AND service_type IN ('premium', 'flight', 'experience')",
+                "SELECT title FROM visas WHERE is_active = 1 AND title IS NOT NULL AND title <> ''"
+            ];
+
+            foreach ($existingHomepagePartnerPackageQueries as $query) {
+                $queryStmt = $pdo->query($query);
+                while ($row = $queryStmt->fetchColumn()) {
+                    $normalized = normalizePartnerPackageDisplayValue($row);
+                    if ($normalized !== '') {
+                        $existingHomepagePartnerPackageNames[$normalized] = true;
+                    }
+                }
+            }
+
+            $partnerUploads = array_values(array_filter($partnerUploads, function ($upload) use ($existingHomepagePartnerPackageNames) {
+                $packageName = normalizePartnerPackageDisplayValue($upload['package_name'] ?? '');
+                $destinationName = normalizePartnerPackageDisplayValue($upload['destination_name'] ?? '');
+                return !isset($existingHomepagePartnerPackageNames[$packageName]) && !isset($existingHomepagePartnerPackageNames[$destinationName]);
+            }));
+            ?>
+                <div class="destinations-grid-section" style="margin-top: 32px;">
+                    <div class="section-header-wrapper" id="partners-packages">
+                        <h1 class="section-title-popular local-title" id="partner-title" style="animation: fadeInUp 0.5s ease forwards;">Partners Packages and Services</h1>
+                        <a href="#" data-partner-package-link="partners-packages" class="view-all-link" style="color: #0f4c81;">View partner packages <i class="fas fa-arrow-right"></i></a>
+                    </div>
+
+                    <div class="popular-scroll-container">
+                        <div class="popular-grid">
+                            <?php if (empty($partnerUploads)): ?>
+                                <div class="loading-spinner" style="padding: 32px 0; margin: 0 auto; max-width: 680px; background: transparent; border: none;">
+                                    <i class="fas fa-info-circle"></i>
+                                    <p>No partner packages available. Check back soon!</p>
+                                </div>
+                            <?php else: ?>
+                                <?php foreach ($partnerUploads as $upload): ?>
+                                    <div class="foreign-card" style="height: auto; min-height: 270px; width: 100%; max-width: 280px;">
+                                        <div class="foreign-card-image" style="height: 140px; background: linear-gradient(135deg, #0f4c81, #f59e0b); display:flex; align-items:center; justify-content:center; color:white; font-size:2rem;">
+                                            <i class="fas fa-handshake"></i>
+                                        </div>
+                                        <div class="foreign-card-content">
+                                            <div class="foreign-card-name" style="position: static; padding: 0 0 8px; min-height: auto; background: none; color: #0f172a !important; text-shadow: none; font-size: 1rem; display:block;">
+                                                <?= htmlspecialchars($upload['package_name']) ?>
+                                            </div>
+                                            <div class="foreign-card-location"><i class="fas fa-map-marker-alt"></i> <?= htmlspecialchars($upload['destination_name'] ?: 'Destination not specified') ?></div>
+                                            <div class="foreign-card-desc" style="margin-bottom: 8px;">
+                                                <?= htmlspecialchars($upload['description'] ?: 'Partner package available for booking.') ?>
+                                            </div>
+                                            <div class="foreign-card-footer">
+                                                <div class="foreign-card-price">
+                                                    From ₱<?= number_format((float)$upload['price'], 2) ?>
+                                                    <small>/ person</small>
+                                                </div>
+                                                <button class="foreign-card-btn" onclick="alert('Partner package details coming soon!')" style="width: 100%;">
+                                                    View Tour Details
+                                                </button>
+                                            </div>
+                                            <div style="margin-top:10px; color:#64748b; font-size:0.75rem; text-align: center;">
+                                                Uploaded by <?= htmlspecialchars($upload['uploaded_by_name']) ?>
+                                            </div>
+                                        </div>
+                                    </div>
+                                <?php endforeach; ?>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+                </div>
         </div>
     </section>
 
@@ -2531,6 +2644,7 @@ foreach ($home_local_destinations as &$dest) {
     <script src="js/home-packages.js?v=2"></script>
     <script src="js/foreign-packages.js?v=2"></script>
     <script src="js/flash-deals.js?v=4"></script>
+    <script src="js/partner-packages.js?v=1"></script>
 
     <script>
         // ========================================
@@ -3309,7 +3423,7 @@ foreach ($home_local_destinations as &$dest) {
                             if (voucher.already_claimed) {
                                 buttonHtml = `<button class="home-voucher-btn" disabled style="background: #cbd5e1; color: #64748b;">Claimed</button>`;
                             } else {
-                                buttonHtml = `<button class="home-voucher-btn" onclick="claimHomeVoucher(${voucher.id}, this)">Claim</button>`;
+                                buttonHtml = `<button class="home-voucher-btn" onclick="requireLogin('claimHomeVoucher', ${voucher.id})">Claim</button>`;
                             }
 
                             const minSpend = parseFloat(voucher.minimum_spend);
@@ -3371,25 +3485,14 @@ foreach ($home_local_destinations as &$dest) {
             // Global claiming handler
             window.claimHomeVoucher = function (voucherId, btn) {
                 if (!IS_LOGGED_IN) {
-                    Swal.fire({
-                        title: 'Sign In Required',
-                        text: 'You need to sign in to claim vouchers and save them to your wallet.',
-                        icon: 'info',
-                        showCancelButton: true,
-                        confirmButtonColor: '#003580',
-                        cancelButtonColor: '#64748b',
-                        confirmButtonText: 'Sign In Now',
-                        cancelButtonText: 'Cancel'
-                    }).then((result) => {
-                        if (result.isConfirmed) {
-                            window.location.href = 'User Account/login.php';
-                        }
-                    });
+                    requireLogin('claimHomeVoucher', voucherId);
                     return;
                 }
 
-                btn.disabled = true;
-                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+                if (btn) {
+                    btn.disabled = true;
+                    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+                }
 
                 const formData = new FormData();
                 formData.append('action', 'claim_voucher');
