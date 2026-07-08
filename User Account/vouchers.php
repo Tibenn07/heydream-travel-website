@@ -26,217 +26,520 @@ if ($guestMode) {
     <link rel="stylesheet" href="../style.css">
     <link rel="stylesheet" href="../css/sidepanel.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: #f8f9fa;
+            font-family: 'Poppins', sans-serif;
+        }
+
         .page-container {
             padding: 120px 5% 60px;
-            max-width: 1400px;
+            max-width: 1200px;
             margin: 0 auto;
         }
 
+        /* Header - Centered */
         .page-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            gap: 20px;
-            margin-bottom: 30px;
-            flex-wrap: wrap;
+            text-align: center;
+            margin-bottom: 40px;
         }
 
         .page-header .page-title {
             font-size: 2rem;
-            font-weight: 700;
+            font-weight: 600;
             color: #003580;
-            margin: 0;
+            margin: 0 0 6px 0;
         }
 
         .page-header .page-subtitle {
-            color: #475569;
-            font-size: 0.95rem;
-            max-width: 720px;
-            line-height: 1.6;
-            margin: 10px 0 0;
+            color: #94a3b8;
+            font-size: 0.9rem;
+            font-weight: 300;
+            margin: 0 0 20px 0;
         }
 
+        /* Tabs - Centered */
         .voucher-tabs {
             display: flex;
-            gap: 12px;
-            flex-wrap: wrap;
-            margin-bottom: 30px;
+            justify-content: center;
+            gap: 8px;
+            margin-bottom: 36px;
         }
 
         .voucher-tab-button {
-            border: 1px solid #cbd5e1;
-            background: white;
-            color: #475569;
-            padding: 12px 20px;
+            border: none;
+            background: transparent;
+            color: #94a3b8;
+            padding: 10px 32px;
             border-radius: 999px;
             cursor: pointer;
-            transition: all 0.2s ease;
-            font-weight: 600;
-            min-width: 150px;
-            text-align: center;
+            transition: all 0.25s ease;
+            font-weight: 500;
+            font-size: 0.9rem;
+            font-family: 'Poppins', sans-serif;
+        }
+
+        .voucher-tab-button:hover {
+            color: #003580;
+            background: #f1f5f9;
         }
 
         .voucher-tab-button.active {
             background: #003580;
             color: white;
-            border-color: #003580;
+        }
+
+        /* Voucher Grid - Centered with justified cards */
+        .voucher-grid-wrapper {
+            display: flex;
+            justify-content: center;
+            width: 100%;
         }
 
         .voucher-grid {
             display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 22px;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 24px;
+            width: 100%;
+            max-width: 1024px;
         }
 
-        @media (max-width: 768px) {
-            .voucher-grid {
-                grid-template-columns: 1fr;
-                gap: 16px;
-            }
-            .voucher-card {
-                min-height: auto;
-            }
-            .voucher-discount {
-                font-size: 1.5rem;
-            }
+        /* When only 1-2 items, center them */
+        .voucher-grid:has(.voucher-card:only-child) {
+            grid-template-columns: minmax(320px, 420px);
+            justify-content: center;
         }
 
+        .voucher-grid:has(.voucher-card:nth-child(2):last-child) {
+            grid-template-columns: repeat(2, minmax(300px, 1fr));
+            max-width: 720px;
+            justify-content: center;
+        }
+
+        /* Voucher Card */
         .voucher-card {
             background: white;
-            border-radius: 24px;
+            border-radius: 16px;
             overflow: hidden;
-            box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
-            border: 1px solid #e2e8f0;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+            border: 1px solid #edf2f7;
             display: flex;
             flex-direction: column;
+            transition: all 0.2s ease;
+            height: 100%;
             min-height: 280px;
         }
 
+        .voucher-card:hover {
+            box-shadow: 0 4px 20px rgba(0, 53, 128, 0.08);
+            border-color: #e2e8f0;
+            transform: translateY(-2px);
+        }
+
+        /* Banner */
         .voucher-banner {
-            padding: 24px;
+            padding: 20px 22px;
             color: white;
+            position: relative;
+            overflow: hidden;
+            min-height: 90px;
+        }
+
+        .voucher-banner-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            position: relative;
+            z-index: 1;
         }
 
         .voucher-discount {
-            font-size: 1.85rem;
-            font-weight: 800;
-            line-height: 1.05;
+            font-size: 1.6rem;
+            font-weight: 700;
+            line-height: 1.1;
         }
 
         .voucher-discount-label {
-            margin-top: 10px;
-            font-size: 1rem;
-            font-weight: 700;
-            letter-spacing: -0.03em;
+            font-size: 0.85rem;
+            font-weight: 500;
+            opacity: 0.9;
+            margin-top: 2px;
         }
 
+        .voucher-icon {
+            font-size: 2rem;
+            opacity: 0.15;
+            flex-shrink: 0;
+        }
+
+        /* Divider */
         .voucher-divider {
             display: flex;
             align-items: center;
-            justify-content: space-between;
-            padding: 0 18px;
-            background: #f8fafc;
+            padding: 0 14px;
+            background: #fafbfc;
+            height: 16px;
+            flex-shrink: 0;
         }
 
         .voucher-divider .dot {
-            width: 18px;
-            height: 18px;
+            width: 12px;
+            height: 12px;
             border-radius: 50%;
             background: #fff;
-            border: 1px dashed #cbd5e1;
+            border: 1.5px dashed #e2e8f0;
+            flex-shrink: 0;
         }
 
         .voucher-divider .dashes {
             flex-grow: 1;
-            border-bottom: 1px dashed #cbd5e1;
-            margin: 0 6px;
+            border-top: 1.5px dashed #e2e8f0;
+            margin: 0 4px;
         }
 
+        /* Body */
         .voucher-body {
-            padding: 22px;
+            padding: 16px 22px 12px;
             flex-grow: 1;
         }
 
         .voucher-code-pill {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            background: #f8fafc;
-            border: 1px solid #e2e8f0;
+            display: inline-block;
+            background: #f1f4f9;
             border-radius: 999px;
-            padding: 10px 14px;
-            font-weight: 700;
-            color: #0f172a;
-            margin-bottom: 12px;
-            font-size: 0.9rem;
+            padding: 4px 14px;
+            font-weight: 600;
+            font-size: 0.75rem;
+            color: #1e293b;
+            font-family: 'Poppins', sans-serif;
+            letter-spacing: 0.3px;
         }
 
+        .voucher-min-spend {
+            font-size: 0.75rem;
+            color: #94a3b8;
+            margin-top: 8px;
+        }
+
+        .voucher-description {
+            font-size: 0.75rem;
+            color: #94a3b8;
+            margin-top: 4px;
+            line-height: 1.4;
+        }
+
+        /* Footer */
         .voucher-footer {
-            padding: 18px 22px 22px;
+            padding: 12px 22px 16px;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            gap: 12px;
+            border-top: 1px solid #f1f3f5;
+            flex-shrink: 0;
             flex-wrap: wrap;
-            border-top: 1px solid #e2e8f0;
+            gap: 8px;
         }
 
         .voucher-badge-status {
             display: inline-flex;
             align-items: center;
-            gap: 8px;
-            padding: 8px 14px;
+            gap: 6px;
+            padding: 4px 14px;
             border-radius: 999px;
-            font-size: 0.8rem;
-            font-weight: 700;
+            font-size: 0.7rem;
+            font-weight: 600;
+        }
+
+        .voucher-badge-status .dot-indicator {
+            width: 5px;
+            height: 5px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+
+        .voucher-time-label {
+            font-size: 0.7rem;
+            color: #cbd5e1;
+            white-space: nowrap;
         }
 
         .btn-claim-voucher {
             border: none;
             background: #003580;
             color: white;
-            padding: 12px 18px;
+            padding: 6px 20px;
             border-radius: 999px;
             cursor: pointer;
-            font-weight: 700;
-            transition: background 0.2s ease;
+            font-weight: 600;
+            font-size: 0.8rem;
+            font-family: 'Poppins', sans-serif;
+            transition: all 0.2s ease;
         }
 
         .btn-claim-voucher:hover {
             background: #0f4588;
         }
 
+        .btn-claim-voucher:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* Empty State */
         .voucher-empty-state {
             grid-column: 1 / -1;
             text-align: center;
             padding: 60px 20px;
-            border-radius: 24px;
-            background: #f8fafc;
-            color: #475569;
+            background: white;
+            border-radius: 16px;
+            border: 1px solid #edf2f7;
         }
 
         .voucher-empty-state i {
-            display: block;
-            font-size: 3rem;
-            margin-bottom: 18px;
+            font-size: 2.5rem;
+            color: #cbd5e1;
+            margin-bottom: 12px;
+        }
+
+        .voucher-empty-state .empty-title {
+            font-weight: 600;
+            font-size: 1rem;
+            color: #1e293b;
+        }
+
+        .voucher-empty-state .empty-sub {
+            font-size: 0.85rem;
             color: #94a3b8;
+            font-weight: 300;
+            margin-top: 4px;
+        }
+
+        /* ===== PAGINATION - MATCHES LOCAL-DESTINATION.PHP ===== */
+        .pagination-wrapper {
+            grid-column: 1 / -1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+            margin-top: 32px;
+            padding: 10px 0;
+        }
+
+        .pagination-controls {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 15px;
+            margin: 30px 0 20px;
+            flex-wrap: wrap;
+        }
+
+        .pagination-btn {
+            background: #003580;
+            color: white;
+            border: none;
+            padding: 10px 25px;
+            border-radius: 30px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-family: 'Poppins', sans-serif;
+        }
+
+        .pagination-btn:hover:not(:disabled) {
+            background: #ff9800;
+            transform: translateY(-2px);
+        }
+
+        .pagination-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
+
+        .page-numbers {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .page-number {
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 600;
+            color: #666;
+            background: white;
+            border: 1px solid #e0e0e0;
+            font-family: 'Poppins', sans-serif;
+            font-size: 0.9rem;
+        }
+
+        .page-number:hover {
+            background: #003580;
+            color: white;
+            border-color: #003580;
+        }
+
+        .page-number.active {
+            background: #003580;
+            color: white;
+            border-color: #003580;
+        }
+
+        .page-dots {
+            color: #666;
+            font-weight: 600;
+            padding: 0 4px;
+        }
+
+        .pagination-info {
+            color: #94a3b8;
+            font-size: 0.8rem;
+            font-weight: 400;
+            text-align: center;
+        }
+
+        /* Back Button - Below Pagination */
+        .back-button-container {
+            grid-column: 1 / -1;
+            display: flex;
+            justify-content: center;
+            margin-top: 4px;
+        }
+
+        .back-button {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: #003580;
+            border: 1.5px solid #e2e8f0;
+            border-radius: 999px;
+            padding: 8px 22px;
+            color: #c8cdd3;
+            font-weight: 500;
+            font-family: 'Poppins', sans-serif;
+            cursor: pointer;
+            transition: all 0.25s ease;
+            text-decoration: none;
+            font-size: 0.85rem;
+        }
+
+        .back-button:hover {
+            background: #ff9100;
+            color: white;
+            border-color: #003580;
+            text-decoration: none;
+        }
+
+        /* Responsive */
+        @media (max-width: 992px) {
+            .voucher-grid {
+                grid-template-columns: repeat(2, 1fr);
+                max-width: 720px;
+            }
         }
 
         @media (max-width: 768px) {
             .page-container {
-                padding: 100px 4% 50px;
+                padding: 100px 4% 40px;
+            }
+
+            .voucher-grid {
+                grid-template-columns: 1fr;
+                max-width: 420px;
+            }
+
+            .voucher-grid:has(.voucher-card:nth-child(2):last-child) {
+                grid-template-columns: 1fr;
+                max-width: 420px;
+            }
+
+            .page-header .page-title {
+                font-size: 1.6rem;
+            }
+
+            .voucher-tab-button {
+                padding: 8px 20px;
+                font-size: 0.8rem;
             }
 
             .voucher-banner {
-                padding: 20px;
+                padding: 16px 18px;
+                min-height: 75px;
+            }
+
+            .voucher-discount {
+                font-size: 1.3rem;
+            }
+
+            .voucher-body {
+                padding: 12px 18px 10px;
             }
 
             .voucher-footer {
-                flex-direction: column;
-                align-items: flex-start;
+                padding: 10px 18px 14px;
+            }
+
+            .pagination-controls {
+                gap: 10px;
+            }
+
+            .pagination-btn {
+                padding: 6px 15px;
+                font-size: 0.8rem;
+            }
+
+            .page-number {
+                width: 35px;
+                height: 35px;
+                font-size: 0.85rem;
+            }
+
+            .pagination-info {
+                font-size: 0.7rem;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .voucher-grid {
+                max-width: 100%;
+            }
+
+            .pagination-controls {
+                gap: 6px;
+            }
+
+            .pagination-btn {
+                padding: 5px 12px;
+                font-size: 0.7rem;
+            }
+
+            .page-number {
+                width: 30px;
+                height: 30px;
+                font-size: 0.75rem;
+            }
+
+            .page-dots {
+                font-size: 0.75rem;
             }
         }
     </style>
@@ -400,23 +703,24 @@ if ($guestMode) {
     </div>
 
     <main class="page-container">
+        <!-- Header -->
         <div class="page-header">
-            <div>
-                <h1 class="page-title">Your Voucher Wallet</h1>
-                <p class="page-subtitle">View vouchers you've already claimed, and find available vouchers you can claim or use on your next booking.</p>
-            </div>
+            <h1 class="page-title">Your Vouchers</h1>
+            <p class="page-subtitle">Collect and manage your exclusive travel deals</p>
         </div>
 
-        <div class="voucher-tabs" role="tablist" aria-label="Voucher tabs">
+        <!-- Tabs -->
+        <div class="voucher-tabs">
             <button id="vt-collected" class="voucher-tab-button active" onclick="switchVoucherTab('collected')">Collected</button>
             <button id="vt-available" class="voucher-tab-button" onclick="switchVoucherTab('available')">Available to Claim</button>
         </div>
 
-        <div class="voucher-grid" id="voucher-content">
-            <div id="voucher-tab-collected" class="voucher-tab-panel" style="display:block; width:100%;">
+        <!-- Voucher Grid -->
+        <div class="voucher-grid-wrapper">
+            <div id="voucher-tab-collected" style="display:block; width:100%;">
                 <div class="voucher-grid" id="collected-vouchers-container"></div>
             </div>
-            <div id="voucher-tab-available" class="voucher-tab-panel" style="display:none; width:100%;">
+            <div id="voucher-tab-available" style="display:none; width:100%;">
                 <div class="voucher-grid" id="available-vouchers-container"></div>
             </div>
         </div>
@@ -432,55 +736,141 @@ if ($guestMode) {
         let allAvailableVouchers = [];
         let currentPageMy = 1;
         let currentPageAvailable = 1;
-        const ITEMS_PER_PAGE = 4;
+        
+        // Responsive items per page: desktop 6 (2x3), mobile 3 (1x3)
+        function getItemsPerPage() {
+            return window.innerWidth <= 768 ? 3 : 6;
+        }
 
         function renderPagination(totalItems, currentPage, pageChangeCallback) {
+            const ITEMS_PER_PAGE = getItemsPerPage();
             const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE);
-            if (totalPages <= 1) return '';
             
-            let html = '<div class="pagination-controls" style="display:flex; justify-content:center; gap:10px; margin-top:30px; grid-column: 1 / -1;">';
-            
-            html += `<button style="padding:8px 16px; border-radius:8px; border:1px solid #cbd5e1; background:${currentPage === 1 ? '#f8fafc' : 'white'}; cursor:${currentPage === 1 ? 'not-allowed' : 'pointer'}; font-family:'Poppins',sans-serif;" onclick="${currentPage > 1 ? pageChangeCallback + '(' + (currentPage - 1) + ')' : 'return false;'}" ${currentPage === 1 ? 'disabled' : ''}>Prev</button>`;
-            
-            for (let i = 1; i <= totalPages; i++) {
-                html += `<button style="padding:8px 16px; border-radius:8px; border:1px solid ${i === currentPage ? '#003580' : '#cbd5e1'}; background:${i === currentPage ? '#003580' : 'white'}; color:${i === currentPage ? 'white' : '#475569'}; cursor:pointer; font-family:'Poppins',sans-serif;" onclick="${pageChangeCallback}(${i})">${i}</button>`;
+            if (totalPages <= 1) {
+                return `
+                    <div class="pagination-wrapper">
+                        <div class="back-button-container">
+                            <a href="../index.php" class="back-button">
+                                <i class="fas fa-arrow-left"></i> Back to Home
+                            </a>
+                        </div>
+                    </div>
+                `;
             }
             
-            html += `<button style="padding:8px 16px; border-radius:8px; border:1px solid #cbd5e1; background:${currentPage === totalPages ? '#f8fafc' : 'white'}; cursor:${currentPage === totalPages ? 'not-allowed' : 'pointer'}; font-family:'Poppins',sans-serif;" onclick="${currentPage < totalPages ? pageChangeCallback + '(' + (currentPage + 1) + ')' : 'return false;'}" ${currentPage === totalPages ? 'disabled' : ''}>Next</button>`;
+            const startItem = ((currentPage - 1) * ITEMS_PER_PAGE) + 1;
+            const endItem = Math.min(currentPage * ITEMS_PER_PAGE, totalItems);
+            
+            let html = '<div class="pagination-wrapper">';
+            
+            // Pagination controls - Matching local-destination.php style
+            html += '<div class="pagination-controls">';
+            
+            // Previous button
+            html += `<button class="pagination-btn" onclick="${currentPage > 1 ? pageChangeCallback + '(' + (currentPage - 1) + ')' : 'return false;'}" ${currentPage === 1 ? 'disabled' : ''}>
+                <i class="fas fa-chevron-left"></i> Previous
+            </button>`;
+            
+            // Page numbers
+            html += '<div class="page-numbers">';
+            let startPage = Math.max(1, currentPage - 2);
+            let endPage = Math.min(totalPages, currentPage + 2);
+            
+            if (startPage > 1) {
+                html += `<div class="page-number" onclick="${pageChangeCallback}(1)">1</div>`;
+                if (startPage > 2) {
+                    html += `<span class="page-dots">...</span>`;
+                }
+            }
+            
+            for (let i = startPage; i <= endPage; i++) {
+                html += `<div class="page-number ${i === currentPage ? 'active' : ''}" onclick="${pageChangeCallback}(${i})">${i}</div>`;
+            }
+            
+            if (endPage < totalPages) {
+                if (endPage < totalPages - 1) {
+                    html += `<span class="page-dots">...</span>`;
+                }
+                html += `<div class="page-number" onclick="${pageChangeCallback}(${totalPages})">${totalPages}</div>`;
+            }
+            html += '</div>';
+            
+            // Next button
+            html += `<button class="pagination-btn" onclick="${currentPage < totalPages ? pageChangeCallback + '(' + (currentPage + 1) + ')' : 'return false;'}" ${currentPage === totalPages ? 'disabled' : ''}>
+                Next <i class="fas fa-chevron-right"></i>
+            </button>`;
             
             html += '</div>';
+            
+            // Items info
+            html += `<div class="pagination-info">Showing ${startItem} - ${endItem} of ${totalItems} vouchers</div>`;
+            
+            // Back button below pagination
+            html += `
+                <div class="back-button-container">
+                    <a href="../index.php" class="back-button">
+                        <i class="fas fa-arrow-left"></i> Back to Home
+                    </a>
+                </div>
+            `;
+            
+            html += '</div>';
+            
             return html;
         }
 
         window.changePageMy = function(page) {
             currentPageMy = page;
             renderMyVouchers();
+            // Scroll to top of vouchers
+            const wrapper = document.querySelector('.voucher-grid-wrapper');
+            if (wrapper) {
+                wrapper.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
         };
 
         window.changePageAvailable = function(page) {
             currentPageAvailable = page;
             renderAvailableVouchers();
+            // Scroll to top of vouchers
+            const wrapper = document.querySelector('.voucher-grid-wrapper');
+            if (wrapper) {
+                wrapper.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
         };
+
+        // Handle window resize to re-render with correct items per page
+        let resizeTimeout;
+        window.addEventListener('resize', function() {
+            clearTimeout(resizeTimeout);
+            resizeTimeout = setTimeout(function() {
+                if (voucherTabActive === 'collected' && allMyVouchers.length > 0) {
+                    currentPageMy = 1;
+                    renderMyVouchers();
+                } else if (voucherTabActive === 'available' && allAvailableVouchers.length > 0) {
+                    currentPageAvailable = 1;
+                    renderAvailableVouchers();
+                }
+            }, 300);
+        });
 
         function renderMyVouchers() {
             const container = document.getElementById('collected-vouchers-container');
+            const ITEMS_PER_PAGE = getItemsPerPage();
             const startIndex = (currentPageMy - 1) * ITEMS_PER_PAGE;
             const paginated = allMyVouchers.slice(startIndex, startIndex + ITEMS_PER_PAGE);
-            
             let html = paginated.map(v => buildVoucherCard(v, 'collected')).join('');
             html += renderPagination(allMyVouchers.length, currentPageMy, 'changePageMy');
-            
             container.innerHTML = html;
         }
 
         function renderAvailableVouchers() {
             const container = document.getElementById('available-vouchers-container');
+            const ITEMS_PER_PAGE = getItemsPerPage();
             const startIndex = (currentPageAvailable - 1) * ITEMS_PER_PAGE;
             const paginated = allAvailableVouchers.slice(startIndex, startIndex + ITEMS_PER_PAGE);
-            
             let html = paginated.map(v => buildVoucherCard(v, 'available')).join('');
             html += renderPagination(allAvailableVouchers.length, currentPageAvailable, 'changePageAvailable');
-            
             container.innerHTML = html;
         }
 
@@ -492,14 +882,14 @@ if ($guestMode) {
             const btnAvailable = document.getElementById('vt-available');
 
             if (tab === 'collected') {
-                collected.style.display = '';
+                collected.style.display = 'block';
                 available.style.display = 'none';
                 btnCollected.classList.add('active');
                 btnAvailable.classList.remove('active');
                 if (allMyVouchers.length === 0) loadMyVouchers();
             } else {
                 collected.style.display = 'none';
-                available.style.display = '';
+                available.style.display = 'block';
                 btnAvailable.classList.add('active');
                 btnCollected.classList.remove('active');
                 if (allAvailableVouchers.length === 0) loadAvailableVouchers();
@@ -516,15 +906,11 @@ if ($guestMode) {
 
         function getVoucherStatus(startTime, endTime, nowMs) {
             if (!startTime || !endTime) return 'expired';
-
             if (startTime.getTime() > nowMs) return 'upcoming';
-
-            // If end time is midnight, it came from an old DATE-only record — treat whole day as valid.
             let effectiveEnd = endTime;
             if (endTime.getHours() === 0 && endTime.getMinutes() === 0 && endTime.getSeconds() === 0) {
                 effectiveEnd = new Date(endTime.getFullYear(), endTime.getMonth(), endTime.getDate(), 23, 59, 59, 999);
             }
-
             return effectiveEnd.getTime() >= nowMs ? 'active' : 'expired';
         }
 
@@ -532,66 +918,62 @@ if ($guestMode) {
             const color = v.color_theme || '#003580';
             const discountText = v.discount_type === 'percentage'
                 ? `${parseFloat(v.discount_value)}% OFF`
-                : `PHP ${parseFloat(v.discount_value).toLocaleString()} OFF`;
+                : `₱${parseFloat(v.discount_value).toLocaleString()} OFF`;
             const minSpend = parseFloat(v.minimum_spend) > 0
-                ? `Min. spend: ₱${parseFloat(v.minimum_spend).toLocaleString()}`
+                ? `Min. spend ₱${parseFloat(v.minimum_spend).toLocaleString()}`
                 : 'No minimum spend';
             const startTime = parseVoucherDate(v.start_date);
             const endTime = parseVoucherDate(v.end_date);
             const now = Date.now();
             const voucherStatus = getVoucherStatus(startTime, endTime, now);
             const isExpired = voucherStatus === 'expired';
-            const hasStarted = !startTime || startTime.getTime() <= now;
-            const timeLabel = !startTime || !hasStarted
-                ? `Starts: ${startTime ? startTime.toLocaleString(undefined, {month:'short', day:'numeric', hour:'2-digit', minute:'2-digit'}) : 'Soon'}`
-                : `Ends: ${endTime ? endTime.toLocaleString(undefined, {month:'short', day:'numeric', hour:'2-digit', minute:'2-digit'}) : 'Soon'}`;
+            const timeLabel = (!startTime || startTime.getTime() <= now)
+                ? `Ends ${endTime ? endTime.toLocaleString(undefined, {month:'short', day:'numeric'}) : 'Soon'}`
+                : `Starts ${startTime ? startTime.toLocaleString(undefined, {month:'short', day:'numeric'}) : 'Soon'}`;
 
             let footerHtml = '';
             if (mode === 'collected') {
-                const statusBg = isExpired ? '#fee2e2' : (v.is_used ? '#f1f5f9' : '#d1fae5');
-                const statusColor = isExpired ? '#dc2626' : (v.is_used ? '#64748b' : '#059669');
-                const statusText = isExpired ? 'Expired' : (v.is_used ? 'Used' : 'Ready to Use');
+                const statusBg = isExpired ? '#fef2f2' : (v.is_used ? '#f8fafc' : '#ecfdf5');
+                const statusColor = isExpired ? '#dc2626' : (v.is_used ? '#94a3b8' : '#059669');
+                const statusText = isExpired ? 'Expired' : (v.is_used ? 'Used' : 'Ready');
+                const dotColor = isExpired ? '#dc2626' : (v.is_used ? '#94a3b8' : '#059669');
                 footerHtml = `
                     <span class="voucher-badge-status" style="background:${statusBg}; color:${statusColor};">
-                        <span style="width:6px;height:6px;border-radius:50%;background:${statusColor};"></span> ${statusText}
+                        <span class="dot-indicator" style="background:${dotColor};"></span> ${statusText}
                     </span>
-                    <span style="font-size: 0.75rem; color: #94a3b8;">${timeLabel}</span>
+                    <span class="voucher-time-label">${timeLabel}</span>
                 `;
             } else {
                 const alreadyClaimed = v.already_claimed;
                 const isAutoApply = v.collection_method === 'auto_available';
                 footerHtml = alreadyClaimed
-                    ? `<span class="voucher-badge-status" style="background:#d1fae5;color:#059669;"><span style="width:6px;height:6px;border-radius:50%;background:#059669;"></span> Already Claimed</span>`
+                    ? `<span class="voucher-badge-status" style="background:#ecfdf5;color:#059669;"><span class="dot-indicator" style="background:#059669;"></span> Claimed</span>`
                     : isAutoApply
-                    ? `<span class="voucher-badge-status" style="background:#e0f2fe;color:#0369a1;"><i class="fas fa-bolt" style="font-size:0.7rem;"></i> Auto-applies at checkout</span>`
-                    : `<button class="btn-claim-voucher" data-voucher-id="${v.id}" onclick="requireLogin('handleVoucherClaim', ${v.id})"><i class="fas fa-plus"></i> Claim</button>`;
-                footerHtml += `<span style="font-size: 0.75rem; color: #94a3b8;">${timeLabel}</span>`;
+                    ? `<span class="voucher-badge-status" style="background:#eff6ff;color:#2563eb;"><i class="fas fa-bolt" style="font-size:0.6rem;"></i> Auto</span>`
+                    : `<button class="btn-claim-voucher" data-voucher-id="${v.id}" onclick="requireLogin('handleVoucherClaim', ${v.id})">Claim</button>`;
+                footerHtml += `<span class="voucher-time-label">${timeLabel}</span>`;
             }
-
-            const targets = (v.targets && v.targets.length > 0)
-                ? v.targets.map(t => t.replace('_', ' ').replace(/\b\w/g, c => c.toUpperCase())).join(', ')
-                : 'All Bookings';
 
             return `
                 <div class="voucher-card">
-                    <div class="voucher-banner" style="background: linear-gradient(135deg, ${color}, ${color}cc);">
-                        <div style="display:flex;align-items:flex-start;justify-content:space-between;">
+                    <div class="voucher-banner" style="background: linear-gradient(135deg, ${color}, ${color}dd);">
+                        <div class="voucher-banner-content">
                             <div>
                                 <div class="voucher-discount">${discountText}</div>
                                 <div class="voucher-discount-label">${v.voucher_name}</div>
                             </div>
-                            <i class="fas fa-ticket-alt" style="font-size:2.5rem;opacity:0.25;position:relative;z-index:1;"></i>
+                            <i class="fas fa-ticket-alt voucher-icon"></i>
                         </div>
                     </div>
                     <div class="voucher-divider">
-                        <div class="dot" style="margin-left:-11px;"></div>
+                        <div class="dot"></div>
                         <div class="dashes"></div>
-                        <div class="dot" style="margin-right:-11px;"></div>
+                        <div class="dot"></div>
                     </div>
                     <div class="voucher-body">
-                        <div class="voucher-code-pill">${v.voucher_code}</div>
-                        <div style="font-size:0.78rem;color:#475569;margin-bottom:6px;">${minSpend}</div>
-                        ${v.description ? `<div style="font-size:0.76rem;color:#64748b;margin-top:6px;line-height:1.4;">${v.description}</div>` : ''}
+                        <div class="voucher-code-pill">#${v.voucher_code}</div>
+                        <div class="voucher-min-spend">${minSpend}</div>
+                        ${v.description ? `<div class="voucher-description">${v.description}</div>` : ''}
                     </div>
                     <div class="voucher-footer">
                         ${footerHtml}
@@ -602,8 +984,7 @@ if ($guestMode) {
 
         function loadMyVouchers() {
             const container = document.getElementById('collected-vouchers-container');
-            container.innerHTML = `<div class="voucher-empty-state"><i class="fas fa-spinner fa-spin"></i><p style="margin-top:12px;">Loading your vouchers...</p></div>`;
-
+            container.innerHTML = `<div class="voucher-empty-state"><i class="fas fa-spinner fa-spin"></i><p class="empty-title">Loading...</p></div>`;
             fetch('../api/user_voucher_api.php?action=get_my_vouchers')
                 .then(r => r.json())
                 .then(res => {
@@ -615,8 +996,13 @@ if ($guestMode) {
                         container.innerHTML = `
                             <div class="voucher-empty-state">
                                 <i class="fas fa-wallet"></i>
-                                <p style="font-weight:700;font-size:1.05rem;margin:0;">No vouchers in your wallet yet.</p>
-                                <p style="font-size:0.95rem;color:#64748b;margin-top:10px;">Switch to "Available to Claim" to grab some deals!</p>
+                                <p class="empty-title">No vouchers yet</p>
+                                <p class="empty-sub">Switch to "Available to Claim" to grab some deals</p>
+                                <div class="back-button-container" style="margin-top:20px;">
+                                    <a href="../index.php" class="back-button">
+                                        <i class="fas fa-arrow-left"></i> Back to Home
+                                    </a>
+                                </div>
                             </div>`;
                         return;
                     }
@@ -631,8 +1017,7 @@ if ($guestMode) {
 
         function loadAvailableVouchers() {
             const container = document.getElementById('available-vouchers-container');
-            container.innerHTML = `<div class="voucher-empty-state"><i class="fas fa-spinner fa-spin"></i><p style="margin-top:12px;">Loading available vouchers...</p></div>`;
-
+            container.innerHTML = `<div class="voucher-empty-state"><i class="fas fa-spinner fa-spin"></i><p class="empty-title">Loading...</p></div>`;
             fetch('../api/user_voucher_api.php?action=get_available_vouchers')
                 .then(r => r.json())
                 .then(res => {
@@ -644,8 +1029,13 @@ if ($guestMode) {
                         container.innerHTML = `
                             <div class="voucher-empty-state">
                                 <i class="fas fa-gift"></i>
-                                <p style="font-weight:700;font-size:1.05rem;margin:0;">No vouchers available right now.</p>
-                                <p style="font-size:0.95rem;color:#64748b;margin-top:10px;">Check back later for exclusive deals!</p>
+                                <p class="empty-title">No vouchers available</p>
+                                <p class="empty-sub">Check back later for exclusive deals</p>
+                                <div class="back-button-container" style="margin-top:20px;">
+                                    <a href="../index.php" class="back-button">
+                                        <i class="fas fa-arrow-left"></i> Back to Home
+                                    </a>
+                                </div>
                             </div>`;
                         return;
                     }
@@ -673,26 +1063,26 @@ if ($guestMode) {
                 btn.disabled = true;
                 btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
             }
-
             const formData = new FormData();
             formData.append('action', 'claim_voucher');
             formData.append('voucher_id', voucherId);
-
             fetch('../api/user_voucher_api.php', { method: 'POST', body: formData })
                 .then(r => r.json())
                 .then(res => {
                     if (res.success) {
-                        btn.outerHTML = `<span class="voucher-badge-status" style="background:#d1fae5;color:#059669;"><span style="width:6px;height:6px;border-radius:50%;background:#059669;"></span> Claimed!</span>`;
-                        Swal.fire({ icon: 'success', title: 'Voucher Claimed!', text: res.message, timer: 2500, showConfirmButton: false });
+                        btn.outerHTML = `<span class="voucher-badge-status" style="background:#ecfdf5;color:#059669;"><span class="dot-indicator" style="background:#059669;"></span> Claimed</span>`;
+                        Swal.fire({ icon: 'success', title: 'Claimed!', text: res.message, timer: 2000, showConfirmButton: false });
+                        allMyVouchers = [];
+                        loadMyVouchers();
                     } else {
                         btn.disabled = false;
-                        btn.innerHTML = '<i class="fas fa-plus"></i> Claim';
+                        btn.innerHTML = 'Claim';
                         Swal.fire('Error', res.message, 'error');
                     }
                 })
                 .catch(() => {
                     btn.disabled = false;
-                    btn.innerHTML = '<i class="fas fa-plus"></i> Claim';
+                    btn.innerHTML = 'Claim';
                     Swal.fire('Error', 'Server error. Please try again.', 'error');
                 });
         }

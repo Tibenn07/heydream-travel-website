@@ -377,6 +377,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             width: 100%;
             transition: width 3s linear;
         }
+
+         .company-logo-img {
+            height: 80px;
+            /* Desktop Size - You can edit this */
+            object-fit: contain;
+            cursor: pointer;
+            transition: transform 0.3s ease;
+        }
+
+        .company-logo-img:hover {
+            transform: scale(1.1);
+        }
+
+        @media (max-width: 768px) {
+            .company-logo-img {
+                height: 45px;
+                /* Mobile Size - You can edit this! */
+            }
+        }
     </style>
 </head>
 
@@ -386,8 +405,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <img src="../images/Heydream Logo.png" alt="HeyDream Logo" class="logo" style="height: 37px; width: auto;"
                 onclick="window.location.href='../index.php'">
             <div class="company-name">
-                <span class="line1">HeyDream Travel</span>
-                <span class="line2">and Tours</span>
+                <img src="../images/Localista (1).png" alt="HeyDream Travel and Tours"
+                    class="company-logo-img"
+                    onclick="window.location.href='index.php'">
             </div>
         </div>
     </header>

@@ -1966,6 +1966,50 @@ EOF;
             }
             break;
 
+        case 'delete_user':
+            if (!hasPermission(['super_admin', 'admin'], $admin_role)) { echo json_encode(['success' => false, 'message' => 'Permission denied']); break; }
+            $user_id = intval($_POST['user_id'] ?? 0);
+            if ($user_id <= 0) { echo json_encode(['success' => false, 'message' => 'Invalid user ID']); break; }
+            $stmt = $pdo->prepare("DELETE FROM users WHERE id = ?");
+            if ($stmt->execute([$user_id])) {
+                echo json_encode(['success' => true, 'message' => 'User account deleted successfully.']);
+            } else {
+                echo json_encode(['success' => false, 'message' => 'Failed to delete user.']);
+            }
+            break;
+
+        case 'ban_user':
+            if (!hasPermission(['super_admin', 'admin'], $admin_role)) { echo json_encode(['success' => false, 'message' => 'Permission denied']); break; }
+            $user_id = intval($_POST['user_id'] ?? 0);
+            $ban_action = trim($_POST['ban_action'] ?? '');
+            if ($user_id <= 0) { echo json_encode(['success' => false, 'message' => 'Invalid user ID']); break; }
+            // Ensure columns exist
+            try {
+                $pdo->exec("ALTER TABLE users ADD COLUMN IF NOT EXISTS is_banned TINYINT(1) DEFAULT 0");
+            } catch (Throwable $e) {}
+            try {
+                $pdo->exec("ALTER TABLE users ADD COLUMN IF NOT EXISTS ban_until DATETIME DEFAULT NULL");
+            } catch (Throwable $e) {}
+
+            if ($ban_action === 'unban') {
+                $stmt = $pdo->prepare("UPDATE users SET is_banned = 0, ban_until = NULL WHERE id = ?");
+                $stmt->execute([$user_id]);
+                echo json_encode(['success' => true, 'message' => 'User has been unbanned successfully.']);
+            } else {
+                $ban_days = isset($_POST['ban_days']) ? intval($_POST['ban_days']) : null;
+                if ($ban_days !== null && $ban_days > 0) {
+                    $ban_until = date('Y-m-d H:i:s', strtotime("+{$ban_days} days"));
+                    $stmt = $pdo->prepare("UPDATE users SET is_banned = 1, ban_until = ? WHERE id = ?");
+                    $stmt->execute([$ban_until, $user_id]);
+                    echo json_encode(['success' => true, 'message' => "User banned for {$ban_days} day(s)."]);
+                } else {
+                    $stmt = $pdo->prepare("UPDATE users SET is_banned = 1, ban_until = NULL WHERE id = ?");
+                    $stmt->execute([$user_id]);
+                    echo json_encode(['success' => true, 'message' => 'User has been permanently banned.']);
+                }
+            }
+            break;
+
         default:
             debugLog("Invalid action: " . $action);
             echo json_encode(['success' => false, 'message' => 'Invalid action']);

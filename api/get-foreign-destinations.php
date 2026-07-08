@@ -63,7 +63,8 @@ try {
                 price, currency, duration, badge_text,
                 image_path, image2_path, image3_path,
                 remarks, blocked_dates,
-                promo_start, promo_end, blocked_months, highlight_duration
+                promo_start, promo_end, blocked_months, highlight_duration,
+                partner_id, partner_company
             FROM foreign_destinations 
             WHERE is_active = 1 
             ORDER BY display_order, id ASC

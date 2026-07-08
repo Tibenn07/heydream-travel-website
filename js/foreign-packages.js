@@ -314,6 +314,7 @@ window.showForeignPackagePopup = async function (destKey) {
                 <div class="foreign-tab active" onclick="switchForeignTab(event, 'info')" style="padding:10px 15px; cursor:pointer; font-weight:600; color:#003580; border-bottom:3px solid #ff9800; white-space:nowrap;">Overview</div>
                 <div class="foreign-tab" onclick="switchForeignTab(event, 'itinerary')" style="padding:10px 15px; cursor:pointer; font-weight:600; color:#666; border-bottom:3px solid transparent; white-space:nowrap;">Itinerary</div>
                 <div class="foreign-tab" onclick="switchForeignTab(event, 'inclusions')" style="padding:10px 15px; cursor:pointer; font-weight:600; color:#666; border-bottom:3px solid transparent; white-space:nowrap;">Inclusions</div>
+                ${destination.partner_id ? `<div class="foreign-tab" onclick="switchForeignTab(event, 'partner')" style="padding:10px 15px; cursor:pointer; font-weight:600; color:#666; border-bottom:3px solid transparent; white-space:nowrap;">Partner Profile</div>` : ''}
             </div>
 
             <div id="foreign-pane-info" class="foreign-pane" style="display:block;">
@@ -349,6 +350,17 @@ window.showForeignPackagePopup = async function (destKey) {
                 ${inclusionsHtml}
                 ${exclusionsHtml}
             </div>
+            ${destination.partner_id ? `
+            <div id="foreign-pane-partner" class="foreign-pane" style="display:none;">
+                <div style="text-align: center; padding: 30px 15px;">
+                    <i class="fas fa-handshake" style="font-size: 3rem; color: #ff9800; margin-bottom: 15px;"></i>
+                    <h3 style="color: #003580; margin-bottom: 15px; font-size: 1.4rem;">${escapeHtml(destination.partner_company || 'Partner Provider')}</h3>
+                    <p style="color: #666; margin-bottom: 25px; line-height: 1.6;">This package is exclusively provided by one of our trusted partners. View their full profile to learn more about them and discover other amazing packages they offer.</p>
+                    <a href="view-partner-profile.php?id=${destination.partner_id}" style="display: inline-block; background: #003580; color: white; padding: 12px 25px; border-radius: 25px; text-decoration: none; font-weight: 600; box-shadow: 0 4px 6px rgba(0,0,0,0.1); transition: all 0.3s ease;">
+                        View Partner Profile <i class="fas fa-external-link-alt" style="margin-left: 8px;"></i>
+                    </a>
+                </div>
+            </div>` : ''}
 
             <div style="display:flex; justify-content:space-between; align-items:center; margin-top:20px; padding-top:15px; border-top:1px solid #eee;">
                 <div>

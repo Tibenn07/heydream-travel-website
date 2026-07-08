@@ -36,7 +36,22 @@ if ($pdo === null) {
 }
 
 // Fetch Inquiries for the Inquiries Tab
-$stmtInq = $pdo->query("SELECT id, full_name, email, phone, travel_date, number_of_travelers, package_name as destination, special_requests, booking_status, marketing_consent, created_at FROM bookings WHERE payment_method = 'Inquiry Only' ORDER BY created_at DESC");
+$stmtInq = $pdo->query("SELECT
+    id,
+    COALESCE(NULLIF(TRIM(full_name), ''), CONCAT('Customer ', id)) AS full_name,
+    COALESCE(NULLIF(TRIM(email), ''), CONCAT('customer', id, '@example.com')) AS email,
+    COALESCE(NULLIF(TRIM(phone), ''), 'N/A') AS phone,
+    travel_date,
+    number_of_travelers,
+    COALESCE(NULLIF(TRIM(package_name), ''), NULLIF(TRIM(destination_name), ''), 'Unspecified') AS destination,
+    special_requests,
+    booking_status,
+    marketing_consent,
+    booking_number,
+    created_at
+FROM bookings
+WHERE payment_method = 'Inquiry Only'
+ORDER BY created_at DESC");
 $inquiries = $stmtInq->fetchAll(PDO::FETCH_ASSOC);
 
 // Fetch Recent Campaigns
@@ -66,6 +81,64 @@ function getSourceIcon($requests)
     if (strpos($source, 'our website') !== false)
         return '<img src="../images/Heydream Logo.png" style="width: 22px; height: 22px; object-fit: contain;" title="Our Website">';
     return '<i class="fas fa-question-circle" style="color: #94a3b8; font-size: 1.1rem;" title="Unknown Source"></i>';
+}
+
+function getInquiryDisplayName($inq)
+{
+    $candidates = [
+        $inq['full_name'] ?? '',
+        $inq['customer_name'] ?? '',
+        $inq['name'] ?? '',
+        $inq['contact_name'] ?? '',
+        $inq['customer_full_name'] ?? ''
+    ];
+
+    foreach ($candidates as $value) {
+        $clean = trim((string) $value);
+        if ($clean !== '' && strtolower($clean) !== 'null' && strtolower($clean) !== 'n/a') {
+            return $clean;
+        }
+    }
+
+    $email = getInquiryEmail($inq);
+    return $email !== '' && $email !== 'No email provided' ? explode('@', $email)[0] : 'Guest';
+}
+
+function getInquiryEmail($inq)
+{
+    $candidates = [
+        $inq['email'] ?? '',
+        $inq['customer_email'] ?? '',
+        $inq['contact_email'] ?? ''
+    ];
+
+    foreach ($candidates as $value) {
+        $clean = trim((string) $value);
+        if ($clean !== '' && strtolower($clean) !== 'null' && strtolower($clean) !== 'n/a') {
+            return $clean;
+        }
+    }
+
+    return '';
+}
+
+function getInquiryDestination($inq)
+{
+    $candidates = [
+        $inq['destination'] ?? '',
+        $inq['package_name'] ?? '',
+        $inq['destination_name'] ?? '',
+        $inq['service_type'] ?? ''
+    ];
+
+    foreach ($candidates as $value) {
+        $clean = trim((string) $value);
+        if ($clean !== '' && strtolower($clean) !== 'null' && strtolower($clean) !== 'n/a') {
+            return $clean;
+        }
+    }
+
+    return 'Unspecified';
 }
 
 // Fetch Summary Stats
@@ -607,17 +680,144 @@ function getStatusInfo($status)
         }
     </style>
     <style>
-        /* Inquiry status dropdown */
-        .inq-status-select {
-            padding: 5px 8px;
+        /* =============================================
+           INQUIRIES TABLE — matches reference layout
+           ============================================= */
+        .inquiries-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-family: 'Poppins', sans-serif;
+            font-size: 0.875rem;
+        }
+
+        .inquiries-table thead th {
+            background: #f8fafc;
+            color: #94a3b8;
+            font-size: 0.72rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            padding: 12px 16px;
+            border-bottom: 2px solid #f1f5f9;
+            white-space: nowrap;
+        }
+
+        .inquiries-table tbody tr {
+            border-bottom: 1px solid #f1f5f9;
+            transition: background 0.15s;
+        }
+
+        .inquiries-table tbody tr:hover {
+            background: #f8fafc;
+        }
+
+        .inquiries-table tbody td {
+            padding: 14px 16px;
+            vertical-align: middle;
+            color: #334155;
+        }
+
+        /* Source icon cell */
+        .inquiries-table .col-source {
+            width: 56px;
+            text-align: center;
+            font-size: 1.1rem;
+        }
+
+        /* Name cell */
+        .inquiries-table .col-name {
+            min-width: 160px;
+            font-weight: 700;
+            color: #003580;
+        }
+
+        /* Email cell */
+        .inquiries-table .col-email {
+            min-width: 200px;
+            font-size: 0.82rem;
+            color: #64748b;
+        }
+
+        /* Destination cell */
+        .inquiries-table .col-destination {
+            min-width: 120px;
+            font-weight: 600;
+            color: #1e293b;
+        }
+
+        /* Status cell */
+        .inquiries-table .col-status {
+            width: 100px;
+        }
+
+        /* Ads/consent cell */
+        .inquiries-table .col-ads {
+            width: 80px;
+            text-align: center;
+        }
+
+        /* Date cell */
+        .inquiries-table .col-date {
+            width: 110px;
+            font-size: 0.82rem;
+            color: #64748b;
+            white-space: nowrap;
+        }
+
+        /* Actions cell */
+        .inquiries-table .col-actions {
+            width: 220px;
+        }
+
+        .inquiry-actions-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-icon {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 34px;
+            height: 34px;
             border-radius: 8px;
-            border: 1px solid var(--border, #e2e8f0);
+            border: 1.5px solid #e2e8f0;
+            background: #fff;
+            color: #64748b;
+            cursor: pointer;
+            transition: all 0.18s;
+            flex-shrink: 0;
+        }
+
+        .btn-icon:hover {
+            border-color: #003580;
+            color: #003580;
+            background: #eef2ff;
+        }
+
+        .btn-icon.danger {
+            color: #ef4444;
+            border-color: #fecaca;
+        }
+
+        .btn-icon.danger:hover {
+            background: #fef2f2;
+            border-color: #ef4444;
+        }
+
+        /* Compact status select inside table */
+        .inq-status-select {
+            padding: 6px 10px;
+            border-radius: 8px;
+            border: 1.5px solid #e2e8f0;
             font-size: 0.8rem;
             font-weight: 600;
             cursor: pointer;
             background: #f8fafc;
             color: #334155;
-            min-width: 130px;
+            flex: 1;
+            min-width: 0;
             transition: all 0.2s;
         }
 
@@ -632,6 +832,53 @@ function getStatusInfo($status)
             box-shadow: 0 0 0 3px rgba(0, 53, 128, 0.1);
         }
 
+        /* Consent toggle in table */
+        .consent-toggle-wrapper {
+            display: inline-flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 2px;
+            cursor: pointer;
+        }
+
+        .consent-toggle {
+            width: 34px;
+            height: 18px;
+            background: #cbd5e1;
+            border-radius: 100px;
+            position: relative;
+            transition: background 0.2s;
+        }
+
+        .consent-toggle.active {
+            background: #003580;
+        }
+
+        .consent-handle {
+            width: 14px;
+            height: 14px;
+            background: #fff;
+            border-radius: 50%;
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            transition: left 0.2s;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+        }
+
+        .consent-toggle.active .consent-handle {
+            left: 18px;
+        }
+
+        .consent-label {
+            font-size: 0.62rem;
+            font-weight: 700;
+            color: #94a3b8;
+            text-transform: uppercase;
+        }
+
+    </style>
+    <style>
         @keyframes timer-pulse {
             0% {
                 box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4);
@@ -650,6 +897,7 @@ function getStatusInfo($status)
             animation: timer-pulse 2s infinite;
             border-color: #10b981 !important;
         }
+
 
         /* SweetAlert2 Premium Styles & Layout Fixes */
         .swal2-popup {
@@ -937,83 +1185,106 @@ function getStatusInfo($status)
 
             <div class="card">
                 <div class="table-wrapper">
-                    <table id="inquiries-table">
-                        <thead>
-                            <tr>
-                                <th style="width: 50px; text-align: center;">Source</th>
-                                <th>Name</th>
-                                <th>Email</th>
-                                <th>Destination</th>
-                                <th>Status</th>
-                                <th>Ads</th>
-                                <th>Date</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <?php foreach ($inquiries as $inq):
-                                $status = strtolower($inq['booking_status'] ?? 'pending');
-                                $statusClass = ($status === 'confirmed' || $status === 'reviewed') ? 'status-confirmed' :
-                                    (($status === 'contacted') ? 'status-contacted' : 'status-pending');
-                                if ($status === 'cancelled')
-                                    $statusClass = 'status-cancelled';
+                        <table id="inquiries-table" class="inquiries-table">
+                            <thead>
+                                <tr>
+                                    <th class="col-source">Source</th>
+                                    <th class="col-name">Name</th>
+                                    <th class="col-email">Email</th>
+                                    <th class="col-destination">Destination</th>
+                                    <th class="col-status">Status</th>
+                                    <th class="col-ads">Ads</th>
+                                    <th class="col-date">Date</th>
+                                    <th class="col-actions">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php foreach ($inquiries as $inq):
+                                    $status = strtolower($inq['booking_status'] ?? 'pending');
+                                    $statusClass = ($status === 'confirmed' || $status === 'reviewed') ? 'status-confirmed' :
+                                        (($status === 'contacted') ? 'status-contacted' : 'status-pending');
+                                    if ($status === 'cancelled') $statusClass = 'status-cancelled';
+
+                                    $displayName        = getInquiryDisplayName($inq);
+                                    $displayEmail       = getInquiryEmail($inq);
+                                    $displayDestination = getInquiryDestination($inq);
                                 ?>
-                                <tr class="inquiry-row" data-name="<?php echo htmlspecialchars($inq['full_name']); ?>"
+                                <tr class="inquiry-row"
+                                    data-name="<?php echo htmlspecialchars($displayName, ENT_QUOTES, 'UTF-8'); ?>"
+                                    data-email="<?php echo htmlspecialchars($displayEmail, ENT_QUOTES, 'UTF-8'); ?>"
                                     data-status="<?php echo $status; ?>"
-                                    data-type="<?php echo strpos(strtolower($inq['destination'] ?? ''), 'international') !== false ? 'international' : 'domestic'; ?>">
-                                    <td style="text-align: center; font-size: 1.15rem;">
+                                    data-type="<?php echo strpos(strtolower($displayDestination), 'international') !== false ? 'international' : 'domestic'; ?>">
+
+                                    <!-- Source -->
+                                    <td class="col-source">
                                         <?php echo getSourceIcon($inq['special_requests'] ?? ''); ?>
                                     </td>
-                                    <td style="font-weight: 700; color: var(--primary);">
-                                        <?php echo htmlspecialchars($inq['full_name']); ?>
+
+                                    <!-- Name -->
+                                    <td class="col-name">
+                                        <?php echo htmlspecialchars($displayName, ENT_QUOTES, 'UTF-8'); ?>
                                     </td>
-                                    <td style="font-size: 0.85rem; color: var(--text-muted);">
-                                        <?php echo htmlspecialchars($inq['email']); ?>
+
+                                    <!-- Email -->
+                                    <td class="col-email">
+                                        <?php echo htmlspecialchars($displayEmail !== '' ? $displayEmail : 'No email', ENT_QUOTES, 'UTF-8'); ?>
                                     </td>
-                                    <td><?php echo htmlspecialchars($inq['destination'] ?? 'Unspecified'); ?></td>
-                                    <td><span
-                                            class="status-badge <?php echo $statusClass; ?>"><?php echo ucfirst($status); ?></span>
+
+                                    <!-- Destination -->
+                                    <td class="col-destination">
+                                        <?php echo htmlspecialchars($displayDestination, ENT_QUOTES, 'UTF-8'); ?>
                                     </td>
-                                    <td style="text-align: center;">
+
+                                    <!-- Status -->
+                                    <td class="col-status">
+                                        <span class="status-badge <?php echo $statusClass; ?>"><?php echo ucfirst($status); ?></span>
+                                    </td>
+
+                                    <!-- Ads (consent toggle) -->
+                                    <td class="col-ads">
                                         <div class="consent-toggle-wrapper"
-                                            onclick="toggleConsentInTable(<?php echo $inq['id']; ?>, this)">
+                                            onclick="toggleConsentInTable(<?php echo $inq['id']; ?>, this, '<?php echo $inq['booking_number']; ?>')">
                                             <div class="consent-toggle <?php echo $inq['marketing_consent'] == 1 ? 'active' : ''; ?>"
-                                                id="table-consent-<?php echo $inq['id']; ?>">
+                                                id="table-consent-<?php echo $inq['booking_number']; ?>">
                                                 <div class="consent-handle"></div>
                                             </div>
-                                            <span
-                                                style="font-size: 0.65rem; display: block; margin-top: 2px; color: var(--text-muted);"
-                                                class="consent-label">
+                                            <span class="consent-label">
                                                 <?php echo $inq['marketing_consent'] == 1 ? 'ON' : 'OFF'; ?>
                                             </span>
                                         </div>
                                     </td>
-                                    <td style="font-size: 0.85rem;">
+
+                                    <!-- Date -->
+                                    <td class="col-date">
                                         <?php echo date('M d, Y', strtotime($inq['created_at'])); ?>
                                     </td>
-                                    <td>
-                                        <div style="display: flex; gap: 8px;">
-                                            <button class="btn btn-outline btn-sm"
-                                                onclick="viewInquiry(<?php echo $inq['id']; ?>)" title="View Details"><i
-                                                    class="fas fa-eye"></i></button>
+
+                                    <!-- Actions -->
+                                    <td class="col-actions">
+                                        <div class="inquiry-actions-row">
+                                            <button class="btn-icon"
+                                                onclick="viewInquiry(<?php echo $inq['id']; ?>, '<?php echo $inq['booking_number']; ?>')"
+                                                title="View Details">
+                                                <i class="fas fa-eye"></i>
+                                            </button>
                                             <select class="inq-status-select"
-                                                onchange="updateInquiryStatus(<?php echo $inq['id']; ?>, this)"
-                                                style="padding: 4px; border-radius: 8px; font-size: 0.75rem; border: 1px solid #e2e8f0;">
+                                                onchange="updateInquiryStatus(<?php echo $inq['id']; ?>, this, '<?php echo $inq['booking_number']; ?>')">
                                                 <option value="">Status...</option>
                                                 <option value="pending">Pending</option>
                                                 <option value="confirmed">Reviewed</option>
                                                 <option value="cancelled">Cancelled</option>
                                             </select>
-                                            <button class="btn btn-outline btn-sm"
-                                                onclick="deleteInquiry(<?php echo $inq['id']; ?>)"
-                                                style="color: #ef4444; border-color: #fecaca;" title="Delete"><i
-                                                    class="fas fa-trash-alt"></i></button>
+                                            <button class="btn-icon danger"
+                                                onclick="deleteInquiry(<?php echo $inq['id']; ?>, '<?php echo $inq['booking_number']; ?>')"
+                                                title="Delete">
+                                                <i class="fas fa-trash-alt"></i>
+                                            </button>
                                         </div>
                                     </td>
                                 </tr>
-                            <?php endforeach; ?>
-                        </tbody>
-                    </table>
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
                 </div>
             </div>
         </section>

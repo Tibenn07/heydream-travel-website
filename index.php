@@ -42,7 +42,9 @@ $stmt = $pdo->prepare("
         d.promo_end,
         d.blocked_months,
         d.highlight_duration,
-        d.blocked_dates
+        d.blocked_dates,
+        d.partner_id,
+        d.partner_company
     FROM destinations d
     WHERE d.type = 'local' AND d.is_active = 1 
     ORDER BY d.display_order, d.id ASC
@@ -2294,87 +2296,6 @@ foreach ($home_local_destinations as &$dest) {
                 </div>
             </div>
 
-            <?php
-            function normalizePartnerPackageDisplayValue($value)
-            {
-                return strtolower(trim(preg_replace('/\s+/', ' ', (string) $value)));
-            }
-
-            $partnerUploadsStmt = $pdo->prepare("SELECT * FROM partner_package_uploads WHERE upload_status = 'approved' ORDER BY created_at DESC LIMIT 6");
-            $partnerUploadsStmt->execute();
-            $partnerUploads = $partnerUploadsStmt->fetchAll(PDO::FETCH_ASSOC);
-
-            $existingHomepagePartnerPackageNames = [];
-            $existingHomepagePartnerPackageQueries = [
-                "SELECT name FROM foreign_destinations WHERE is_active = 1 AND name IS NOT NULL AND name <> ''",
-                "SELECT name FROM destinations WHERE type = 'local' AND is_active = 1 AND name IS NOT NULL AND name <> ''",
-                "SELECT destination_name FROM hotel_booking_settings WHERE is_active = 1 AND destination_name IS NOT NULL AND destination_name <> ''",
-                "SELECT title FROM site_services WHERE is_active = 1 AND title IS NOT NULL AND title <> '' AND service_type IN ('premium', 'flight', 'experience')",
-                "SELECT title FROM visas WHERE is_active = 1 AND title IS NOT NULL AND title <> ''"
-            ];
-
-            foreach ($existingHomepagePartnerPackageQueries as $query) {
-                $queryStmt = $pdo->query($query);
-                while ($row = $queryStmt->fetchColumn()) {
-                    $normalized = normalizePartnerPackageDisplayValue($row);
-                    if ($normalized !== '') {
-                        $existingHomepagePartnerPackageNames[$normalized] = true;
-                    }
-                }
-            }
-
-            $partnerUploads = array_values(array_filter($partnerUploads, function ($upload) use ($existingHomepagePartnerPackageNames) {
-                $packageName = normalizePartnerPackageDisplayValue($upload['package_name'] ?? '');
-                $destinationName = normalizePartnerPackageDisplayValue($upload['destination_name'] ?? '');
-                return !isset($existingHomepagePartnerPackageNames[$packageName]) && !isset($existingHomepagePartnerPackageNames[$destinationName]);
-            }));
-            ?>
-                <div class="destinations-grid-section" style="margin-top: 32px;">
-                    <div class="section-header-wrapper" id="partners-packages">
-                        <h1 class="section-title-popular local-title" id="partner-title" style="animation: fadeInUp 0.5s ease forwards;">Partners Packages and Services</h1>
-                        <a href="#" data-partner-package-link="partners-packages" class="view-all-link" style="color: #0f4c81;">View partner packages <i class="fas fa-arrow-right"></i></a>
-                    </div>
-
-                    <div class="popular-scroll-container">
-                        <div class="popular-grid">
-                            <?php if (empty($partnerUploads)): ?>
-                                <div class="loading-spinner" style="padding: 32px 0; margin: 0 auto; max-width: 680px; background: transparent; border: none;">
-                                    <i class="fas fa-info-circle"></i>
-                                    <p>No partner packages available. Check back soon!</p>
-                                </div>
-                            <?php else: ?>
-                                <?php foreach ($partnerUploads as $upload): ?>
-                                    <div class="foreign-card" style="height: auto; min-height: 270px; width: 100%; max-width: 280px;">
-                                        <div class="foreign-card-image" style="height: 140px; background: linear-gradient(135deg, #0f4c81, #f59e0b); display:flex; align-items:center; justify-content:center; color:white; font-size:2rem;">
-                                            <i class="fas fa-handshake"></i>
-                                        </div>
-                                        <div class="foreign-card-content">
-                                            <div class="foreign-card-name" style="position: static; padding: 0 0 8px; min-height: auto; background: none; color: #0f172a !important; text-shadow: none; font-size: 1rem; display:block;">
-                                                <?= htmlspecialchars($upload['package_name']) ?>
-                                            </div>
-                                            <div class="foreign-card-location"><i class="fas fa-map-marker-alt"></i> <?= htmlspecialchars($upload['destination_name'] ?: 'Destination not specified') ?></div>
-                                            <div class="foreign-card-desc" style="margin-bottom: 8px;">
-                                                <?= htmlspecialchars($upload['description'] ?: 'Partner package available for booking.') ?>
-                                            </div>
-                                            <div class="foreign-card-footer">
-                                                <div class="foreign-card-price">
-                                                    From ₱<?= number_format((float)$upload['price'], 2) ?>
-                                                    <small>/ person</small>
-                                                </div>
-                                                <button class="foreign-card-btn" onclick="alert('Partner package details coming soon!')" style="width: 100%;">
-                                                    View Tour Details
-                                                </button>
-                                            </div>
-                                            <div style="margin-top:10px; color:#64748b; font-size:0.75rem; text-align: center;">
-                                                Uploaded by <?= htmlspecialchars($upload['uploaded_by_name']) ?>
-                                            </div>
-                                        </div>
-                                    </div>
-                                <?php endforeach; ?>
-                            <?php endif; ?>
-                        </div>
-                    </div>
-                </div>
         </div>
     </section>
 
@@ -2594,6 +2515,7 @@ foreach ($home_local_destinations as &$dest) {
                         <i class="fas fa-map-marker-alt"></i> ${escapeHtmlForHome(displayLocation)}
                     </div>
                     <p class="foreign-card-desc">${escapeHtmlForHome(description)}</p>
+                    ${dest.partner_id ? `<div style="font-size: 0.8rem; color: #64748b; margin-top: 5px; margin-bottom: 5px;">Provided by: <a href="view-partner-profile.php?id=${dest.partner_id}" style="color: #003580; font-weight: 500; text-decoration: none;" onclick="event.stopPropagation();">${escapeHtmlForHome(dest.partner_company || 'Partner')}</a></div>` : ''}
                     <div class="foreign-card-footer">
                         <div class="foreign-card-price">
                             From ${currency}${formatNumberHome(dest.price)}
@@ -2644,7 +2566,6 @@ foreach ($home_local_destinations as &$dest) {
     <script src="js/home-packages.js?v=2"></script>
     <script src="js/foreign-packages.js?v=2"></script>
     <script src="js/flash-deals.js?v=4"></script>
-    <script src="js/partner-packages.js?v=1"></script>
 
     <script>
         // ========================================

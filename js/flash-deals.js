@@ -286,6 +286,7 @@ window.showFlashDealPopup = async function (dealId) {
                 <div class="flash-tab active" onclick="switchFlashTab(event, 'info')" style="padding:10px 15px; cursor:pointer; font-weight:600; color:#003580; border-bottom:3px solid #ff9800; white-space:nowrap;">Overview</div>
                 <div class="flash-tab" onclick="switchFlashTab(event, 'itinerary')" style="padding:10px 15px; cursor:pointer; font-weight:600; color:#666; border-bottom:3px solid transparent; white-space:nowrap;">Itinerary</div>
                 <div class="flash-tab" onclick="switchFlashTab(event, 'inclusions')" style="padding:10px 15px; cursor:pointer; font-weight:600; color:#666; border-bottom:3px solid transparent; white-space:nowrap;">Inclusions</div>
+                ${deal.partner_id ? `<div class="flash-tab" onclick="switchFlashTab(event, 'partner')" style="padding:10px 15px; cursor:pointer; font-weight:600; color:#666; border-bottom:3px solid transparent; white-space:nowrap;">Partner Profile</div>` : ''}
             </div>
 
             <div id="flash-pane-info" class="flash-pane" style="display:block;">
@@ -321,6 +322,17 @@ window.showFlashDealPopup = async function (dealId) {
                 ${inclusionsHtml}
                 ${exclusionsHtml}
             </div>
+            ${deal.partner_id ? `
+            <div id="flash-pane-partner" class="flash-pane" style="display:none;">
+                <div style="text-align: center; padding: 30px 15px;">
+                    <i class="fas fa-handshake" style="font-size: 3rem; color: #ff9800; margin-bottom: 15px;"></i>
+                    <h3 style="color: #003580; margin-bottom: 15px; font-size: 1.4rem;">${escapeHtmlFlash(deal.partner_company || 'Partner Provider')}</h3>
+                    <p style="color: #666; margin-bottom: 25px; line-height: 1.6;">This package is exclusively provided by one of our trusted partners. View their full profile to learn more about them and discover other amazing packages they offer.</p>
+                    <a href="view-partner-profile.php?id=${deal.partner_id}" style="display: inline-block; background: #003580; color: white; padding: 12px 25px; border-radius: 25px; text-decoration: none; font-weight: 600; box-shadow: 0 4px 6px rgba(0,0,0,0.1); transition: all 0.3s ease;">
+                        View Partner Profile <i class="fas fa-external-link-alt" style="margin-left: 8px;"></i>
+                    </a>
+                </div>
+            </div>` : ''}
 
             <div style="display:flex; justify-content:space-between; align-items:center; margin-top:20px; padding-top:15px; border-top:1px solid #eee;">
                 <div>
@@ -1379,6 +1391,7 @@ function renderFlashDealsHome(deals) {
                     <p style="color: #666; font-size: 0.85rem; line-height: 1.4; margin-bottom: 15px; flex-grow: 1;">
                         ${escapeHtmlFlash(deal.description || 'Grab this amazing travel deal before it expires!')}
                     </p>
+                    ${deal.partner_id ? `<div style="font-size: 0.8rem; color: #64748b; margin-top: 5px; margin-bottom: 10px;">Provided by: <a href="view-partner-profile.php?id=${deal.partner_id}" style="color: #003580; font-weight: 500; text-decoration: none;" onclick="event.stopPropagation();">${escapeHtmlFlash(deal.partner_company || 'Partner')}</a></div>` : ''}
                     
                     <div style="margin-bottom: 15px;">
                         <div style="font-size: 0.85rem; color: #888; margin-bottom: 8px;">

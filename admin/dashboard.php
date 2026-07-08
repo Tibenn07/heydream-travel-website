@@ -331,7 +331,9 @@ $unreadMessagesCount = $stmtMessagesCount ? $stmtMessagesCount->fetchColumn() : 
         .admin-info {
             display: flex;
             align-items: center;
-            gap: 20px;
+            gap: 12px;
+            flex-wrap: wrap;
+            justify-content: flex-end;
         }
 
         .admin-info span {
@@ -341,6 +343,7 @@ $unreadMessagesCount = $stmtMessagesCount ? $stmtMessagesCount->fetchColumn() : 
             font-weight: 500;
             color: var(--text-muted);
             font-size: 0.9rem;
+            white-space: nowrap;
         }
 
         .admin-info span i {
@@ -368,6 +371,50 @@ $unreadMessagesCount = $stmtMessagesCount ? $stmtMessagesCount->fetchColumn() : 
             color: white;
             transform: translateY(-2px);
             box-shadow: 0 4px 12px rgba(220, 38, 38, 0.2);
+        }
+
+        .app-link-btn {
+            background: linear-gradient(135deg, #2563eb, #3b82f6);
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 10px;
+            cursor: pointer;
+            text-decoration: none;
+            font-size: 0.85rem;
+            font-weight: 600;
+            transition: var(--transition);
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2);
+        }
+
+        .app-link-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(37, 99, 235, 0.25);
+        }
+
+        .app-dashboard-btn {
+            background: linear-gradient(135deg, #0f766e, #14b8a6);
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 10px;
+            cursor: pointer;
+            text-decoration: none;
+            font-size: 0.85rem;
+            font-weight: 600;
+            transition: var(--transition);
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 4px 12px rgba(20, 184, 166, 0.2);
+        }
+
+        .app-dashboard-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(20, 184, 166, 0.25);
         }
 
         /* --- Statistics Grid --- */
@@ -1678,6 +1725,10 @@ $unreadMessagesCount = $stmtMessagesCount ? $stmtMessagesCount->fetchColumn() : 
                     <span class="badge-count sidebar-badge" id="menuPendingCount"
                         style="background: #ff4757; box-shadow: 0 0 15px rgba(255, 71, 87, 0.4);"><?= $pendingRequestsCount ?></span>
                 </a>
+                <a href="heydream_admin/admin_dashboard.php" class="menu-item" style="margin-top: 2px; background: linear-gradient(90deg, rgba(20,184,166,0.16), rgba(20,184,166,0.06)); color: #d1fae5; border: 1px solid rgba(20,184,166,0.25);">
+                    <i class="fas fa-desktop"></i>
+                    <span>HeyDream App Dashboard</span>
+                </a>
             <?php endif; ?>
         </div>
     </div>
@@ -2774,6 +2825,7 @@ $unreadMessagesCount = $stmtMessagesCount ? $stmtMessagesCount->fetchColumn() : 
                                 <th>Phone</th>
                                 <th>Provider</th>
                                 <th>Registered</th>
+                                <th>Actions</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -2791,6 +2843,17 @@ $unreadMessagesCount = $stmtMessagesCount ? $stmtMessagesCount->fetchColumn() : 
                                     <td><?= $user['phone'] ?? 'N/A' ?></td>
                                     <td><?= ucfirst($user['provider']) ?></td>
                                     <td><?= date('M d, Y', strtotime($user['created_at'])) ?></td>
+                                    <td class="action-buttons" style="white-space:nowrap;">
+                                        <?php $isBanned = isset($user['is_banned']) && $user['is_banned'] ? 1 : 0; ?>
+                                        <button class="delete-btn" onclick="event.stopPropagation(); deleteUser(<?= (int)$user['id'] ?>, '<?= htmlspecialchars($user['email'], ENT_QUOTES) ?>')" title="Delete">
+                                            <i class="fas fa-trash"></i>
+                                            <span>Delete</span>
+                                        </button>
+                                        <button class="<?= isset($user['is_banned']) && $user['is_banned'] ? 'approve-btn' : 'incomplete-btn' ?>" onclick="event.stopPropagation(); promptBanUser(<?= (int)$user['id'] ?>, '<?= htmlspecialchars($user['full_name'], ENT_QUOTES) ?>', <?= $isBanned ?>)">
+                                            <i class="fas fa-<?= $isBanned ? 'lock-open' : 'ban' ?>"></i>
+                                            <span><?= $isBanned ? 'Unban' : 'Ban' ?></span>
+                                        </button>
+                                    </td>
                                 </tr>
                             <?php endforeach; ?>
                         </tbody>
@@ -3023,6 +3086,11 @@ $unreadMessagesCount = $stmtMessagesCount ? $stmtMessagesCount->fetchColumn() : 
                         <h2><i class="fas fa-hourglass-half"></i> Pending Admin Registration Requests</h2>
                         <span class="status-badge status-pending" id="pendingCountBadge"><?= $pendingRequestsCount ?>
                             pending</span>
+                    </div>
+                    <div style="padding: 0 0 16px 0;">
+                        <a href="heydream_admin/admin_dashboard.php" class="app-dashboard-btn" style="display: inline-flex; align-items: center; gap: 8px;">
+                            <i class="fas fa-desktop"></i> HeyDream App Dashboard
+                        </a>
                     </div>
                     <div class="table-responsive">
                         <table id="pending-requests-table">
@@ -4072,6 +4140,84 @@ $unreadMessagesCount = $stmtMessagesCount ? $stmtMessagesCount->fetchColumn() : 
                         });
                 }
             });
+        }
+
+        // --- User management: Delete & Ban ---
+        function deleteUser(userId, email) {
+            Swal.fire({
+                title: 'Delete Customer',
+                html: `Permanently delete customer <strong>${email}</strong>? This cannot be undone.`,
+                icon: 'warning', showCancelButton: true,
+                confirmButtonColor: '#dc2626', confirmButtonText: 'Yes, Delete'
+            }).then(result => {
+                if (result.isConfirmed) {
+                    const formData = new FormData();
+                    formData.append('action', 'delete_user');
+                    formData.append('user_id', userId);
+                    fetch('admin-api.php', { method: 'POST', body: formData })
+                        .then(r => r.json())
+                        .then(data => {
+                            if (data.success) {
+                                Swal.fire({ icon: 'success', title: 'Deleted', text: data.message, timer: 1500, showConfirmButton: false });
+                                // remove row or reload
+                                setTimeout(() => location.reload(), 800);
+                            } else {
+                                Swal.fire('Error', data.message || 'Failed to delete user', 'error');
+                            }
+                        }).catch(() => Swal.fire('Error', 'Network error', 'error'));
+                }
+            });
+        }
+
+        function promptBanUser(userId, fullName, isBanned) {
+            if (isBanned) {
+                Swal.fire({
+                    title: 'Unban Customer',
+                    html: `Unban <strong>${fullName}</strong>? They will regain access immediately.`,
+                    icon: 'question', showCancelButton: true,
+                    confirmButtonColor: '#16a34a', confirmButtonText: 'Yes, Unban'
+                }).then(result => {
+                    if (result.isConfirmed) submitUserBan(userId, 'unban', null);
+                });
+            } else {
+                Swal.fire({
+                    title: 'Ban Customer',
+                    html: `<p style="margin-bottom:12px;">Ban <strong>${fullName}</strong>?</p>
+                        <select id="banUserTypeSelect" style="width:100%;padding:10px;border-radius:10px;border:1px solid #cbd5e1;font-family:inherit;">
+                            <option value="1">1 Day</option>
+                            <option value="7">7 Days</option>
+                            <option value="30">30 Days</option>
+                            <option value="90">90 Days</option>
+                            <option value="permanent">Permanent</option>
+                        </select>`,
+                    icon: 'warning', showCancelButton: true,
+                    confirmButtonColor: '#dc2626', confirmButtonText: 'Ban Customer',
+                    preConfirm: () => document.getElementById('banUserTypeSelect').value
+                }).then(result => {
+                    if (result.isConfirmed) {
+                        const days = result.value === 'permanent' ? null : parseInt(result.value);
+                        submitUserBan(userId, 'ban', days);
+                    }
+                });
+            }
+        }
+
+        function submitUserBan(userId, banAction, days) {
+            const formData = new FormData();
+            formData.append('action', 'ban_user');
+            formData.append('user_id', userId);
+            formData.append('ban_action', banAction);
+            if (days !== null && days !== undefined) formData.append('ban_days', days);
+            fetch('admin-api.php', { method: 'POST', body: formData })
+                .then(r => r.json())
+                .then(data => {
+                    if (data.success) {
+                        Swal.fire({ icon: 'success', title: 'Done', text: data.message, timer: 1500, showConfirmButton: false });
+                        setTimeout(() => location.reload(), 700);
+                    } else {
+                        Swal.fire('Error', data.message || 'Failed to update ban status', 'error');
+                    }
+                }).catch(() => Swal.fire('Error', 'Network error', 'error'));
         }
 
         function viewPartnerDetails(partnerId) {

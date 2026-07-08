@@ -1,5 +1,10 @@
 ﻿<?php
 require_once __DIR__ . '/../../config/database.php';
+require_once __DIR__ . '/../../api/partner-booking-tracker.php';
+
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
 
 if (!isset($_SESSION['partner_id']) || empty($_SESSION['partner_id'])) {
     header('Location: partner-login.php');
@@ -14,6 +19,66 @@ $partner = $stmt->fetch();
 if (!$partner || $partner['status'] !== 'approved') {
     header('Location: partner-login.php');
     exit;
+}
+
+function uploadPartnerProfileAsset($file, $oldPath = null)
+{
+    if (!isset($file) || !is_array($file) || ($file['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) {
+        return ['success' => true, 'path' => $oldPath];
+    }
+
+    $allowedTypes = ['image/jpeg', 'image/png', 'image/jpg', 'image/webp', 'image/gif'];
+    if (!in_array($file['type'], $allowedTypes, true)) {
+        return ['success' => false, 'message' => 'Only JPG, PNG, GIF, and WEBP images are allowed.'];
+    }
+
+    $targetDir = __DIR__ . '/../../uploads/partner-profiles/';
+    if (!is_dir($targetDir)) {
+        mkdir($targetDir, 0777, true);
+    }
+
+    $extension = pathinfo($file['name'], PATHINFO_EXTENSION);
+    $filename = time() . '_' . uniqid() . '.' . $extension;
+    $targetPath = $targetDir . $filename;
+
+    if (move_uploaded_file($file['tmp_name'], $targetPath)) {
+        if (!empty($oldPath) && file_exists(__DIR__ . '/../../' . $oldPath)) {
+            @unlink(__DIR__ . '/../../' . $oldPath);
+        }
+        return ['success' => true, 'path' => 'uploads/partner-profiles/' . $filename];
+    }
+
+    return ['success' => false, 'message' => 'Image upload failed.'];
+}
+
+function uploadPartnerPackageAsset($file, $oldPath = null)
+{
+    if (!isset($file) || !is_array($file) || ($file['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) {
+        return ['success' => true, 'path' => $oldPath];
+    }
+
+    $allowedTypes = ['image/jpeg', 'image/png', 'image/jpg', 'image/webp', 'image/gif'];
+    if (!in_array($file['type'], $allowedTypes, true)) {
+        return ['success' => false, 'message' => 'Only JPG, PNG, GIF, and WEBP images are allowed.'];
+    }
+
+    $targetDir = __DIR__ . '/../../uploads/partner-packages/';
+    if (!is_dir($targetDir)) {
+        mkdir($targetDir, 0777, true);
+    }
+
+    $extension = pathinfo($file['name'], PATHINFO_EXTENSION);
+    $filename = time() . '_' . uniqid() . '.' . $extension;
+    $targetPath = $targetDir . $filename;
+
+    if (move_uploaded_file($file['tmp_name'], $targetPath)) {
+        if (!empty($oldPath) && file_exists(__DIR__ . '/../../' . $oldPath)) {
+            @unlink(__DIR__ . '/../../' . $oldPath);
+        }
+        return ['success' => true, 'path' => 'uploads/partner-packages/' . $filename];
+    }
+
+    return ['success' => false, 'message' => 'Package image upload failed.'];
 }
 
 try {
@@ -80,6 +145,18 @@ try {
     } catch (Throwable $e) {
         // Column already exists, ignore
     }
+
+    try {
+        $pdo->exec("ALTER TABLE partner_profiles ADD COLUMN operating_hours VARCHAR(255) AFTER website");
+    } catch (Throwable $e) {
+        // Column already exists, ignore
+    }
+
+    try {
+        $pdo->exec("ALTER TABLE partner_package_uploads ADD COLUMN image_path VARCHAR(500) DEFAULT NULL AFTER description");
+    } catch (Throwable $e) {
+        // Column already exists, ignore
+    }
 } catch (Throwable $e) {
 }
 
@@ -94,14 +171,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     $price = (float)($_POST['price'] ?? 0);
     $description = trim($_POST['description'] ?? '');
 
-    if ($packageName === '') {
+    $imageUpload = uploadPartnerPackageAsset($_FILES['package_image'] ?? null);
+
+    if (!$imageUpload['success']) {
+        $errorMessage = $imageUpload['message'];
+    } elseif ($packageName === '') {
         $errorMessage = 'Please enter a package name before uploading.';
     } else {
+        $imagePath = $imageUpload['path'] ?? null;
         $stmt = $pdo->prepare("
             INSERT INTO partner_package_uploads (
                 partner_id, partner_company, uploaded_by_name, uploaded_by_email,
-                package_name, destination_name, duration, price, description, upload_status
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')
+                package_name, destination_name, duration, price, description, image_path, upload_status
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')
         ");
         $stmt->execute([
             $partnerId,
@@ -112,7 +194,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
             $destinationName,
             $duration,
             $price,
-            $description
+            $description,
+            $imagePath
         ]);
         $successMessage = 'Package uploaded successfully and is waiting for review.';
     }
@@ -141,22 +224,40 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     $city = trim($_POST['city'] ?? '');
     $country = trim($_POST['country'] ?? '');
     $website = trim($_POST['website'] ?? '');
+    $operatingHours = trim($_POST['operating_hours'] ?? '');
     $specialties = trim($_POST['specialties'] ?? '');
     $yearsInBusiness = (int)($_POST['years_in_business'] ?? 0);
     $teamSize = (int)($_POST['team_size'] ?? 0);
     $certifications = trim($_POST['certifications'] ?? '');
+    $socialLinks = trim($_POST['social_links'] ?? '');
 
-    $stmt = $pdo->prepare("
-        INSERT INTO partner_profiles (partner_id, business_display_name, bio, description, phone, address, city, country, website, specialties, years_in_business, team_size, certifications)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ON DUPLICATE KEY UPDATE
-            business_display_name = ?, bio = ?, description = ?, phone = ?, address = ?, city = ?, country = ?, website = ?, specialties = ?, years_in_business = ?, team_size = ?, certifications = ?, updated_at = NOW()
-    ");
-    $stmt->execute([
-        $partnerId, $businessDisplayName, $bio, $description, $phone, $address, $city, $country, $website, $specialties, $yearsInBusiness, $teamSize, $certifications,
-        $businessDisplayName, $bio, $description, $phone, $address, $city, $country, $website, $specialties, $yearsInBusiness, $teamSize, $certifications
-    ]);
-    $successMessage = 'Profile updated successfully!';
+    $existingProfile = $pdo->prepare("SELECT logo_path, banner_image_path FROM partner_profiles WHERE partner_id = ? LIMIT 1");
+    $existingProfile->execute([$partnerId]);
+    $existingProfileData = $existingProfile->fetch(PDO::FETCH_ASSOC);
+
+    $logoUpload = uploadPartnerProfileAsset($_FILES['logo_image'] ?? null, $existingProfileData['logo_path'] ?? null);
+    $bannerUpload = uploadPartnerProfileAsset($_FILES['banner_image'] ?? null, $existingProfileData['banner_image_path'] ?? null);
+
+    if (!$logoUpload['success']) {
+        $errorMessage = $logoUpload['message'];
+    } elseif (!$bannerUpload['success']) {
+        $errorMessage = $bannerUpload['message'];
+    } else {
+        $logoPath = $logoUpload['path'] ?? $existingProfileData['logo_path'] ?? null;
+        $bannerPath = $bannerUpload['path'] ?? $existingProfileData['banner_image_path'] ?? null;
+
+        $stmt = $pdo->prepare("
+            INSERT INTO partner_profiles (partner_id, business_display_name, bio, description, phone, address, city, country, website, operating_hours, specialties, years_in_business, team_size, certifications, logo_path, banner_image_path, social_media_links)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON DUPLICATE KEY UPDATE
+                business_display_name = ?, bio = ?, description = ?, phone = ?, address = ?, city = ?, country = ?, website = ?, operating_hours = ?, specialties = ?, years_in_business = ?, team_size = ?, certifications = ?, logo_path = ?, banner_image_path = ?, social_media_links = ?, updated_at = NOW()
+        ");
+        $stmt->execute([
+            $partnerId, $businessDisplayName, $bio, $description, $phone, $address, $city, $country, $website, $operatingHours, $specialties, $yearsInBusiness, $teamSize, $certifications, $logoPath, $bannerPath, $socialLinks,
+            $businessDisplayName, $bio, $description, $phone, $address, $city, $country, $website, $operatingHours, $specialties, $yearsInBusiness, $teamSize, $certifications, $logoPath, $bannerPath, $socialLinks
+        ]);
+        $successMessage = 'Profile updated successfully!';
+    }
 }
 
 $packageStmt = $pdo->prepare("SELECT * FROM partner_package_uploads WHERE partner_id = ? ORDER BY created_at DESC");
@@ -170,6 +271,24 @@ $reports = $reportStmt->fetchAll();
 $profileStmt = $pdo->prepare("SELECT * FROM partner_profiles WHERE partner_id = ? LIMIT 1");
 $profileStmt->execute([$partnerId]);
 $profile = $profileStmt->fetch();
+
+ensurePartnerBookingTracking($pdo);
+
+$partnerBookingStatsStmt = $pdo->prepare(
+    "SELECT COUNT(*) AS total_bookings, COALESCE(SUM(CASE WHEN payment_status = 'paid' OR booking_status IN ('confirmed','completed') THEN total_amount ELSE 0 END), 0) AS paid_revenue, COALESCE(SUM(CASE WHEN payment_status = 'unpaid' AND booking_status = 'pending' THEN total_amount ELSE 0 END), 0) AS pending_revenue FROM bookings WHERE partner_id = ? OR (partner_id IS NULL AND partner_company = ?)"
+);
+$partnerBookingStatsStmt->execute([$partnerId, $partner['company_name'] ?? '']);
+$partnerBookingStats = $partnerBookingStatsStmt->fetch(PDO::FETCH_ASSOC) ?: [
+    'total_bookings' => 0,
+    'paid_revenue' => 0,
+    'pending_revenue' => 0,
+];
+
+$partnerBookingsStmt = $pdo->prepare(
+    "SELECT id, booking_number, full_name, package_name, partner_package_name, destination_name, total_amount, booking_status, payment_status, created_at FROM bookings WHERE partner_id = ? OR (partner_id IS NULL AND partner_company = ?) ORDER BY created_at DESC LIMIT 10"
+);
+$partnerBookingsStmt->execute([$partnerId, $partner['company_name'] ?? '']);
+$partnerBookings = $partnerBookingsStmt->fetchAll();
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -467,10 +586,492 @@ $profile = $profileStmt->fetch();
             flex-shrink: 0;
         }
 
+        .uploader-link {
+            display: block;
+            text-decoration: none;
+            color: inherit;
+        }
+
+        .social-profile-shell {
+            border: 1px solid #dbeafe;
+            border-radius: 24px;
+            overflow: hidden;
+            background: #f8fbff;
+        }
+
+        .social-cover {
+            min-height: 180px;
+            background: linear-gradient(135deg, #0f4c81 0%, #5ca6ff 100%);
+            position: relative;
+            display: flex;
+            align-items: flex-end;
+            justify-content: flex-start;
+            padding: 20px;
+        }
+
+        .social-cover img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            position: absolute;
+            inset: 0;
+        }
+
+        .social-cover .cover-overlay {
+            position: relative;
+            z-index: 1;
+            color: white;
+            font-weight: 700;
+            font-size: 1rem;
+        }
+
+        .social-hero {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 16px;
+            align-items: flex-start;
+            padding: 20px 22px 0;
+            margin-top: -34px;
+            position: relative;
+            z-index: 2;
+        }
+
+        .social-avatar {
+            width: 92px;
+            height: 92px;
+            border-radius: 50%;
+            border: 4px solid white;
+            overflow: hidden;
+            background: linear-gradient(135deg, var(--primary), var(--accent));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 2rem;
+            font-weight: 800;
+            box-shadow: 0 12px 24px rgba(15, 23, 42, 0.14);
+        }
+
+        .social-avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .social-hero-copy {
+            flex: 1;
+            min-width: 240px;
+            background: white;
+            border-radius: 18px;
+            padding: 16px 18px;
+            box-shadow: 0 14px 36px rgba(15, 23, 42, 0.06);
+        }
+
+        .social-hero-copy h4 {
+            margin: 0 0 6px;
+            font-size: 1.3rem;
+        }
+
+        .social-hero-copy p {
+            margin: 0;
+            color: var(--muted);
+            line-height: 1.6;
+        }
+
+        .social-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 14px;
+            padding: 20px 22px 22px;
+        }
+
+        .social-card {
+            background: white;
+            border-radius: 16px;
+            padding: 16px;
+            border: 1px solid #e2e8f0;
+        }
+
+        .social-card h5 {
+            margin: 0 0 8px;
+            font-size: 0.92rem;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .social-card p,
+        .social-card ul {
+            margin: 0;
+            color: var(--text);
+            line-height: 1.6;
+        }
+
+        .social-card ul {
+            padding-left: 18px;
+        }
+
+        .social-link-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 8px;
+        }
+
+        .social-link-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 7px 10px;
+            border-radius: 999px;
+            background: var(--primary-soft);
+            color: var(--primary);
+            text-decoration: none;
+            font-size: 0.9rem;
+            font-weight: 600;
+        }
+
+        .social-form-grid {
+            display: grid;
+            grid-template-columns: 1.2fr 0.8fr;
+            gap: 18px;
+            align-items: start;
+        }
+
         @media (max-width: 900px) {
             .admin-shell { flex-direction: column; }
             .sidebar { width: 100%; }
             .main-area { padding: 16px; }
+        }
+
+        /* ===================== My Profile redesign (scoped to .mp-*) ===================== */
+        .mp-wrap { display: flex; flex-direction: column; gap: 28px; }
+
+        /* Hero / overview card */
+        .mp-hero {
+            position: relative;
+            border-radius: 24px;
+            padding: 36px;
+            background: linear-gradient(135deg, #0f4c81 0%, #1d6fc7 55%, #4c9ce8 100%);
+            color: #fff;
+            overflow: hidden;
+            box-shadow: 0 24px 50px rgba(15, 76, 129, 0.28);
+            display: flex;
+            flex-wrap: wrap;
+            gap: 32px;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .mp-hero::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            opacity: 0.16;
+            background-image:
+                radial-gradient(circle at 85% 15%, #ffffff 0, transparent 40%),
+                radial-gradient(circle at 95% 80%, #ffffff 0, transparent 35%);
+            pointer-events: none;
+        }
+        .mp-hero::after {
+            content: '\f5b0';
+            font-family: 'Font Awesome 6 Free';
+            font-weight: 900;
+            position: absolute;
+            right: -20px;
+            bottom: -30px;
+            font-size: 200px;
+            color: rgba(255,255,255,0.08);
+            transform: rotate(-8deg);
+            pointer-events: none;
+        }
+        .mp-hero-left {
+            position: relative;
+            z-index: 1;
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            min-width: 260px;
+        }
+        .mp-hero-logo {
+            width: 84px;
+            height: 84px;
+            border-radius: 50%;
+            border: 3px solid rgba(255,255,255,0.85);
+            background: rgba(255,255,255,0.15);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+            font-weight: 800;
+            overflow: hidden;
+            flex-shrink: 0;
+            box-shadow: 0 10px 26px rgba(0,0,0,0.18);
+        }
+        .mp-hero-logo img { width: 100%; height: 100%; object-fit: cover; }
+        .mp-hero-name { font-size: 1.5rem; font-weight: 700; margin: 0 0 4px; }
+        .mp-hero-email { margin: 0 0 10px; color: rgba(255,255,255,0.85); font-size: 0.92rem; }
+        .mp-verified-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(16, 185, 129, 0.18);
+            border: 1px solid rgba(16, 185, 129, 0.55);
+            color: #d1fae5;
+            padding: 5px 12px;
+            border-radius: 999px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+        .mp-verified-badge i { color: #34d399; }
+
+        .mp-hero-stats {
+            position: relative;
+            z-index: 1;
+            display: grid;
+            grid-template-columns: repeat(4, minmax(120px, 1fr));
+            gap: 14px;
+            flex: 1;
+            min-width: 320px;
+        }
+        .mp-stat {
+            background: rgba(255,255,255,0.12);
+            border: 1px solid rgba(255,255,255,0.22);
+            border-radius: 18px;
+            padding: 16px 14px;
+            backdrop-filter: blur(6px);
+            transition: transform 0.2s ease, background 0.2s ease;
+        }
+        .mp-stat:hover { transform: translateY(-3px); background: rgba(255,255,255,0.18); }
+        .mp-stat i { font-size: 1.1rem; color: #cfe6ff; margin-bottom: 8px; display: block; }
+        .mp-stat .mp-stat-title { font-size: 0.76rem; text-transform: uppercase; letter-spacing: 0.05em; color: rgba(255,255,255,0.8); margin-bottom: 4px; }
+        .mp-stat .mp-stat-value { font-size: 1.4rem; font-weight: 700; line-height: 1.2; }
+        .mp-stat .mp-stat-sub { font-size: 0.76rem; color: rgba(255,255,255,0.7); margin-top: 2px; }
+
+        /* Main grid */
+        .mp-grid {
+            display: grid;
+            grid-template-columns: 65% 35%;
+            gap: 28px;
+            align-items: start;
+        }
+        .mp-col { display: flex; flex-direction: column; gap: 28px; min-width: 0; }
+
+        .mp-card {
+            background: var(--panel);
+            border-radius: 22px;
+            border: 1px solid var(--border);
+            box-shadow: 0 10px 28px rgba(15, 23, 42, 0.05);
+            padding: 26px 28px;
+            transition: box-shadow 0.2s ease, transform 0.2s ease;
+        }
+        .mp-card:hover { box-shadow: 0 18px 40px rgba(15, 23, 42, 0.09); transform: translateY(-2px); }
+
+        .mp-card-head {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 18px;
+        }
+        .mp-card-head h3 { margin: 0 0 4px; font-size: 1.12rem; }
+        .mp-card-head p { margin: 0; color: var(--muted); font-size: 0.88rem; }
+
+        .mp-edit-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: var(--primary-soft);
+            color: var(--primary);
+            border: none;
+            padding: 9px 16px;
+            border-radius: 12px;
+            font-weight: 600;
+            font-size: 0.86rem;
+            cursor: pointer;
+            transition: background 0.2s ease;
+            white-space: nowrap;
+        }
+        .mp-edit-btn:hover { background: #d6e9ff; }
+
+        /* Info rows (read view) */
+        .mp-info-row {
+            display: flex;
+            align-items: flex-start;
+            gap: 14px;
+            padding: 14px 0;
+            border-bottom: 1px solid var(--border);
+        }
+        .mp-info-row:last-child { border-bottom: none; padding-bottom: 0; }
+        .mp-info-row:first-child { padding-top: 0; }
+        .mp-info-icon {
+            width: 38px;
+            height: 38px;
+            border-radius: 12px;
+            background: var(--primary-soft);
+            color: var(--primary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            font-size: 0.95rem;
+        }
+        .mp-info-body { min-width: 0; flex: 1; }
+        .mp-info-label { font-size: 0.76rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); margin-bottom: 3px; }
+        .mp-info-value { font-size: 0.96rem; color: var(--text); line-height: 1.55; word-break: break-word; }
+        .mp-info-value.mp-empty { color: #94a3b8; font-style: italic; }
+
+        /* Edit form (hidden by default) */
+        .mp-edit-form { display: none; }
+        .mp-edit-form.mp-active { display: block; }
+        .mp-view.mp-hidden { display: none; }
+
+        .mp-field-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+        .mp-field { margin-bottom: 16px; }
+        .mp-field label {
+            display: block;
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--text);
+            margin-bottom: 6px;
+        }
+        .mp-field input,
+        .mp-field textarea {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            font-family: inherit;
+            font-size: 0.92rem;
+            background: #f8fafc;
+            transition: border-color 0.2s ease, background 0.2s ease;
+        }
+        .mp-field input:focus,
+        .mp-field textarea:focus {
+            outline: none;
+            border-color: var(--primary);
+            background: #fff;
+        }
+        .mp-field textarea { min-height: 90px; resize: vertical; }
+
+        .mp-form-actions { display: flex; gap: 10px; margin-top: 6px; }
+        .mp-btn-primary,
+        .mp-btn-secondary {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            border-radius: 12px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            cursor: pointer;
+            border: none;
+        }
+        .mp-btn-primary {
+            background: linear-gradient(135deg, var(--primary), #2f7fd1);
+            color: #fff;
+            box-shadow: 0 10px 22px rgba(15, 76, 129, 0.25);
+        }
+        .mp-btn-primary:hover { filter: brightness(1.05); }
+        .mp-btn-secondary { background: #f1f5f9; color: var(--text); }
+        .mp-btn-secondary:hover { background: #e2e8f0; }
+
+        /* Right column cards */
+        .mp-media-block { margin-bottom: 20px; }
+        .mp-media-block:last-child { margin-bottom: 0; }
+        .mp-media-label { font-size: 0.8rem; font-weight: 600; color: var(--muted); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.04em; }
+        .mp-logo-preview {
+            width: 84px;
+            height: 84px;
+            border-radius: 20px;
+            overflow: hidden;
+            background: var(--primary-soft);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--primary);
+            font-weight: 700;
+            font-size: 1.6rem;
+            margin-bottom: 10px;
+            border: 1px solid var(--border);
+        }
+        .mp-logo-preview img { width: 100%; height: 100%; object-fit: cover; }
+        .mp-cover-preview {
+            width: 100%;
+            height: 110px;
+            border-radius: 16px;
+            overflow: hidden;
+            background: linear-gradient(135deg, #dbeafe, #eff6ff);
+            border: 1px solid var(--border);
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #94a3b8;
+        }
+        .mp-cover-preview img { width: 100%; height: 100%; object-fit: cover; }
+        .mp-media-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            background: #f1f5f9;
+            color: var(--text);
+            border: 1px solid var(--border);
+            padding: 8px 14px;
+            border-radius: 10px;
+            font-size: 0.84rem;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        .mp-media-btn:hover { background: #e2e8f0; }
+        .mp-media-file-input { display: none; }
+
+        .mp-security-icon {
+            width: 46px;
+            height: 46px;
+            border-radius: 14px;
+            background: #fef3c7;
+            color: #b45309;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.1rem;
+            margin-bottom: 12px;
+        }
+
+        .mp-progress-track {
+            width: 100%;
+            height: 10px;
+            border-radius: 999px;
+            background: #eef2f7;
+            overflow: hidden;
+            margin: 6px 0 4px;
+        }
+        .mp-progress-fill {
+            height: 100%;
+            border-radius: 999px;
+            background: linear-gradient(90deg, var(--primary), #4c9ce8);
+        }
+        .mp-progress-percent { font-weight: 700; font-size: 0.95rem; color: var(--text); }
+        .mp-checklist { list-style: none; margin: 16px 0 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+        .mp-checklist li { display: flex; align-items: center; gap: 10px; font-size: 0.88rem; color: var(--text); }
+        .mp-checklist li.mp-pending { color: #94a3b8; }
+        .mp-checklist .mp-check-icon { width: 20px; height: 20px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.7rem; flex-shrink: 0; }
+        .mp-checklist li:not(.mp-pending) .mp-check-icon { background: #d1fae5; color: #059669; }
+        .mp-checklist li.mp-pending .mp-check-icon { background: #f1f5f9; color: #cbd5e1; border: 1px solid #e2e8f0; }
+
+        @media (max-width: 1080px) {
+            .mp-grid { grid-template-columns: 1fr; }
+            .mp-hero-stats { grid-template-columns: repeat(2, 1fr); }
+        }
+        @media (max-width: 640px) {
+            .mp-hero { padding: 24px; flex-direction: column; align-items: flex-start; }
+            .mp-hero-stats { grid-template-columns: 1fr 1fr; }
+            .mp-field-grid { grid-template-columns: 1fr; }
+            .mp-card { padding: 20px; }
         }
     </style>
 </head>
@@ -527,6 +1128,14 @@ $profile = $profileStmt->fetch();
                             <span><?= count($uploads) ?></span>
                         </div>
                         <div class="stat-card">
+                            <strong>Customer Bookings</strong>
+                            <span><?= (int)($partnerBookingStats['total_bookings'] ?? 0) ?></span>
+                        </div>
+                        <div class="stat-card">
+                            <strong>Revenue</strong>
+                            <span>₱<?= number_format((float)($partnerBookingStats['paid_revenue'] ?? 0), 2) ?></span>
+                        </div>
+                        <div class="stat-card">
                             <strong>Reports Submitted</strong>
                             <span><?= count($reports) ?></span>
                         </div>
@@ -541,13 +1150,52 @@ $profile = $profileStmt->fetch();
                         <?= nl2br(htmlspecialchars($partner['message'] ?: 'No submitted message available.')) ?>
                     </p>
                 </section>
+
+                <section class="panel">
+                    <div class="panel-head">
+                        <h3>Customer Booking Activity</h3>
+                        <span class="muted">Packages booked by customers from your partnership listings</span>
+                    </div>
+                    <div class="table-wrap">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Customer</th>
+                                    <th>Booked Package</th>
+                                    <th>Amount</th>
+                                    <th>Status</th>
+                                    <th>Date</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php if (empty($partnerBookings)): ?>
+                                    <tr><td colspan="5" class="muted">No customer bookings recorded yet.</td></tr>
+                                <?php else: ?>
+                                    <?php foreach ($partnerBookings as $booking): ?>
+                                        <?php $displayPackage = $booking['partner_package_name'] ?: $booking['package_name']; ?>
+                                        <tr>
+                                            <td>
+                                                <strong><?= htmlspecialchars($booking['full_name'] ?: 'Customer') ?></strong><br>
+                                                <span class="muted"><?= htmlspecialchars($booking['booking_number']) ?></span>
+                                            </td>
+                                            <td><?= htmlspecialchars($displayPackage ?: 'Package not listed') ?></td>
+                                            <td>₱<?= number_format((float)($booking['total_amount'] ?? 0), 2) ?></td>
+                                            <td><span class="status-badge <?= htmlspecialchars(($booking['payment_status'] === 'paid' || $booking['booking_status'] === 'confirmed' || $booking['booking_status'] === 'completed') ? 'success' : 'pending') ?>"><?= htmlspecialchars(ucfirst($booking['payment_status'] ?: $booking['booking_status'] ?: 'pending')) ?></span></td>
+                                            <td><?= htmlspecialchars(date('M d, Y', strtotime($booking['created_at']))) ?></td>
+                                        </tr>
+                                    <?php endforeach; ?>
+                                <?php endif; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
             <?php elseif ($section === 'partner-content-manager'): ?>
                 <section class="panel">
                     <div class="panel-head">
                         <h3>Upload New Package</h3>
                         <span class="status-badge pending">Pending review</span>
                     </div>
-                    <form method="post">
+                    <form method="post" enctype="multipart/form-data">
                         <input type="hidden" name="action" value="upload_package">
                         <div class="form-grid">
                             <div class="form-group">
@@ -570,6 +1218,11 @@ $profile = $profileStmt->fetch();
                         <div class="form-group" style="margin-top: 14px;">
                             <label for="description">Description</label>
                             <textarea id="description" name="description" placeholder="Describe the package highlights, inclusions, and notes."></textarea>
+                        </div>
+                        <div class="form-group" style="margin-top: 14px;">
+                            <label for="package_image">Package Cover Image</label>
+                            <input type="file" id="package_image" name="package_image" accept="image/*">
+                            <div class="muted" style="margin-top: 6px; font-size: 0.9rem;">Recommended: JPG, PNG, WEBP. This image will appear on the partner package listing.</div>
                         </div>
                         <div style="margin-top: 16px;"><button class="submit-btn" type="submit"><i class="fas fa-upload"></i> Upload Package</button></div>
                     </form>
@@ -603,13 +1256,15 @@ $profile = $profileStmt->fetch();
                                             </td>
                                             <td><?= htmlspecialchars($upload['destination_name'] ?: 'Not specified') ?></td>
                                             <td>
-                                                <div class="uploader">
-                                                    <span class="avatar"><?= htmlspecialchars(substr($upload['uploaded_by_name'], 0, 1)) ?></span>
-                                                    <div>
-                                                        <div style="font-weight:700;"><?= htmlspecialchars($upload['uploaded_by_name']) ?></div>
-                                                        <div class="muted"><?= htmlspecialchars($upload['partner_company']) ?></div>
+                                                <a class="uploader-link" href="partner-profile.php?id=<?= (int)$upload['partner_id'] ?>">
+                                                    <div class="uploader">
+                                                        <span class="avatar"><?= htmlspecialchars(substr($upload['uploaded_by_name'], 0, 1)) ?></span>
+                                                        <div>
+                                                            <div style="font-weight:700;"><?= htmlspecialchars($upload['uploaded_by_name']) ?></div>
+                                                            <div class="muted"><?= htmlspecialchars($upload['partner_company']) ?></div>
+                                                        </div>
                                                     </div>
-                                                </div>
+                                                </a>
                                             </td>
                                             <td><span class="status-badge <?= htmlspecialchars($upload['upload_status']) ?>"><?= htmlspecialchars(ucfirst($upload['upload_status'])) ?></span></td>
                                             <td><?= htmlspecialchars(date('M d, Y', strtotime($upload['created_at']))) ?></td>
@@ -621,99 +1276,325 @@ $profile = $profileStmt->fetch();
                     </div>
                 </section>
             <?php elseif ($section === 'profile'): ?>
-                <section class="panel">
-                    <div class="panel-head">
-                        <h3>Edit Your Profile</h3>
-                        <span class="muted">Update information that will be visible to customers</span>
-                    </div>
-                    <form method="post">
-                        <input type="hidden" name="action" value="update_profile">
-                        <div class="form-group" style="margin-bottom: 20px;">
-                            <label for="business_display_name">Business Display Name</label>
-                            <input type="text" id="business_display_name" name="business_display_name" placeholder="Your partnership business name" value="<?= htmlspecialchars($profile['business_display_name'] ?? $partner['company_name'] ?? '') ?>">
-                            <small style="color: var(--muted); font-size: 0.85rem; display: block; margin-top: 4px;">This name will be displayed to customers on your public profile</small>
-                        </div>
-                        <div class="form-grid">
-                            <div class="form-group">
-                                <label for="phone">Phone Number</label>
-                                <input type="tel" id="phone" name="phone" placeholder="+1 (555) 123-4567" value="<?= htmlspecialchars($profile['phone'] ?? '') ?>">
-                            </div>
-                            <div class="form-group">
-                                <label for="website">Website</label>
-                                <input type="url" id="website" name="website" placeholder="https://yourwebsite.com" value="<?= htmlspecialchars($profile['website'] ?? '') ?>">
-                            </div>
-                            <div class="form-group">
-                                <label for="city">City</label>
-                                <input type="text" id="city" name="city" placeholder="Your City" value="<?= htmlspecialchars($profile['city'] ?? '') ?>">
-                            </div>
-                            <div class="form-group">
-                                <label for="country">Country</label>
-                                <input type="text" id="country" name="country" placeholder="Your Country" value="<?= htmlspecialchars($profile['country'] ?? '') ?>">
-                            </div>
-                            <div class="form-group">
-                                <label for="years_in_business">Years in Business</label>
-                                <input type="number" id="years_in_business" name="years_in_business" placeholder="5" value="<?= htmlspecialchars($profile['years_in_business'] ?? '') ?>">
-                            </div>
-                            <div class="form-group">
-                                <label for="team_size">Team Size</label>
-                                <input type="number" id="team_size" name="team_size" placeholder="10" value="<?= htmlspecialchars($profile['team_size'] ?? '') ?>">
-                            </div>
-                        </div>
-                        <div class="form-group" style="margin-top: 14px;">
-                            <label for="address">Address</label>
-                            <input type="text" id="address" name="address" placeholder="Street Address" value="<?= htmlspecialchars($profile['address'] ?? '') ?>">
-                        </div>
-                        <div class="form-group" style="margin-top: 14px;">
-                            <label for="bio">Short Bio</label>
-                            <textarea id="bio" name="bio" placeholder="Write a short bio about your company (e.g., Founded in 2015, we specialize in luxury travel experiences...)" style="min-height: 90px;"><?= htmlspecialchars($profile['bio'] ?? '') ?></textarea>
-                        </div>
-                        <div class="form-group" style="margin-top: 14px;">
-                            <label for="description">Company Description</label>
-                            <textarea id="description" name="description" placeholder="Detailed description of your services, specialties, and what makes you unique..." style="min-height: 120px;"><?= htmlspecialchars($profile['description'] ?? '') ?></textarea>
-                        </div>
-                        <div class="form-group" style="margin-top: 14px;">
-                            <label for="specialties">Specialties (comma-separated)</label>
-                            <input type="text" id="specialties" name="specialties" placeholder="e.g., Luxury Tours, Budget Travel, Adventure, Cruises" value="<?= htmlspecialchars($profile['specialties'] ?? '') ?>">
-                        </div>
-                        <div class="form-group" style="margin-top: 14px;">
-                            <label for="certifications">Certifications & Accreditations</label>
-                            <textarea id="certifications" name="certifications" placeholder="List any relevant certifications or accreditations..." style="min-height: 90px;"><?= htmlspecialchars($profile['certifications'] ?? '') ?></textarea>
-                        </div>
-                        <div style="margin-top: 16px;"><button class="submit-btn" type="submit"><i class="fas fa-save"></i> Save Profile</button></div>
-                    </form>
-                </section>
+                <?php
+                    $mpBusinessName = $profile['business_display_name'] ?? $partner['company_name'] ?? 'Partner Name';
+                    $mpEmail = $partner['email'] ?? '';
+                    $mpJoinedSource = $profile['created_at'] ?? null;
+                    $mpBusinessSince = $mpJoinedSource ? date('Y', strtotime($mpJoinedSource)) : date('Y');
+                    $mpPackagesListed = count($uploads);
+                    $mpTotalBookings = (int)($partnerBookingStats['total_bookings'] ?? 0);
+                    $mpRevenue = (float)($partnerBookingStats['paid_revenue'] ?? 0);
+                    $mpCustomerRating = null;
 
-                <section class="panel">
-                    <div class="panel-head">
-                        <h3>Profile Preview</h3>
-                        <span class="muted">This is how your profile appears to customers</span>
-                    </div>
-                    <div style="background: var(--primary-soft); padding: 20px; border-radius: 12px; border: 1px solid #d8e8ff;">
-                        <div style="margin-bottom: 16px;">
-                            <strong style="font-size: 1.2rem;"><?= htmlspecialchars($profile['business_display_name'] ?? $partner['company_name']) ?></strong><br>
-                            <span class="muted" style="font-size: 0.9rem;"><?= htmlspecialchars($profile['address'] ?? 'Address not provided') ?>, <?= htmlspecialchars($profile['city'] ?? '') ?> <?= htmlspecialchars($profile['country'] ?? '') ?></span>
-                        </div>
-                        <?php if (!empty($profile['bio'])): ?>
-                            <div style="margin-bottom: 12px; line-height: 1.6;"><?= htmlspecialchars($profile['bio']) ?></div>
-                        <?php endif; ?>
-                        <?php if (!empty($profile['specialties'])): ?>
-                            <div style="margin-bottom: 12px;">
-                                <strong>Specialties:</strong> <?= htmlspecialchars($profile['specialties']) ?>
+                    $mpCompletionChecks = [
+                        'Business Information' => (!empty($profile['business_display_name']) && !empty($profile['phone']) && !empty($profile['address'])),
+                        'Cover Photo' => !empty($profile['banner_image_path']),
+                        'Profile Logo' => !empty($profile['logo_path']),
+                        'Business Description' => !empty($profile['description']),
+                    ];
+                    $mpCompletedCount = count(array_filter($mpCompletionChecks));
+                    $mpCompletionPercent = (int) round(($mpCompletedCount / count($mpCompletionChecks)) * 100);
+                    $mpAddressParts = array_filter([$profile['address'] ?? '', $profile['city'] ?? '', $profile['country'] ?? '']);
+                ?>
+
+                <div class="mp-wrap">
+                    <!-- Partner Overview -->
+                    <div class="mp-hero">
+                        <div class="mp-hero-left">
+                            <div class="mp-hero-logo">
+                                <?php if (!empty($profile['logo_path'])): ?>
+                                    <img src="../<?= htmlspecialchars($profile['logo_path']) ?>" alt="Logo">
+                                <?php else: ?>
+                                    <span><?= htmlspecialchars(strtoupper(substr($mpBusinessName, 0, 1))) ?></span>
+                                <?php endif; ?>
                             </div>
-                        <?php endif; ?>
-                        <div style="display: flex; gap: 16px; flex-wrap: wrap; margin-top: 12px;">
-                            <?php if (!empty($profile['phone'])): ?>
-                                <span><i class="fas fa-phone" style="margin-right: 6px;"></i> <?= htmlspecialchars($profile['phone']) ?></span>
-                            <?php endif; ?>
-                            <?php if (!empty($profile['website'])): ?>
-                                <span><i class="fas fa-globe" style="margin-right: 6px;"></i> <a href="<?= htmlspecialchars($profile['website']) ?>" target="_blank"><?= htmlspecialchars($profile['website']) ?></a></span>
-                            <?php endif; ?>
-                            <?php if (!empty($profile['years_in_business'])): ?>
-                                <span><i class="fas fa-calendar" style="margin-right: 6px;"></i> <?= htmlspecialchars($profile['years_in_business']) ?> years</span>
-                            <?php endif; ?>
+                            <div>
+                                <p class="mp-hero-name"><?= htmlspecialchars($mpBusinessName) ?></p>
+                                <p class="mp-hero-email"><?= htmlspecialchars($mpEmail) ?></p>
+                                <span class="mp-verified-badge"><i class="fas fa-circle-check"></i> Verified Partner</span>
+                            </div>
+                        </div>
+                        <div class="mp-hero-stats">
+                            <div class="mp-stat">
+                                <i class="fas fa-calendar-check"></i>
+                                <div class="mp-stat-title">Business Since</div>
+                                <div class="mp-stat-value"><?= htmlspecialchars($mpBusinessSince) ?></div>
+                                <div class="mp-stat-sub">Partner with HeyDream</div>
+                            </div>
+                            <div class="mp-stat">
+                                <i class="fas fa-suitcase-rolling"></i>
+                                <div class="mp-stat-title">Packages Listed</div>
+                                <div class="mp-stat-value"><?= (int) $mpPackagesListed ?></div>
+                                <div class="mp-stat-sub"><?= $mpPackagesListed === 1 ? 'Package uploaded' : 'Packages uploaded' ?></div>
+                            </div>
+                            <div class="mp-stat">
+                                <i class="fas fa-wallet"></i>
+                                <div class="mp-stat-title">Revenue Earned</div>
+                                <div class="mp-stat-value">₱<?= number_format($mpRevenue, 2) ?></div>
+                                <div class="mp-stat-sub">From completed bookings</div>
+                            </div>
+                            <div class="mp-stat">
+                                <i class="fas fa-receipt"></i>
+                                <div class="mp-stat-title">Total Bookings</div>
+                                <div class="mp-stat-value"><?= $mpTotalBookings !== null ? (int) $mpTotalBookings : 0 ?></div>
+                                <div class="mp-stat-sub">Since joining</div>
+                            </div>
                         </div>
                     </div>
-                </section>
+
+                    <div class="mp-grid">
+                        <!-- Left column: 65% -->
+                        <div class="mp-col">
+                            <div class="mp-card">
+                                <div class="mp-card-head">
+                                    <div>
+                                        <h3>Business Information</h3>
+                                        <p>Your public business details</p>
+                                    </div>
+                                    <button type="button" class="mp-edit-btn" onclick="mpToggleEdit()">
+                                        <i class="fas fa-pen"></i> Edit
+                                    </button>
+                                </div>
+
+                                <!-- Read-only account-style view -->
+                                <div class="mp-view" id="mpViewMode">
+                                    <div class="mp-info-row">
+                                        <div class="mp-info-icon"><i class="fas fa-building"></i></div>
+                                        <div class="mp-info-body">
+                                            <div class="mp-info-label">Business Name</div>
+                                            <div class="mp-info-value"><?= htmlspecialchars($mpBusinessName) ?></div>
+                                        </div>
+                                    </div>
+                                    <div class="mp-info-row">
+                                        <div class="mp-info-icon"><i class="fas fa-envelope"></i></div>
+                                        <div class="mp-info-body">
+                                            <div class="mp-info-label">Email</div>
+                                            <div class="mp-info-value <?= empty($mpEmail) ? 'mp-empty' : '' ?>"><?= htmlspecialchars($mpEmail ?: 'Not provided') ?></div>
+                                        </div>
+                                    </div>
+                                    <div class="mp-info-row">
+                                        <div class="mp-info-icon"><i class="fas fa-phone"></i></div>
+                                        <div class="mp-info-body">
+                                            <div class="mp-info-label">Phone Number</div>
+                                            <div class="mp-info-value <?= empty($profile['phone']) ? 'mp-empty' : '' ?>"><?= htmlspecialchars($profile['phone'] ?: 'Not provided') ?></div>
+                                        </div>
+                                    </div>
+                                    <div class="mp-info-row">
+                                        <div class="mp-info-icon"><i class="fas fa-globe"></i></div>
+                                        <div class="mp-info-body">
+                                            <div class="mp-info-label">Website</div>
+                                            <div class="mp-info-value <?= empty($profile['website']) ? 'mp-empty' : '' ?>"><?= htmlspecialchars($profile['website'] ?: 'Not provided') ?></div>
+                                        </div>
+                                    </div>
+                                    <div class="mp-info-row">
+                                        <div class="mp-info-icon"><i class="fas fa-location-dot"></i></div>
+                                        <div class="mp-info-body">
+                                            <div class="mp-info-label">Address</div>
+                                            <div class="mp-info-value <?= empty($mpAddressParts) ? 'mp-empty' : '' ?>"><?= $mpAddressParts ? htmlspecialchars(implode(', ', $mpAddressParts)) : 'Not provided' ?></div>
+                                        </div>
+                                    </div>
+                                    <div class="mp-info-row">
+                                        <div class="mp-info-icon"><i class="fas fa-clock"></i></div>
+                                        <div class="mp-info-body">
+                                            <div class="mp-info-label">Operating Hours</div>
+                                            <div class="mp-info-value <?= empty($profile['operating_hours']) ? 'mp-empty' : '' ?>"><?= htmlspecialchars($profile['operating_hours'] ?: 'Not provided') ?></div>
+                                        </div>
+                                    </div>
+                                    <div class="mp-info-row">
+                                        <div class="mp-info-icon"><i class="fas fa-award"></i></div>
+                                        <div class="mp-info-body">
+                                            <div class="mp-info-label">Years in Business</div>
+                                            <div class="mp-info-value <?= empty($profile['years_in_business']) ? 'mp-empty' : '' ?>"><?= !empty($profile['years_in_business']) ? htmlspecialchars($profile['years_in_business']) . ' years' : 'Not provided' ?></div>
+                                        </div>
+                                    </div>
+                                    <div class="mp-info-row">
+                                        <div class="mp-info-icon"><i class="fas fa-tags"></i></div>
+                                        <div class="mp-info-body">
+                                            <div class="mp-info-label">Specialties</div>
+                                            <div class="mp-info-value <?= empty($profile['specialties']) ? 'mp-empty' : '' ?>"><?= htmlspecialchars($profile['specialties'] ?: 'Not provided') ?></div>
+                                        </div>
+                                    </div>
+                                    <div class="mp-info-row">
+                                        <div class="mp-info-icon"><i class="fas fa-align-left"></i></div>
+                                        <div class="mp-info-body">
+                                            <div class="mp-info-label">About Your Business</div>
+                                            <div class="mp-info-value <?= empty($profile['description']) ? 'mp-empty' : '' ?>"><?= nl2br(htmlspecialchars($profile['description'] ?: 'Share your journey, expertise, and what customers can expect from your services.')) ?></div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Edit form (hidden until Edit is clicked) -->
+                                <form method="post" enctype="multipart/form-data" class="mp-edit-form" id="mpEditMode">
+                                    <input type="hidden" name="action" value="update_profile">
+                                    <div class="mp-field">
+                                        <label for="business_display_name">Business Name</label>
+                                        <input type="text" id="business_display_name" name="business_display_name" placeholder="Your partnership business name" value="<?= htmlspecialchars($profile['business_display_name'] ?? $partner['company_name'] ?? '') ?>">
+                                    </div>
+                                    <div class="mp-field-grid">
+                                        <div class="mp-field">
+                                            <label for="phone">Phone Number</label>
+                                            <input type="tel" id="phone" name="phone" placeholder="+1 (555) 123-4567" value="<?= htmlspecialchars($profile['phone'] ?? '') ?>">
+                                        </div>
+                                        <div class="mp-field">
+                                            <label for="website">Website</label>
+                                            <input type="url" id="website" name="website" placeholder="https://yourwebsite.com" value="<?= htmlspecialchars($profile['website'] ?? '') ?>">
+                                        </div>
+                                        <div class="mp-field">
+                                            <label for="city">City</label>
+                                            <input type="text" id="city" name="city" placeholder="Your City" value="<?= htmlspecialchars($profile['city'] ?? '') ?>">
+                                        </div>
+                                        <div class="mp-field">
+                                            <label for="country">Country</label>
+                                            <input type="text" id="country" name="country" placeholder="Your Country" value="<?= htmlspecialchars($profile['country'] ?? '') ?>">
+                                        </div>
+                                        <div class="mp-field">
+                                            <label for="operating_hours">Operating Hours</label>
+                                            <input type="text" id="operating_hours" name="operating_hours" placeholder="Mon - Fri, 9am - 6pm" value="<?= htmlspecialchars($profile['operating_hours'] ?? '') ?>">
+                                        </div>
+                                        <div class="mp-field">
+                                            <label for="years_in_business">Years in Business</label>
+                                            <input type="number" id="years_in_business" name="years_in_business" placeholder="5" value="<?= htmlspecialchars($profile['years_in_business'] ?? '') ?>">
+                                        </div>
+                                    </div>
+                                    <div class="mp-field">
+                                        <label for="address">Address</label>
+                                        <input type="text" id="address" name="address" placeholder="Street Address" value="<?= htmlspecialchars($profile['address'] ?? '') ?>">
+                                    </div>
+                                    <div class="mp-field">
+                                        <label for="specialties">Specialties (comma-separated)</label>
+                                        <input type="text" id="specialties" name="specialties" placeholder="Luxury Tours, Adventure, Cruises" value="<?= htmlspecialchars($profile['specialties'] ?? '') ?>">
+                                    </div>
+                                    <div class="mp-field">
+                                        <label for="description">About Your Business</label>
+                                        <textarea id="description" name="description" placeholder="Share your journey, expertise, and what customers can expect from your services..."><?= htmlspecialchars($profile['description'] ?? '') ?></textarea>
+                                    </div>
+
+                                    <!-- Preserved fields (not shown as rows) so existing data is never lost on save -->
+                                    <div class="mp-field">
+                                        <label for="bio">Short Bio</label>
+                                        <textarea id="bio" name="bio" placeholder="A short intro that appears under your name..."><?= htmlspecialchars($profile['bio'] ?? '') ?></textarea>
+                                    </div>
+                                    <div class="mp-field-grid">
+                                        <div class="mp-field">
+                                            <label for="team_size">Team Size</label>
+                                            <input type="number" id="team_size" name="team_size" placeholder="10" value="<?= htmlspecialchars($profile['team_size'] ?? '') ?>">
+                                        </div>
+                                    </div>
+                                    <div class="mp-field">
+                                        <label for="certifications">Certifications & Accreditations</label>
+                                        <textarea id="certifications" name="certifications" placeholder="List certifications or accreditations..."><?= htmlspecialchars($profile['certifications'] ?? '') ?></textarea>
+                                    </div>
+                                    <div class="mp-field">
+                                        <label for="social_links">Social Links</label>
+                                        <textarea id="social_links" name="social_links" placeholder="Paste one social link per line"><?= htmlspecialchars($profile['social_media_links'] ?? '') ?></textarea>
+                                    </div>
+
+                                    <div class="mp-form-actions">
+                                        <button class="mp-btn-primary" type="submit"><i class="fas fa-check"></i> Save Changes</button>
+                                        <button class="mp-btn-secondary" type="button" onclick="mpToggleEdit()"><i class="fas fa-xmark"></i> Cancel</button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+
+                        <!-- Right column: 35% -->
+                        <div class="mp-col">
+                            <div class="mp-card">
+                                <div class="mp-card-head">
+                                    <div>
+                                        <h3>Profile Media</h3>
+                                        <p>Logo and cover photo</p>
+                                    </div>
+                                </div>
+                                <form method="post" enctype="multipart/form-data">
+                                    <input type="hidden" name="action" value="update_profile">
+                                    <input type="hidden" name="business_display_name" value="<?= htmlspecialchars($profile['business_display_name'] ?? $partner['company_name'] ?? '') ?>">
+                                    <input type="hidden" name="bio" value="<?= htmlspecialchars($profile['bio'] ?? '') ?>">
+                                    <input type="hidden" name="description" value="<?= htmlspecialchars($profile['description'] ?? '') ?>">
+                                    <input type="hidden" name="phone" value="<?= htmlspecialchars($profile['phone'] ?? '') ?>">
+                                    <input type="hidden" name="address" value="<?= htmlspecialchars($profile['address'] ?? '') ?>">
+                                    <input type="hidden" name="city" value="<?= htmlspecialchars($profile['city'] ?? '') ?>">
+                                    <input type="hidden" name="country" value="<?= htmlspecialchars($profile['country'] ?? '') ?>">
+                                    <input type="hidden" name="website" value="<?= htmlspecialchars($profile['website'] ?? '') ?>">
+                                    <input type="hidden" name="operating_hours" value="<?= htmlspecialchars($profile['operating_hours'] ?? '') ?>">
+                                    <input type="hidden" name="specialties" value="<?= htmlspecialchars($profile['specialties'] ?? '') ?>">
+                                    <input type="hidden" name="years_in_business" value="<?= htmlspecialchars($profile['years_in_business'] ?? '') ?>">
+                                    <input type="hidden" name="team_size" value="<?= htmlspecialchars($profile['team_size'] ?? '') ?>">
+                                    <input type="hidden" name="certifications" value="<?= htmlspecialchars($profile['certifications'] ?? '') ?>">
+                                    <input type="hidden" name="social_links" value="<?= htmlspecialchars($profile['social_media_links'] ?? '') ?>">
+
+                                    <div class="mp-media-block">
+                                        <div class="mp-media-label">Profile Logo</div>
+                                        <div class="mp-logo-preview">
+                                            <?php if (!empty($profile['logo_path'])): ?>
+                                                <img src="../<?= htmlspecialchars($profile['logo_path']) ?>" alt="Logo">
+                                            <?php else: ?>
+                                                <i class="fas fa-image"></i>
+                                            <?php endif; ?>
+                                        </div>
+                                        <label class="mp-media-btn" for="mp_logo_image"><i class="fas fa-camera"></i> Change Logo</label>
+                                        <input type="file" id="mp_logo_image" name="logo_image" accept="image/*" class="mp-media-file-input" onchange="this.form.submit()">
+                                    </div>
+
+                                    <div class="mp-media-block">
+                                        <div class="mp-media-label">Cover Photo</div>
+                                        <div class="mp-cover-preview">
+                                            <?php if (!empty($profile['banner_image_path'])): ?>
+                                                <img src="../<?= htmlspecialchars($profile['banner_image_path']) ?>" alt="Cover photo">
+                                            <?php else: ?>
+                                                <i class="fas fa-panorama"></i>
+                                            <?php endif; ?>
+                                        </div>
+                                        <label class="mp-media-btn" for="mp_banner_image"><i class="fas fa-camera"></i> Change Cover</label>
+                                        <input type="file" id="mp_banner_image" name="banner_image" accept="image/*" class="mp-media-file-input" onchange="this.form.submit()">
+                                    </div>
+                                </form>
+                            </div>
+
+                            <div class="mp-card">
+                                <div class="mp-security-icon"><i class="fas fa-shield-halved"></i></div>
+                                <h3 style="margin: 0 0 4px;">Account Security</h3>
+                                <p style="margin: 0 0 16px; color: var(--muted); font-size: 0.88rem;">Keep your account safe and secure.</p>
+                                <button type="button" class="mp-btn-secondary"><i class="fas fa-key"></i> Change Password</button>
+                            </div>
+
+                            <div class="mp-card">
+                                <h3 style="margin: 0 0 4px;">Profile Completion</h3>
+                                <p style="margin: 0 0 4px; color: var(--muted); font-size: 0.88rem;">Complete your profile to build trust with customers.</p>
+                                <div class="mp-progress-track">
+                                    <div class="mp-progress-fill" style="width: <?= $mpCompletionPercent ?>%;"></div>
+                                </div>
+                                <div class="mp-progress-percent"><?= $mpCompletionPercent ?>% Complete</div>
+                                <ul class="mp-checklist">
+                                    <?php foreach ($mpCompletionChecks as $mpLabel => $mpDone): ?>
+                                        <li class="<?= $mpDone ? '' : 'mp-pending' ?>">
+                                            <span class="mp-check-icon"><i class="fas <?= $mpDone ? 'fa-check' : 'fa-circle' ?>"></i></span>
+                                            <?= htmlspecialchars($mpLabel) ?>
+                                        </li>
+                                    <?php endforeach; ?>
+                                </ul>
+                                <div style="margin-top: 16px;">
+                                    <a class="social-link-chip" href="partner-profile.php?id=<?= (int)$partnerId ?>" target="_blank" style="text-decoration:none;"><i class="fas fa-external-link-alt"></i> View Public Profile</a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <script>
+                    function mpToggleEdit() {
+                        var viewMode = document.getElementById('mpViewMode');
+                        var editMode = document.getElementById('mpEditMode');
+                        var isActive = editMode.classList.contains('mp-active');
+                        if (isActive) {
+                            editMode.classList.remove('mp-active');
+                            viewMode.classList.remove('mp-hidden');
+                        } else {
+                            editMode.classList.add('mp-active');
+                            viewMode.classList.add('mp-hidden');
+                        }
+                    }
+                </script>
             <?php else: ?>
                 <section class="panel">
                     <div class="panel-head">

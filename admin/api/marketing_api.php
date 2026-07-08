@@ -182,16 +182,28 @@ switch ($action) {
 
     case 'get_inquiry':
         try {
-            $id = $_GET['id'] ?? null;
-            if ($id !== null && $id !== '') {
-                $stmt = $pdo->prepare("SELECT id, full_name, email, phone, travel_date, number_of_travelers, package_name as destination, special_requests, booking_status, created_at FROM bookings WHERE id = ?");
+            $id = isset($_GET['id']) ? intval($_GET['id']) : 0;
+            $booking_number = $_GET['booking_number'] ?? '';
+            
+            if ($id === 0 && $booking_number !== '') {
+                $stmt = $pdo->prepare("SELECT id, full_name, email, phone, travel_date, number_of_travelers, package_name as destination, special_requests, booking_status, created_at, booking_number FROM bookings WHERE booking_number = ?");
+                $stmt->execute([$booking_number]);
+            } else if ($id > 0) {
+                $stmt = $pdo->prepare("SELECT id, full_name, email, phone, travel_date, number_of_travelers, package_name as destination, special_requests, booking_status, created_at, booking_number FROM bookings WHERE id = ?");
                 $stmt->execute([$id]);
-                $inq = $stmt->fetch(PDO::FETCH_ASSOC);
+            } else {
+                ob_clean();
+                echo json_encode(['success' => false, 'message' => 'Missing ID or Booking Number']);
+                break;
+            }
+            
+            $inq = $stmt->fetch(PDO::FETCH_ASSOC);
+            if ($inq) {
                 ob_clean();
                 echo json_encode(['success' => true, 'data' => $inq]);
             } else {
                 ob_clean();
-                echo json_encode(['success' => false, 'message' => 'Missing ID']);
+                echo json_encode(['success' => false, 'message' => 'Inquiry not found']);
             }
         } catch (PDOException $e) {
             ob_clean();
@@ -201,24 +213,57 @@ switch ($action) {
 
     case 'update_inquiry_status':
         try {
-            $id = $_POST['id'] ?? null;
+            $id = isset($_POST['id']) ? intval($_POST['id']) : 0;
+            $booking_number = $_POST['booking_number'] ?? '';
             $status = $_POST['status'] ?? 'pending';
-            if ($id !== null && $id !== '') {
+
+            if ($id === 0 && $booking_number !== '') {
+                $stmt = $pdo->prepare("UPDATE bookings SET booking_status = ? WHERE booking_number = ?");
+                $stmt->execute([$status, $booking_number]);
+                $lookupId = $booking_number; // using booking_number for the email script
+            } else if ($id > 0) {
                 $stmt = $pdo->prepare("UPDATE bookings SET booking_status = ? WHERE id = ?");
                 $stmt->execute([$status, $id]);
-
-                // Send email to customer
-                require_once __DIR__ . '/../../config/email_functions.php';
-                if (function_exists('sendBookingStatusEmail')) {
-                    sendBookingStatusEmail($id);
-                }
-
-                ob_clean();
-                echo json_encode(['success' => true]);
+                $lookupId = $id;
             } else {
                 ob_clean();
-                echo json_encode(['success' => false, 'message' => 'Missing ID or Status']);
+                echo json_encode(['success' => false, 'message' => 'Missing ID or Booking Number']);
+                break;
             }
+
+            // Send email to customer
+            require_once __DIR__ . '/../../config/email_functions.php';
+            if (function_exists('sendBookingStatusEmail')) {
+                sendBookingStatusEmail($lookupId);
+            }
+
+            ob_clean();
+            echo json_encode(['success' => true]);
+        } catch (PDOException $e) {
+            ob_clean();
+            echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+        }
+        break;
+
+    case 'delete_inquiry':
+        try {
+            $id = isset($_POST['id']) ? intval($_POST['id']) : 0;
+            $booking_number = $_POST['booking_number'] ?? '';
+
+            if ($id === 0 && $booking_number !== '') {
+                $stmt = $pdo->prepare("DELETE FROM bookings WHERE booking_number = ?");
+                $stmt->execute([$booking_number]);
+            } else if ($id > 0) {
+                $stmt = $pdo->prepare("DELETE FROM bookings WHERE id = ?");
+                $stmt->execute([$id]);
+            } else {
+                ob_clean();
+                echo json_encode(['success' => false, 'message' => 'Missing ID or Booking Number']);
+                break;
+            }
+
+            ob_clean();
+            echo json_encode(['success' => true]);
         } catch (PDOException $e) {
             ob_clean();
             echo json_encode(['success' => false, 'message' => $e->getMessage()]);

@@ -25,7 +25,8 @@ if (session_status() === PHP_SESSION_NONE) {
 // IMPORTANT: Update these with your actual database credentials!
 // ============================================
 
-$is_localhost = in_array($_SERVER['HTTP_HOST'] ?? '', ['localhost', '127.0.0.1', '::1']) || (stripos($_SERVER['HTTP_HOST'] ?? '', 'localhost:') === 0);
+$http_host = $_SERVER['HTTP_HOST'] ?? $_SERVER['SERVER_NAME'] ?? '';
+$is_localhost = php_sapi_name() === 'cli' || in_array($http_host, ['localhost', '127.0.0.1', '::1']) || (stripos($http_host, 'localhost:') === 0);
 
 if ($is_localhost) {
     // LOCALHOST (XAMPP) Configuration
@@ -155,7 +156,29 @@ class Auth
     // Check if user is logged in
     public function isLoggedIn()
     {
-        return isset($_SESSION['user_id']) && isset($_SESSION['session_token']);
+        if (!isset($_SESSION['user_id']) || !isset($_SESSION['session_token'])) {
+            return false;
+        }
+
+        try {
+            $stmt = $this->pdo->prepare("SELECT u.* FROM user_sessions s JOIN users u ON u.id = s.user_id WHERE s.session_token = ? AND s.user_id = ? AND s.expires_at > NOW() LIMIT 1");
+            $stmt->execute([$_SESSION['session_token'], $_SESSION['user_id']]);
+            $user = $stmt->fetch();
+
+            if (!$user) {
+                $this->logout();
+                return false;
+            }
+
+            if ($this->isUserBanned($user)) {
+                $this->logout();
+                return false;
+            }
+
+            return true;
+        } catch (PDOException $e) {
+            return false;
+        }
     }
 
     // Get current user
@@ -179,6 +202,29 @@ class Auth
         $stmt = $this->pdo->prepare("SELECT * FROM users WHERE email = ?");
         $stmt->execute([$email]);
         return $stmt->fetch();
+    }
+
+    // Check whether a user is currently banned
+    public function isUserBanned($user)
+    {
+        if (empty($user) || empty($user['is_banned'])) {
+            return false;
+        }
+
+        if (!empty($user['ban_until'])) {
+            $banUntil = strtotime($user['ban_until']);
+            if ($banUntil !== false && $banUntil <= time()) {
+                try {
+                    $stmt = $this->pdo->prepare("UPDATE users SET is_banned = 0, ban_until = NULL WHERE id = ?");
+                    $stmt->execute([$user['id']]);
+                } catch (PDOException $e) {
+                    // ignore if update fails
+                }
+                return false;
+            }
+        }
+
+        return true;
     }
 
     // Create user session
@@ -264,6 +310,8 @@ class Auth
                     email_verified BOOLEAN DEFAULT FALSE,
                     verification_token VARCHAR(255),
                     is_active BOOLEAN DEFAULT TRUE,
+                    is_banned TINYINT(1) DEFAULT 0,
+                    ban_until DATETIME DEFAULT NULL,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
                     INDEX idx_email (email),
@@ -321,6 +369,10 @@ class Auth
             return ['success' => false, 'message' => 'Email not found'];
         }
 
+        if ($this->isUserBanned($user)) {
+            return ['success' => false, 'message' => 'This account is banned and cannot log in. Please contact support if you believe this is an error.'];
+        }
+
         if (empty($user['password'])) {
             return ['success' => false, 'use_google' => true, 'message' => 'This account uses Google Sign-In. Auto-triggering Google login...'];
         }
@@ -339,6 +391,10 @@ class Auth
         $existingUser = $this->getUserByEmail($email);
 
         if ($existingUser) {
+            if ($this->isUserBanned($existingUser)) {
+                return ['success' => false, 'message' => 'This account is banned and cannot log in. Please contact support.'];
+            }
+
             // Update provider info if needed
             if ($existingUser['provider'] !== $provider) {
                 $stmt = $this->pdo->prepare("UPDATE users SET provider = ?, provider_id = ? WHERE id = ?");

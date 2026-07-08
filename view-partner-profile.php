@@ -286,7 +286,7 @@ $profile = $profileStmt->fetch();
 </head>
 <body>
     <div class="container">
-        <a href="partners.php" class="back-btn"><i class="fas fa-arrow-left"></i> Back to Partners</a>
+        <a href="index.php" class="back-btn"><i class="fas fa-arrow-left"></i> Back to Homepage</a>
 
         <div class="profile-header">
             <div class="header-top">

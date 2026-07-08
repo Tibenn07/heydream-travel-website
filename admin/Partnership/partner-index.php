@@ -3,6 +3,11 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
+if (!isset($_SESSION['partner_id']) || empty($_SESSION['partner_id'])) {
+    header('Location: partner-login.php');
+    exit;
+}
+
 require_once __DIR__ . '/../../config/database.php';
 
 function normalizePartnerPackageReferenceValue($value)
@@ -10,8 +15,9 @@ function normalizePartnerPackageReferenceValue($value)
     return strtolower(trim(preg_replace('/\s+/', ' ', (string) $value)));
 }
 
-$partnerUploadsStmt = $pdo->prepare("SELECT * FROM partner_package_uploads WHERE upload_status = 'approved' ORDER BY created_at DESC");
-$partnerUploadsStmt->execute();
+$partnerId = (int)($_SESSION['partner_id'] ?? 0);
+$partnerUploadsStmt = $pdo->prepare("SELECT * FROM partner_package_uploads WHERE partner_id = ? AND upload_status = 'approved' ORDER BY created_at DESC");
+$partnerUploadsStmt->execute([$partnerId]);
 $partnerUploads = $partnerUploadsStmt->fetchAll(PDO::FETCH_ASSOC);
 
 $existingPartnerPackageNames = [];
@@ -204,6 +210,20 @@ $partnerUploads = array_values(array_filter($partnerUploads, function ($upload) 
             color: #0f4c81;
         }
 
+        .partner-profile-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 2px;
+            font-weight: 700;
+            color: #0f4c81;
+            text-decoration: none;
+        }
+
+        .partner-profile-link:hover {
+            text-decoration: underline;
+        }
+
         .empty-state {
             padding: 0;
             text-align: center;
@@ -276,17 +296,24 @@ $partnerUploads = array_values(array_filter($partnerUploads, function ($upload) 
             <?php else: ?>
                 <?php foreach ($partnerUploads as $upload): ?>
                     <div class="foreign-card">
-                        <div class="foreign-card-image">
-                            <div>
-                                <i class="fas fa-handshake"></i>
-                                <div style="font-size: 0.95rem; margin-top: 8px;"><?= htmlspecialchars($upload['partner_company'] ?: 'Partner Service') ?></div>
-                            </div>
+                        <div class="foreign-card-image" style="<?= !empty($upload['image_path']) ? 'padding: 0; background: #fff;' : '' ?>">
+                            <?php if (!empty($upload['image_path'])): ?>
+                                <img src="../../<?= htmlspecialchars($upload['image_path']) ?>" alt="<?= htmlspecialchars($upload['package_name'] ?: 'Partner package image') ?>" style="width: 100%; height: 100%; object-fit: cover; display: block;">
+                            <?php else: ?>
+                                <div>
+                                    <i class="fas fa-handshake"></i>
+                                    <div style="font-size: 0.95rem; margin-top: 8px;"><?= htmlspecialchars($upload['partner_company'] ?: 'Partner Service') ?></div>
+                                </div>
+                            <?php endif; ?>
                         </div>
                         <div class="foreign-card-content">
                             <h3 class="foreign-card-name"><?= htmlspecialchars($upload['package_name'] ?: 'Untitled Package') ?></h3>
                             <div class="foreign-card-location"><i class="fas fa-map-marker-alt"></i> <?= htmlspecialchars($upload['destination_name'] ?: 'Destination not specified') ?></div>
                             <p class="foreign-card-desc"><?= htmlspecialchars($upload['description'] ?: 'Partner package available for booking.') ?></p>
                             <div class="foreign-card-meta"><i class="fas fa-user"></i> Uploaded by <?= htmlspecialchars($upload['uploaded_by_name'] ?: $upload['partner_company'] ?: 'Partner') ?></div>
+                            <a class="partner-profile-link" href="partner-profile.php?id=<?= (int)$upload['partner_id'] ?>" target="_blank" rel="noopener noreferrer">
+                                <i class="fas fa-arrow-up-right-from-square"></i> View partner profile
+                            </a>
                             <div class="foreign-card-footer">
                                 <span><?= !empty($upload['duration']) ? htmlspecialchars($upload['duration']) : 'Flexible duration' ?></span>
                                 <span>?<?= number_format((float)$upload['price'], 2) ?></span>

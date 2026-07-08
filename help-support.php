@@ -602,6 +602,13 @@ $auth = new Auth($pdo);
 
     <div class="service-content">
         <div class="service-grid">
+            <a href="support.php" class="service-card">
+                <div class="service-icon"><i class="fas fa-flag"></i></div>
+                <h3>Report an Issue</h3>
+                <p>Having a problem with a partner, your account, a payment, or the website itself? Submit a report
+                    and our team will follow up with you directly.</p>
+            </a>
+
             <div class="service-card">
                 <div class="service-icon"><i class="fas fa-question-circle"></i></div>
                 <h3>FAQ Center</h3>

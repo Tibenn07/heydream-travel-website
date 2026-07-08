@@ -68,7 +68,8 @@ if (session_status() === PHP_SESSION_NONE) {
                 itinerary, inclusions, exclusions, hotels,
                 image_path, image2_path, image3_path,
                 collage_type, is_active, description, remarks, blocked_dates,
-                promo_start, promo_end, blocked_months, highlight_duration
+                promo_start, promo_end, blocked_months, highlight_duration,
+                partner_id, partner_company
             FROM flash_deals 
             WHERE is_active = 1 
             AND (promo_end IS NULL OR promo_end = '' OR promo_end >= CURDATE())

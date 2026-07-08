@@ -2523,50 +2523,7 @@ function exportInquiries() {
     downloadLink.click();
 }
 
-async function viewInquiry(id) {
-    Swal.fire({ title: 'Loading...', didOpen: () => Swal.showLoading() });
-    try {
-        const res = await fetch(`admin-api.php?action=get_booking&id=${id}`);
-        const data = await res.json();
-        Swal.close();
-        if (data.success) {
-            const b = data.data;
-            let formattedRequests = b.special_requests ? b.special_requests : 'None';
-            formattedRequests = formattedRequests
-                .replace(/^(Destination:|Travel Type:|Budget:|Hotel Preference:|Interests:|Special Requests:|Needs Assistance:|Passport Ready:|Travel History:|Message:|How did you hear about us:)/gm, '<strong>$1</strong>')
-                .replace(/\n/g, '<br>');
-                
-            const content = `
-                <div style="text-align: left; font-size: 14px;">
-                    <p><strong>Name:</strong> ${b.full_name}</p>
-                    <p><strong>Email:</strong> ${b.email}</p>
-                    <p><strong>Phone:</strong> ${b.phone}</p>
-                    <p><strong>Destination:</strong> ${b.destination_name}</p>
-                    <p><strong>Package:</strong> ${b.package_name}</p>
-                    <p><strong>Travel Date:</strong> ${b.travel_date}</p>
-                    <p><strong>Travelers:</strong> ${b.number_of_travelers}</p>
-                    <p><strong>Marketing Consent:</strong> 
-                        <span id="consent-badge-${b.id}" class="status-badge ${b.marketing_consent == 1 ? 'status-confirmed' : 'status-cancelled'}" style="margin-right: 10px;">
-                            ${b.marketing_consent == 1 ? 'Agreed' : 'No Consent'}
-                        </span>
-                        <button class="btn btn-outline btn-sm" onclick="toggleMarketingConsent(${b.id}, ${b.marketing_consent})">
-                            <i class="fas fa-sync-alt"></i> Toggle Consent
-                        </button>
-                    </p>
-                    <p><strong>Requests & Preferences:</strong><br>${formattedRequests}</p>
-                    <p><strong>Admin Notes:</strong><br>${b.admin_notes ? b.admin_notes.replace(/\n/g, '<br>') : 'None'}</p>
-                </div>
-            `;
-            document.getElementById('modal-content-area').innerHTML = content;
-            document.getElementById('inquiry-modal').style.display = 'flex';
-        } else {
-            Swal.fire('Error', data.message, 'error');
-        }
-    } catch (e) {
-        Swal.fire('Error', 'Failed to load details', 'error');
-    }
-}
-
+// viewInquiry has been moved and updated below (around line 3319)
 function closeModal() {
     document.getElementById('inquiry-modal').style.display = 'none';
 }
@@ -2601,7 +2558,7 @@ async function toggleMarketingConsent(id, currentStatus) {
     }
 }
 
-async function toggleConsentInTable(id, wrapper) {
+async function toggleConsentInTable(id, wrapper, bookingNumber = '') {
     const toggle = wrapper.querySelector('.consent-toggle');
     const label = wrapper.querySelector('.consent-label');
     const currentStatus = toggle.classList.contains('active') ? 1 : 0;
@@ -2615,7 +2572,7 @@ async function toggleConsentInTable(id, wrapper) {
         const res = await fetch('admin-api.php?action=toggle_marketing_consent', {
             method: 'POST',
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: `id=${id}&marketing_consent=${newStatus}`
+            body: `id=${id}&booking_number=${bookingNumber}&marketing_consent=${newStatus}`
         });
         const data = await res.json();
         if (!data.success) {
@@ -2634,7 +2591,7 @@ async function toggleConsentInTable(id, wrapper) {
     }
 }
 
-async function updateInquiryStatus(id, selectEl) {
+async function updateInquiryStatus(id, selectEl, bookingNumber = '') {
     const newStatus = selectEl.value;
     if (!newStatus) return;
 
@@ -2644,7 +2601,7 @@ async function updateInquiryStatus(id, selectEl) {
     const res = await fetch('admin-api.php', {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: `action=update_inquiry_status&id=${id}&status=${newStatus}`
+        body: `action=update_inquiry_status&id=${id}&booking_number=${bookingNumber}&status=${newStatus}`
     });
     const data = await res.json();
 
@@ -2689,7 +2646,7 @@ async function markContacted(id) {
     location.reload();
 }
 
-async function deleteInquiry(id) {
+async function deleteInquiry(id, bookingNumber = '') {
     const result = await Swal.fire({
         title: 'Delete Inquiry?',
         text: "This action cannot be undone.",
@@ -2703,7 +2660,7 @@ async function deleteInquiry(id) {
         const res = await fetch('api/marketing_api.php', {
             method: 'POST',
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: `action=delete_inquiry&id=${id}`
+            body: `action=delete_inquiry&id=${id}&booking_number=${bookingNumber}`
         });
         const data = await res.json();
         if (data.success) {
@@ -3316,7 +3273,7 @@ function strtolower(str) {
 }
 
 
-async function viewInquiry(id) {
+async function viewInquiry(id, bookingNumber = '') {
     const modal = document.getElementById('inquiry-modal');
     const content = document.getElementById('modal-content-area');
     if (!modal || !content) return;
@@ -3325,24 +3282,51 @@ async function viewInquiry(id) {
     content.innerHTML = '<div style="text-align: center; padding: 40px;"><i class="fas fa-spinner fa-spin"></i> Loading inquiry details...</div>';
 
     try {
-        const response = await fetch(`api/marketing_api.php?action=get_inquiry&id=${id}`);
+        const response = await fetch(`api/marketing_api.php?action=get_inquiry&id=${id}&booking_number=${bookingNumber}&_t=${Date.now()}`);
         const res = await response.json();
         if (res.success) {
             const inq = res.data;
+            function formatMessageDetails(text) {
+                if (!text) return 'No message provided.';
+                // Check if it's a comma-separated key-value list
+                if (text.includes(':') && text.includes(', ')) {
+                    const parts = text.split(/,\s*(?=[A-Z][a-zA-Z\s]+:)/);
+                    if (parts.length > 1) {
+                        return '<div style="display: flex; flex-direction: column; gap: 8px;">' + parts.map(p => {
+                            const splitIdx = p.indexOf(':');
+                            if (splitIdx > 0) {
+                                const k = p.substring(0, splitIdx).trim();
+                                const v = p.substring(splitIdx + 1).trim();
+                                return `<div style="display: flex; align-items: flex-start; gap: 15px; border-bottom: 1px solid #f8fafc; padding-bottom: 6px;">
+                                            <strong style="width: 120px; flex-shrink: 0; color: #64748b; font-size: 0.82rem; text-transform: uppercase;">${k}</strong>
+                                            <span style="color: #334155; font-size: 0.9rem; flex: 1; word-break: break-word;">${v || '-'}</span>
+                                        </div>`;
+                            }
+                            return `<div style="font-size: 0.9rem; color: #334155;">${p}</div>`;
+                        }).join('') + '</div>';
+                    }
+                }
+                return text.replace(/^([A-Za-z\s]+):/gm, '<strong style="color:#64748b; font-size:0.85rem; text-transform:uppercase;">$1:</strong>').replace(/\n/g, '<br><div style="margin-top:5px;"></div>');
+            }
+
             content.innerHTML = `
                 <div class="inquiry-details" style="padding: 10px; font-family: 'Poppins', sans-serif;">
                     <!-- CUSTOMER OVERVIEW -->
-                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 25px; padding-bottom: 15px; border-bottom: 1px solid #f1f5f9;">
-                        <div>
-                            <h3 style="margin: 0; color: #003580; font-size: 1.4rem;">${inq.full_name}</h3>
-                            <div style="display: flex; gap: 15px; margin-top: 5px;">
-                                <span style="font-size: 0.85rem; color: #64748b;"><i class="fas fa-envelope"></i> ${inq.email}</span>
-                                <span style="font-size: 0.85rem; color: #64748b;"><i class="fas fa-phone"></i> ${inq.phone || 'No phone'}</span>
+                    <div style="display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 20px; margin-bottom: 25px; padding-bottom: 15px; border-bottom: 1px solid #f1f5f9;">
+                        <div style="flex: 1; min-width: 250px;">
+                            <h3 style="margin: 0; color: #003580; font-size: 1.4rem; word-break: break-word;">${inq.full_name}</h3>
+                            <div style="display: flex; flex-wrap: wrap; gap: 15px; margin-top: 8px;">
+                                <span style="font-size: 0.85rem; color: #64748b; display: flex; align-items: center; gap: 5px;">
+                                    <i class="fas fa-envelope"></i> <span style="word-break: break-all;">${inq.email}</span>
+                                </span>
+                                <span style="font-size: 0.85rem; color: #64748b; display: flex; align-items: center; gap: 5px;">
+                                    <i class="fas fa-phone"></i> <span>${inq.phone || 'No phone'}</span>
+                                </span>
                             </div>
                         </div>
-                        <div style="text-align: right;">
-                            <label style="display:block; font-size: 0.7rem; color: #94a3b8; font-weight: 700; text-transform: uppercase;">Manage Status</label>
-                            <select class="inq-status-select" onchange="updateInquiryStatus(${inq.id}, this.value)" style="margin-top: 5px; border: 2px solid #e2e8f0; font-weight: 700;">
+                        <div style="min-width: 130px;">
+                            <label style="display:block; font-size: 0.7rem; color: #94a3b8; font-weight: 700; text-transform: uppercase; margin-bottom: 5px;">Manage Status</label>
+                            <select class="inq-status-select" onchange="updateInquiryStatus(${inq.id}, this.value, '${inq.booking_number || ''}')" style="width: 100%; border: 2px solid #e2e8f0; font-weight: 700; padding: 6px 10px; border-radius: 6px; outline: none; cursor: pointer;">
                                 <option value="pending" ${inq.booking_status === 'pending' ? 'selected' : ''}>Pending</option>
                                 <option value="confirmed" ${inq.booking_status === 'confirmed' ? 'selected' : ''}>Reviewed</option>
                                 <option value="cancelled" ${inq.booking_status === 'cancelled' ? 'selected' : ''}>Cancelled</option>
@@ -3351,10 +3335,10 @@ async function viewInquiry(id) {
                     </div>
 
                     <!-- TRAVEL DETAILS GRID -->
-                    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-bottom: 25px;">
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 15px; margin-bottom: 25px;">
                         <div style="background: #f8fafc; padding: 15px; border-radius: 12px; border: 1px solid #f1f5f9;">
                             <div style="font-size: 0.7rem; color: #94a3b8; font-weight: 700; text-transform: uppercase;">Destination</div>
-                            <div style="font-weight: 700; color: #1e293b; margin-top: 4px;">${inq.destination || 'Unspecified'}</div>
+                            <div style="font-weight: 700; color: #1e293b; margin-top: 4px; word-break: break-word;">${inq.destination || 'Unspecified'}</div>
                         </div>
                         <div style="background: #f8fafc; padding: 15px; border-radius: 12px; border: 1px solid #f1f5f9;">
                             <div style="font-size: 0.7rem; color: #94a3b8; font-weight: 700; text-transform: uppercase;">Travel Date</div>
@@ -3368,10 +3352,12 @@ async function viewInquiry(id) {
 
                     <!-- INQUIRY MESSAGE -->
                     <div style="background: #fff; border: 2px solid #e0f2fe; padding: 20px; border-radius: 16px; position: relative;">
-                        <label style="display:block; font-size: 0.75rem; color: #0369a1; font-weight: 800; text-transform: uppercase; margin-bottom: 10px;">
+                        <label style="display:block; font-size: 0.75rem; color: #0369a1; font-weight: 800; text-transform: uppercase; margin-bottom: 15px;">
                             <i class="fas fa-comment-dots"></i> Message Details
                         </label>
-                        <div style="font-size: 1rem; line-height: 1.6; color: #334155; white-space: pre-wrap; max-height: 200px; overflow-y: auto;">${inq.special_requests || 'No message provided.'}</div>
+                        <div style="line-height: 1.6; max-height: 300px; overflow-y: auto; padding-right: 5px;">
+                            ${formatMessageDetails(inq.special_requests)}
+                        </div>
                     </div>
 
                     <div style="margin-top: 20px; text-align: center; font-size: 0.75rem; color: #94a3b8;">
@@ -3387,13 +3373,14 @@ async function viewInquiry(id) {
     }
 }
 
-async function updateInquiryStatus(id, statusOrEl) {
+async function updateInquiryStatus(id, statusOrEl, bookingNumber = '') {
     const status = typeof statusOrEl === 'string' ? statusOrEl : statusOrEl.value;
     if (!status) return; // Ignore empty selection
     
     const formData = new FormData();
     formData.append('action', 'update_inquiry_status');
     formData.append('id', id);
+    formData.append('booking_number', bookingNumber);
     formData.append('status', status);
 
     try {

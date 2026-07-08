@@ -6,6 +6,9 @@ error_reporting(E_ALL);
 ini_set('display_errors', 1);
 
 require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/partner-booking-tracker.php';
+
+ensurePartnerBookingTracking($pdo);
 
 // Start session if not already started
 if (session_status() === PHP_SESSION_NONE) {
@@ -55,6 +58,7 @@ try {
     $payment_status = 'unpaid';
     $payment_method = $input['payment_method'] ?? null;
     $payment_reference = $input['payment_reference'] ?? null;
+    $partnerMeta = resolvePartnerBookingMeta($pdo, $input);
     
     // Status remains 'unpaid' until manually reviewed by admin
     error_log("Flash deal booking: method=$payment_method, ref=$payment_reference, status=unpaid");
@@ -78,7 +82,12 @@ try {
         payment_status, 
         payment_method, 
         payment_reference,
-        currency
+        currency,
+        partner_id,
+        partner_company,
+        partner_package_id,
+        partner_package_name,
+        partner_source
     ) VALUES (
         :user_id, 
         :booking_number, 
@@ -97,7 +106,12 @@ try {
         :payment_status, 
         :payment_method, 
         :payment_reference,
-        :currency
+        :currency,
+        :partner_id,
+        :partner_company,
+        :partner_package_id,
+        :partner_package_name,
+        :partner_source
     )";
     
     $stmt = $pdo->prepare($sql);
@@ -118,7 +132,12 @@ try {
         ':payment_status' => $payment_status,
         ':payment_method' => $payment_method,
         ':payment_reference' => $payment_reference,
-        ':currency' => $input['currency'] ?? '₱'
+        ':currency' => $input['currency'] ?? '₱',
+        ':partner_id' => $partnerMeta['partner_id'],
+        ':partner_company' => $partnerMeta['partner_company'],
+        ':partner_package_id' => $partnerMeta['partner_package_id'],
+        ':partner_package_name' => $partnerMeta['partner_package_name'],
+        ':partner_source' => $partnerMeta['partner_source']
     ]);
     
     if ($result) {

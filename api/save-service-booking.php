@@ -6,6 +6,9 @@ error_reporting(E_ALL);
 ini_set('display_errors', 1);
 
 require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/partner-booking-tracker.php';
+
+ensurePartnerBookingTracking($pdo);
 
 header('Content-Type: application/json');
 
@@ -87,6 +90,7 @@ try {
     $payment_status = 'unpaid';
     $payment_method = $input['payment_method'] ?? null;
     $payment_reference = $input['payment_reference'] ?? null;
+    $partnerMeta = resolvePartnerBookingMeta($pdo, $input);
 
     // Status stays 'unpaid' until admin verifies reference
     error_log("Service booking: method=$payment_method, ref=$payment_reference, status=unpaid");
@@ -111,7 +115,12 @@ try {
         payment_method, 
         payment_reference,
         payment_proof,
-        currency
+        currency,
+        partner_id,
+        partner_company,
+        partner_package_id,
+        partner_package_name,
+        partner_source
     ) VALUES (
         :user_id, 
         :booking_number, 
@@ -131,7 +140,12 @@ try {
         :payment_method, 
         :payment_reference,
         :payment_proof,
-        :currency
+        :currency,
+        :partner_id,
+        :partner_company,
+        :partner_package_id,
+        :partner_package_name,
+        :partner_source
     )";
 
     $stmt = $pdo->prepare($sql);
@@ -153,7 +167,12 @@ try {
         ':payment_method' => $payment_method,
         ':payment_reference' => $payment_reference,
         ':payment_proof' => $payment_proof_path,
-        ':currency' => $input['currency'] ?? '₱'
+        ':currency' => $input['currency'] ?? '₱',
+        ':partner_id' => $partnerMeta['partner_id'],
+        ':partner_company' => $partnerMeta['partner_company'],
+        ':partner_package_id' => $partnerMeta['partner_package_id'],
+        ':partner_package_name' => $partnerMeta['partner_package_name'],
+        ':partner_source' => $partnerMeta['partner_source']
     ]);
 
     if ($result) {

@@ -74,6 +74,25 @@ function uploadImage($file, $old_image = null)
     return ['success' => true, 'path' => $old_image];
 }
 
+try {
+    foreach ([
+        'flash_deals' => "ALTER TABLE flash_deals ADD COLUMN partner_id INT DEFAULT NULL",
+        'foreign_destinations' => "ALTER TABLE foreign_destinations ADD COLUMN partner_id INT DEFAULT NULL",
+        'destinations' => "ALTER TABLE destinations ADD COLUMN partner_id INT DEFAULT NULL",
+        'site_services' => "ALTER TABLE site_services ADD COLUMN partner_id INT DEFAULT NULL",
+        'visas' => "ALTER TABLE visas ADD COLUMN partner_id INT DEFAULT NULL",
+        'flight_booking_settings' => "ALTER TABLE flight_booking_settings ADD COLUMN partner_id INT DEFAULT NULL",
+        'hotel_booking_settings' => "ALTER TABLE hotel_booking_settings ADD COLUMN partner_id INT DEFAULT NULL",
+        'cruises' => "ALTER TABLE cruises ADD COLUMN partner_id INT DEFAULT NULL"
+    ] as $table => $sql) {
+        try {
+            $pdo->exec($sql);
+        } catch (PDOException $e) {
+        }
+    }
+} catch (Throwable $e) {
+}
+
 // ==================== PACKAGE TABLES SETUP ====================
 try {
     // Create foreign_destinations table with all fields needed for foreign-packages.js
@@ -1652,61 +1671,61 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 // Fetch data for display
 try {
-    $flash_deals = $pdo->query("SELECT * FROM flash_deals ORDER BY display_order, id DESC")->fetchAll();
+    $flash_deals = $pdo->query("SELECT * FROM flash_deals WHERE (partner_id IS NULL OR partner_id = 0) ORDER BY display_order, id DESC")->fetchAll();
 } catch (PDOException $e) {
     $flash_deals = [];
 }
 
 try {
-    $foreign_destinations = $pdo->query("SELECT * FROM foreign_destinations ORDER BY display_order, id DESC")->fetchAll();
+    $foreign_destinations = $pdo->query("SELECT * FROM foreign_destinations WHERE (partner_id IS NULL OR partner_id = 0) ORDER BY display_order, id DESC")->fetchAll();
 } catch (PDOException $e) {
     $foreign_destinations = [];
 }
 
 try {
-    $local_destinations = $pdo->query("SELECT * FROM destinations WHERE type = 'local' ORDER BY display_order, id DESC")->fetchAll();
+    $local_destinations = $pdo->query("SELECT * FROM destinations WHERE type = 'local' AND (partner_id IS NULL OR partner_id = 0) ORDER BY display_order, id DESC")->fetchAll();
 } catch (PDOException $e) {
     $local_destinations = [];
 }
 
 try {
-    $flight_data = $pdo->query("SELECT * FROM flight_booking_settings ORDER BY display_order, id DESC")->fetchAll();
+    $flight_data = $pdo->query("SELECT * FROM flight_booking_settings WHERE (partner_id IS NULL OR partner_id = 0) ORDER BY display_order, id DESC")->fetchAll();
 } catch (PDOException $e) {
     $flight_data = [];
 }
 
 try {
-    $hotel_data = $pdo->query("SELECT * FROM hotel_booking_settings ORDER BY display_order, id DESC")->fetchAll();
+    $hotel_data = $pdo->query("SELECT * FROM hotel_booking_settings WHERE (partner_id IS NULL OR partner_id = 0) ORDER BY display_order, id DESC")->fetchAll();
 } catch (PDOException $e) {
     $hotel_data = [];
 }
 
 try {
-    $visas = $pdo->query("SELECT * FROM visas ORDER BY display_order, id DESC")->fetchAll();
+    $visas = $pdo->query("SELECT * FROM visas WHERE (partner_id IS NULL OR partner_id = 0) ORDER BY display_order, id DESC")->fetchAll();
 } catch (PDOException $e) {
     $visas = [];
 }
 
 try {
-    $cruises = $pdo->query("SELECT * FROM cruises ORDER BY created_at DESC")->fetchAll();
+    $cruises = $pdo->query("SELECT * FROM cruises WHERE (partner_id IS NULL OR partner_id = 0) ORDER BY created_at DESC")->fetchAll();
 } catch (PDOException $e) {
     $cruises = [];
 }
 
 try {
-    $flight_packages = $pdo->query("SELECT * FROM site_services WHERE service_type = 'flight' ORDER BY display_order, id DESC")->fetchAll();
+    $flight_packages = $pdo->query("SELECT * FROM site_services WHERE service_type = 'flight' AND (partner_id IS NULL OR partner_id = 0) ORDER BY display_order, id DESC")->fetchAll();
 } catch (PDOException $e) {
     $flight_packages = [];
 }
 
 try {
-    $premium_services = $pdo->query("SELECT * FROM site_services WHERE service_type = 'premium' ORDER BY display_order, id DESC")->fetchAll();
+    $premium_services = $pdo->query("SELECT * FROM site_services WHERE service_type = 'premium' AND (partner_id IS NULL OR partner_id = 0) ORDER BY display_order, id DESC")->fetchAll();
 } catch (PDOException $e) {
     $premium_services = [];
 }
 
 try {
-    $experience_services = $pdo->query("SELECT * FROM site_services WHERE service_type = 'experience' ORDER BY display_order, id DESC")->fetchAll();
+    $experience_services = $pdo->query("SELECT * FROM site_services WHERE service_type = 'experience' AND (partner_id IS NULL OR partner_id = 0) ORDER BY display_order, id DESC")->fetchAll();
 } catch (PDOException $e) {
     $experience_services = [];
 }
