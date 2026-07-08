@@ -21,6 +21,8 @@ if (!$partner || $partner['status'] !== 'approved') {
     exit;
 }
 
+ensurePartnerBookingTracking($pdo);
+
 function uploadPartnerProfileAsset($file, $oldPath = null)
 {
     if (!isset($file) || !is_array($file) || ($file['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) {
@@ -207,44 +209,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     }
 }
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'add_booking') {
-    $bookingNumber = 'MAN-' . strtoupper(substr(uniqid(), -6)) . date('Ymd');
-    $packageName = trim($_POST['package_name'] ?? '');
-    
-    $partnerPackageId = null;
-    $partnerSource = 'manual_partner';
-    if (strpos($packageName, '|') !== false) {
-        $parts = explode('|', $packageName, 2);
-        $partnerPackageId = (int)$parts[0];
-        $packageName = $parts[1];
-    }
-    
-    $fullName = trim($_POST['full_name'] ?? '');
-    $email = trim($_POST['email'] ?? '');
-    $phone = trim($_POST['phone'] ?? '');
-    $travelDate = trim($_POST['travel_date'] ?? date('Y-m-d'));
-    $travelers = (int)($_POST['number_of_travelers'] ?? 1);
-    $totalAmount = (float)($_POST['total_amount'] ?? 0);
-    $paymentStatus = trim($_POST['payment_status'] ?? 'unpaid');
-    $bookingStatus = trim($_POST['booking_status'] ?? 'pending');
-    $paymentMethod = trim($_POST['payment_method'] ?? 'cash');
-
-    if ($fullName === '' || $packageName === '') {
-        $errorMessage = 'Please provide customer name and select a package.';
-    } else {
-        $stmt = $pdo->prepare("
-            INSERT INTO bookings (
-                booking_number, package_name, full_name, email, phone, travel_date, number_of_travelers, total_amount, payment_status, booking_status, payment_method, partner_id, partner_company, partner_package_id, partner_source
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ");
-        $stmt->execute([
-            $bookingNumber, $packageName, $fullName, $email, $phone, $travelDate, $travelers, $totalAmount, $paymentStatus, $bookingStatus, $paymentMethod,
-            $partnerId, $partner['company_name'], $partnerPackageId, $partnerSource
-        ]);
-        $successMessage = 'Manual booking successfully recorded!';
-    }
-}
-
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'confirm_booking') {
     $bookingId = (int)($_POST['booking_id'] ?? 0);
     if ($bookingId > 0) {
@@ -263,18 +227,85 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'edit_booking') {
     $bookingId = (int)($_POST['booking_id'] ?? 0);
     if ($bookingId > 0) {
-        $checkStmt = $pdo->prepare("SELECT id FROM bookings WHERE id = ? AND partner_id = ?");
+        $checkStmt = $pdo->prepare(
+            "SELECT booking_status, payment_status, email, full_name, booking_number, destination_name, package_name, partner_package_name, travel_date, number_of_travelers, total_amount, travel_documents, ready_for_travel
+             FROM bookings WHERE id = ? AND partner_id = ?"
+        );
         $checkStmt->execute([$bookingId, $partnerId]);
-        if ($checkStmt->fetch()) {
+        $oldBooking = $checkStmt->fetch(PDO::FETCH_ASSOC);
+        if ($oldBooking) {
             $newStatus  = trim($_POST['booking_status'] ?? 'pending');
             $newPayment = trim($_POST['payment_status'] ?? 'unpaid');
-            $newMethod  = trim($_POST['payment_method']  ?? '');
+            $newVisa    = trim($_POST['visa_status'] ?? 'PENDING');
+            $newPricePerPerson = (float)($_POST['price_per_person'] ?? 0);
             $newAmount  = (float)($_POST['total_amount'] ?? 0);
             $newTravel  = trim($_POST['travel_date'] ?? '');
             $newTravelers = (int)($_POST['number_of_travelers'] ?? 1);
-            $stmt = $pdo->prepare("UPDATE bookings SET booking_status=?, payment_status=?, payment_method=?, total_amount=?, travel_date=?, number_of_travelers=? WHERE id=? AND partner_id=?");
-            $stmt->execute([$newStatus, $newPayment, $newMethod, $newAmount, $newTravel, $newTravelers, $bookingId, $partnerId]);
-            $successMessage = 'Booking updated successfully!';
+            $newTravelDocs = isset($_POST['travel_documents']) ? 1 : 0;
+            $newReadyForTravel = isset($_POST['ready_for_travel']) ? 1 : 0;
+            $newFlightDetails = trim($_POST['flight_details'] ?? '');
+            $newAdminNotes = trim($_POST['admin_notes'] ?? '');
+
+            // Auto-complete logic (matches admin dashboard): once travel docs are
+            // ready, payment is paid, and visa (if applicable) is approved/n-a,
+            // the booking status is bumped to completed automatically.
+            $isVisaRelated = ($oldBooking['destination_name'] === 'Visa Assistance'
+                || stripos($oldBooking['package_name'] ?? '', 'Visa') !== false
+                || (isset($oldBooking['booking_number']) && strpos($oldBooking['booking_number'], 'VI-') === 0));
+            $isVisaMatch = (strtoupper($newVisa) === 'APPROVED' || strtoupper($newVisa) === 'N/A' || !$isVisaRelated);
+            $isNowFullyCompleted = ($newTravelDocs === 1 && $newPayment === 'paid' && $isVisaMatch);
+            if ($isNowFullyCompleted) {
+                $newStatus = 'completed';
+            }
+
+            $stmt = $pdo->prepare("UPDATE bookings SET booking_status=?, payment_status=?, visa_status=?, price_per_person=?, total_amount=?, travel_date=?, number_of_travelers=?, travel_documents=?, ready_for_travel=?, flight_details=?, admin_notes=? WHERE id=? AND partner_id=?");
+            $updateSuccess = $stmt->execute([$newStatus, $newPayment, $newVisa, $newPricePerPerson, $newAmount, $newTravel, $newTravelers, $newTravelDocs, $newReadyForTravel, $newFlightDetails, $newAdminNotes, $bookingId, $partnerId]);
+
+            $emailSent = false;
+            if ($updateSuccess) {
+                $emailFunctionsPath = __DIR__ . '/../../config/email_functions.php';
+                if (file_exists($emailFunctionsPath)) {
+                    require_once $emailFunctionsPath;
+
+                    $bookingDataForEmail = [
+                        'id' => $bookingId,
+                        'booking_number' => $oldBooking['booking_number'] ?? '',
+                        'full_name' => $oldBooking['full_name'] ?? '',
+                        'email' => $oldBooking['email'] ?? '',
+                        'destination_name' => $oldBooking['destination_name'] ?? '',
+                        'package_name' => $oldBooking['partner_package_name'] ?: ($oldBooking['package_name'] ?? ''),
+                        'travel_date' => $newTravel,
+                        'number_of_travelers' => $newTravelers,
+                        'total_amount' => $newAmount,
+                        'booking_status' => $newStatus,
+                        'payment_status' => $newPayment,
+                        'admin_notes' => $newAdminNotes,
+                        'flight_details' => $newFlightDetails,
+                    ];
+
+                    if ($oldBooking['booking_status'] != $newStatus && $newStatus !== 'completed' && function_exists('sendBookingStatusEmail')) {
+                        $emailSent = sendBookingStatusEmail($bookingId, $bookingDataForEmail);
+                    }
+
+                    if ($oldBooking['payment_status'] != 'paid' && $newPayment == 'paid' && $oldBooking['destination_name'] === 'Visa Assistance' && function_exists('sendVisaPaymentConfirmationEmail')) {
+                        $emailSent = sendVisaPaymentConfirmationEmail($bookingId, $bookingDataForEmail);
+                    }
+
+                    if ($oldBooking['travel_documents'] == 0 && $newTravelDocs == 1 && !$isNowFullyCompleted && function_exists('sendTrackingUpdateEmail')) {
+                        $emailSent = sendTrackingUpdateEmail($bookingId, 'travel_documents', $bookingDataForEmail);
+                    }
+
+                    if ($oldBooking['ready_for_travel'] == 0 && $newReadyForTravel == 1 && function_exists('sendTrackingUpdateEmail')) {
+                        $emailSent = sendTrackingUpdateEmail($bookingId, 'ready_for_travel', $bookingDataForEmail);
+                    }
+                }
+            }
+
+            if ($updateSuccess) {
+                $successMessage = 'Booking updated successfully!' . ($emailSent ? ' Customer notified by email.' : '');
+            } else {
+                $errorMessage = 'Failed to update booking.';
+            }
         } else {
             $errorMessage = 'You do not have permission to edit this booking.';
         }
@@ -455,8 +486,6 @@ $profileStmt = $pdo->prepare("SELECT * FROM partner_profiles WHERE partner_id = 
 $profileStmt->execute([$partnerId]);
 $profile = $profileStmt->fetch();
 
-ensurePartnerBookingTracking($pdo);
-
 $partnerBookingStatsStmt = $pdo->prepare(
     "SELECT COUNT(*) AS total_bookings,
             COALESCE(SUM(CASE WHEN payment_status = 'paid' OR booking_status IN ('confirmed','completed') THEN total_amount ELSE 0 END), 0) AS paid_revenue,
@@ -511,10 +540,12 @@ if (($section ?? 'dashboard') === 'bookings') {
     $totalPages = ceil($totalBookingsCount / $limit) ?: 1;
 
     $paginatedBookingsStmt = $pdo->prepare(
-        "SELECT id, booking_number, package_name, partner_package_name, full_name, email, phone, number_of_travelers, travel_date, created_at, total_amount, payment_status, booking_status, payment_method 
-         FROM bookings 
-         WHERE {$whereClause} 
-         ORDER BY created_at DESC 
+        "SELECT id, booking_number, package_name, partner_package_name, full_name, email, phone, number_of_travelers, travel_date, created_at, total_amount, payment_status, booking_status, payment_method,
+                address, destination_name, package_duration, special_requests, visa_status, price_per_person,
+                payment_reference, payment_proof, admin_notes, flight_details, travel_documents, ready_for_travel
+         FROM bookings
+         WHERE {$whereClause}
+         ORDER BY created_at DESC
          LIMIT :limit OFFSET :offset"
     );
     foreach ($params as $key => $val) {
@@ -1567,9 +1598,6 @@ if (($section ?? 'dashboard') === 'bookings') {
                             <span class="muted">List of customer bookings for your uploaded partnership packages.</span>
                         </div>
                         <div style="display: flex; gap: 10px; align-items: center;">
-                            <button type="button" class="submit-btn" style="margin: 0; padding: 8px 16px; font-size: 0.9rem;" onclick="document.getElementById('addBookingModal').style.display='flex'">
-                                <i class="fas fa-plus"></i> Add Booking
-                            </button>
                             <a class="pill-btn" href="partner-dashboard.php"><i class="fas fa-arrow-left"></i> Back to Dashboard</a>
                         </div>
                     </div>
@@ -1744,94 +1772,6 @@ if (($section ?? 'dashboard') === 'bookings') {
                         </div>
                     <?php endif; ?>
 
-                    <!-- Add Booking Modal -->
-                    <div id="addBookingModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15,23,42,0.6); backdrop-filter: blur(8px); z-index: 9999; justify-content: center; align-items: center;">
-                        <div style="background: white; padding: 28px; border-radius: 20px; width: 90%; max-width: 560px; max-height: 90vh; overflow-y: auto; box-shadow: 0 25px 50px rgba(0,0,0,0.25); animation: slideIn 0.25s ease;">
-                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid #f1f5f9; padding-bottom: 16px;">
-                                <h3 style="margin: 0; color: #0f172a; font-size: 1.1rem;">Record Manual Booking</h3>
-                                <button type="button" onclick="document.getElementById('addBookingModal').style.display='none'" style="background: none; border: 1px solid #e2e8f0; border-radius: 8px; width:36px; height:36px; font-size: 1.2rem; cursor: pointer; color: #64748b;">×</button>
-                            </div>
-                            <form method="post" action="partner-dashboard.php?section=bookings">
-                                <input type="hidden" name="action" value="add_booking">
-                                
-                                <div class="form-group" style="margin-bottom: 15px;">
-                                    <label style="display: block; margin-bottom: 6px; font-weight: 600; font-size: 0.85rem; color: #374151; text-transform: uppercase; letter-spacing: 0.5px;">Package <span style="color:var(--danger)">*</span></label>
-                                    <select name="package_name" required style="width: 100%; padding: 10px 12px; border: 1.5px solid #e2e8f0; border-radius: 10px; font-family: inherit; font-size: 0.9rem;">
-                                        <option value="">-- Select a Package --</option>
-                                        <?php foreach ($uploads as $up): ?>
-                                            <option value="<?= $up['source_id'] ?>|<?= htmlspecialchars($up['package_name']) ?>"><?= htmlspecialchars($up['package_name']) ?> (<?= htmlspecialchars($up['source']) ?>)</option>
-                                        <?php endforeach; ?>
-                                        <option value="0|Custom/Offline Package">Custom/Offline Package</option>
-                                    </select>
-                                </div>
-                                
-                                <div class="form-group" style="margin-bottom: 15px;">
-                                    <label style="display: block; margin-bottom: 6px; font-weight: 600; font-size: 0.85rem; color: #374151; text-transform: uppercase; letter-spacing: 0.5px;">Customer Name <span style="color:var(--danger)">*</span></label>
-                                    <input type="text" name="full_name" required style="width: 100%; padding: 10px 12px; border: 1.5px solid #e2e8f0; border-radius: 10px; font-family: inherit; font-size: 0.9rem;">
-                                </div>
-                                
-                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
-                                    <div class="form-group">
-                                        <label style="display: block; margin-bottom: 6px; font-weight: 600; font-size: 0.85rem; color: #374151; text-transform: uppercase; letter-spacing: 0.5px;">Email</label>
-                                        <input type="email" name="email" style="width: 100%; padding: 10px 12px; border: 1.5px solid #e2e8f0; border-radius: 10px; font-family: inherit; font-size: 0.9rem;">
-                                    </div>
-                                    <div class="form-group">
-                                        <label style="display: block; margin-bottom: 6px; font-weight: 600; font-size: 0.85rem; color: #374151; text-transform: uppercase; letter-spacing: 0.5px;">Phone</label>
-                                        <input type="text" name="phone" style="width: 100%; padding: 10px 12px; border: 1.5px solid #e2e8f0; border-radius: 10px; font-family: inherit; font-size: 0.9rem;">
-                                    </div>
-                                </div>
-                                
-                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
-                                    <div class="form-group">
-                                        <label style="display: block; margin-bottom: 6px; font-weight: 600; font-size: 0.85rem; color: #374151; text-transform: uppercase; letter-spacing: 0.5px;">Travel Date</label>
-                                        <input type="date" name="travel_date" style="width: 100%; padding: 10px 12px; border: 1.5px solid #e2e8f0; border-radius: 10px; font-family: inherit; font-size: 0.9rem;">
-                                    </div>
-                                    <div class="form-group">
-                                        <label style="display: block; margin-bottom: 6px; font-weight: 600; font-size: 0.85rem; color: #374151; text-transform: uppercase; letter-spacing: 0.5px;">Travelers</label>
-                                        <input type="number" name="number_of_travelers" min="1" value="1" style="width: 100%; padding: 10px 12px; border: 1.5px solid #e2e8f0; border-radius: 10px; font-family: inherit; font-size: 0.9rem;">
-                                    </div>
-                                </div>
-                                
-                                <div class="form-group" style="margin-bottom: 15px;">
-                                    <label style="display: block; margin-bottom: 6px; font-weight: 600; font-size: 0.85rem; color: #374151; text-transform: uppercase; letter-spacing: 0.5px;">Total Amount (₱)</label>
-                                    <input type="number" step="0.01" name="total_amount" value="0" style="width: 100%; padding: 10px 12px; border: 1.5px solid #e2e8f0; border-radius: 10px; font-family: inherit; font-size: 0.9rem;">
-                                </div>
-                                
-                                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; margin-bottom: 25px;">
-                                    <div class="form-group">
-                                        <label style="display: block; margin-bottom: 6px; font-weight: 600; font-size: 0.85rem; color: #374151; text-transform: uppercase; letter-spacing: 0.5px;">Booking Status</label>
-                                        <select name="booking_status" style="width: 100%; padding: 10px 12px; border: 1.5px solid #e2e8f0; border-radius: 10px; font-family: inherit; font-size: 0.9rem;">
-                                            <option value="pending">Pending</option>
-                                            <option value="confirmed">Confirmed</option>
-                                            <option value="completed">Completed</option>
-                                        </select>
-                                    </div>
-                                    <div class="form-group">
-                                        <label style="display: block; margin-bottom: 6px; font-weight: 600; font-size: 0.85rem; color: #374151; text-transform: uppercase; letter-spacing: 0.5px;">Payment Status</label>
-                                        <select name="payment_status" style="width: 100%; padding: 10px 12px; border: 1.5px solid #e2e8f0; border-radius: 10px; font-family: inherit; font-size: 0.9rem;">
-                                            <option value="unpaid">Unpaid</option>
-                                            <option value="paid">Paid</option>
-                                        </select>
-                                    </div>
-                                    <div class="form-group">
-                                        <label style="display: block; margin-bottom: 6px; font-weight: 600; font-size: 0.85rem; color: #374151; text-transform: uppercase; letter-spacing: 0.5px;">Method</label>
-                                        <select name="payment_method" style="width: 100%; padding: 10px 12px; border: 1.5px solid #e2e8f0; border-radius: 10px; font-family: inherit; font-size: 0.9rem;">
-                                            <option value="cash">Cash</option>
-                                            <option value="bank_transfer">Bank Transfer</option>
-                                            <option value="credit_card">Credit Card</option>
-                                            <option value="other">Other</option>
-                                        </select>
-                                    </div>
-                                </div>
-                                
-                                <div style="display: flex; justify-content: flex-end; gap: 10px;">
-                                    <button type="button" class="pill-btn" onclick="document.getElementById('addBookingModal').style.display='none'">Cancel</button>
-                                    <button type="submit" class="submit-btn" style="margin: 0;"><i class="fas fa-save"></i> Save Booking</button>
-                                </div>
-                            </form>
-                        </div>
-                    </div>
-
                     <!-- Booking Detail Modal — matches admin dashboard "Booking and Customer Details" -->
                     <div id="bookingDetailModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(15,23,42,0.6); backdrop-filter:blur(8px); z-index:10000; justify-content:center; align-items:center;">
                         <div style="background:white; border-radius:20px; box-shadow:0 25px 50px rgba(0,0,0,0.25); max-width:700px; width:92%; max-height:90vh; overflow-y:auto; animation:slideIn 0.25s ease;">
@@ -1877,10 +1817,32 @@ if (($section ?? 'dashboard') === 'bookings') {
                                             <div style="text-align:center;flex:1;"><strong style="color:#64748b;display:block;font-size:0.8rem;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">Payment Status</strong><span id="bm_payment_status">—</span></div>
                                         </div>
                                     </div>
+                                    <!-- Payment Information -->
+                                    <div id="bm_payment_wrap" style="display:none;margin-top:20px;padding:16px;background:#f0fdf4;border-radius:12px;border:1px solid #bbf7d0;">
+                                        <h5 style="margin:0 0 12px;color:#15803d;font-weight:700;font-size:0.95rem;"><i class="fas fa-credit-card" style="color:#16a34a;margin-right:6px;"></i> Payment Information</h5>
+                                        <div style="display:flex;flex-direction:column;gap:8px;">
+                                            <div id="bm_payment_method_row" style="display:none;gap:8px;align-items:center;font-size:0.9rem;"><span style="color:#64748b;font-weight:600;min-width:110px;">Method:</span><span style="color:#0f172a;font-weight:700;text-transform:capitalize;" id="bm_payment_method"></span></div>
+                                            <div id="bm_payment_ref_row" style="display:none;gap:8px;align-items:center;font-size:0.9rem;"><span style="color:#64748b;font-weight:600;min-width:110px;">Reference #:</span><span style="color:#0f172a;font-weight:700;font-family:monospace;" id="bm_payment_ref"></span></div>
+                                            <div id="bm_payment_proof_wrap" style="display:none;margin-top:8px;">
+                                                <span style="color:#64748b;font-weight:600;font-size:0.9rem;display:block;margin-bottom:8px;">Payment Proof:</span>
+                                                <div id="bm_payment_proof_content"></div>
+                                            </div>
+                                        </div>
+                                    </div>
                                     <!-- Special Requests -->
                                     <div id="bm_special_req_wrap" style="display:none;margin-top:20px;padding:16px;background:#eff6ff;border-radius:12px;border:1px solid #bfdbfe;">
                                         <h5 style="margin:0 0 8px;color:#1e3a8a;font-weight:700;font-size:0.95rem;"><i class="fas fa-star" style="color:#3b82f6;margin-right:6px;"></i> Special Requests</h5>
                                         <div style="font-size:0.9rem;line-height:1.6;color:#1e40af;" id="bm_special_req"></div>
+                                    </div>
+                                    <!-- Flight Details -->
+                                    <div id="bm_flight_wrap" style="display:none;margin-top:20px;padding:16px;background:#f8fafc;border-radius:12px;border:1px solid #e2e8f0;">
+                                        <h5 style="margin:0 0 8px;color:#1e293b;font-weight:700;font-size:0.95rem;"><i class="fas fa-plane-departure" style="color:#6366f1;margin-right:6px;"></i> Flight Details</h5>
+                                        <div style="font-size:0.9rem;line-height:1.6;color:#334155;white-space:pre-wrap;" id="bm_flight_details"></div>
+                                    </div>
+                                    <!-- Admin Notes -->
+                                    <div id="bm_notes_wrap" style="display:none;margin-top:15px;padding:16px;background:#fffcf0;border-radius:12px;border:1px dashed #ff9800;">
+                                        <h5 style="margin:0 0 8px;color:#856404;font-weight:700;font-size:0.95rem;"><i class="fas fa-comment-dots" style="color:#eab308;margin-right:6px;"></i> Admin Notes</h5>
+                                        <div style="font-size:0.9rem;font-style:italic;color:#333;" id="bm_notes"></div>
                                     </div>
                                 </div>
                             </div>
@@ -1961,6 +1923,39 @@ if (($section ?? 'dashboard') === 'bookings') {
                                                             : 'background:#fffbeb;color:#b45309;border:1px solid #fde68a;';
                         document.getElementById('bm_visa_badge').innerHTML = `<span style="display:inline-flex;align-items:center;padding:6px 14px;border-radius:10px;font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;box-shadow:0 2px 4px rgba(0,0,0,0.05);${vBadge}">${vRaw}</span>`;
 
+                        // Payment Information (method / reference / proof — matches admin's design)
+                        const paymentWrap = document.getElementById('bm_payment_wrap');
+                        if (b.payment_method || b.payment_reference || b.payment_proof) {
+                            const methodRow = document.getElementById('bm_payment_method_row');
+                            if (b.payment_method) {
+                                document.getElementById('bm_payment_method').textContent = b.payment_method;
+                                methodRow.style.display = 'flex';
+                            } else {
+                                methodRow.style.display = 'none';
+                            }
+                            const refRow = document.getElementById('bm_payment_ref_row');
+                            if (b.payment_reference) {
+                                document.getElementById('bm_payment_ref').textContent = b.payment_reference;
+                                refRow.style.display = 'flex';
+                            } else {
+                                refRow.style.display = 'none';
+                            }
+                            const proofWrap = document.getElementById('bm_payment_proof_wrap');
+                            if (b.payment_proof) {
+                                const proofUrl = '../../' + b.payment_proof;
+                                const isImage = /\.(jpg|jpeg|png|gif|webp)$/i.test(b.payment_proof);
+                                document.getElementById('bm_payment_proof_content').innerHTML = isImage
+                                    ? `<a href="${proofUrl}" target="_blank" title="Click to view full image"><img src="${proofUrl}" alt="Payment Proof" style="max-width:100%;max-height:220px;border-radius:10px;border:2px solid #bbf7d0;box-shadow:0 4px 12px rgba(0,0,0,0.1);cursor:pointer;object-fit:cover;display:block;"></a><p style="font-size:0.78rem;color:#64748b;margin-top:6px;text-align:center;"><i class="fas fa-search-plus" style="margin-right:4px;"></i>Click image to view full size</p>`
+                                    : `<a href="${proofUrl}" target="_blank" class="view-btn" style="padding:8px 16px;font-size:0.85rem;text-decoration:none;display:inline-flex;align-items:center;gap:6px;border-radius:8px;"><i class="fas fa-file-download"></i> Download / View Receipt</a>`;
+                                proofWrap.style.display = 'block';
+                            } else {
+                                proofWrap.style.display = 'none';
+                            }
+                            paymentWrap.style.display = 'block';
+                        } else {
+                            paymentWrap.style.display = 'none';
+                        }
+
                         // Special requests
                         const srWrap = document.getElementById('bm_special_req_wrap');
                         if (b.special_requests) {
@@ -1968,6 +1963,24 @@ if (($section ?? 'dashboard') === 'bookings') {
                             srWrap.style.display = 'block';
                         } else {
                             srWrap.style.display = 'none';
+                        }
+
+                        // Flight Details
+                        const flightWrap = document.getElementById('bm_flight_wrap');
+                        if (b.flight_details) {
+                            document.getElementById('bm_flight_details').textContent = b.flight_details;
+                            flightWrap.style.display = 'block';
+                        } else {
+                            flightWrap.style.display = 'none';
+                        }
+
+                        // Admin Notes
+                        const notesWrap = document.getElementById('bm_notes_wrap');
+                        if (b.admin_notes) {
+                            document.getElementById('bm_notes').textContent = '"' + b.admin_notes + '"';
+                            notesWrap.style.display = 'block';
+                        } else {
+                            notesWrap.style.display = 'none';
                         }
 
                         // Show Confirm button only for pending bookings
@@ -1994,18 +2007,60 @@ if (($section ?? 'dashboard') === 'bookings') {
                         document.getElementById('edit_booking_id').value       = b.id;
                         document.getElementById('edit_booking_status').value   = b.booking_status || 'pending';
                         document.getElementById('edit_payment_status').value   = b.payment_status || 'unpaid';
-                        document.getElementById('edit_payment_method').value   = b.payment_method || 'cash';
+                        document.getElementById('edit_visa_status').value      = (b.visa_status && b.visa_status !== 'N/A') ? b.visa_status.toUpperCase() : 'PENDING';
+                        document.getElementById('edit_price_per_person').value = b.price_per_person || 0;
                         document.getElementById('edit_total_amount').value     = b.total_amount || 0;
                         document.getElementById('edit_travel_date').value      = b.travel_date || '';
                         document.getElementById('edit_travelers').value        = b.number_of_travelers || 1;
+                        document.getElementById('edit_travel_documents').checked = !!(b.travel_documents == 1 || b.travel_documents === true);
+                        document.getElementById('edit_ready_for_travel').checked = !!(b.ready_for_travel == 1 || b.ready_for_travel === true);
+                        document.getElementById('edit_flight_details').value   = b.flight_details || '';
+                        document.getElementById('edit_admin_notes').value      = b.admin_notes || '';
                         document.getElementById('edit_bm_label').textContent   = '#' + (b.booking_number || b.id);
                         document.getElementById('edit_customer_name').textContent = b.full_name || '—';
+
+                        // Read-only Payment Proof from Customer — matches admin's edit-booking design exactly
+                        const editProofWrap = document.getElementById('edit_payment_proof_wrap');
+                        if (b.payment_method || b.payment_reference || b.payment_proof) {
+                            const methodRow = document.getElementById('edit_payment_method_row');
+                            if (b.payment_method) {
+                                document.getElementById('edit_payment_method_val').textContent = b.payment_method;
+                                methodRow.style.display = 'flex';
+                            } else { methodRow.style.display = 'none'; }
+                            const refRow = document.getElementById('edit_payment_ref_row');
+                            if (b.payment_reference) {
+                                document.getElementById('edit_payment_ref_val').textContent = b.payment_reference;
+                                refRow.style.display = 'flex';
+                            } else { refRow.style.display = 'none'; }
+                            const proofContent = document.getElementById('edit_payment_proof_content');
+                            if (b.payment_proof) {
+                                const proofUrl = '../../' + b.payment_proof;
+                                const isImage = /\.(jpg|jpeg|png|gif|webp)$/i.test(b.payment_proof);
+                                proofContent.innerHTML = isImage
+                                    ? `<a href="${proofUrl}" target="_blank" title="Click to view full image"><img src="${proofUrl}" alt="Payment Proof" style="max-width:100%;max-height:220px;border-radius:12px;border:2px solid #bbf7d0;box-shadow:0 4px 12px rgba(0,0,0,0.1);cursor:zoom-in;object-fit:contain;display:block;background:#f8fafc;"></a>`
+                                    : `<a href="${proofUrl}" target="_blank" style="display:inline-flex;align-items:center;gap:8px;background:#16a34a;color:white;padding:10px 18px;border-radius:10px;font-size:0.88rem;font-weight:600;text-decoration:none;"><i class="fas fa-file-download"></i> Open / Download Receipt</a>`;
+                            } else {
+                                proofContent.innerHTML = `<div style="color:#64748b;font-size:0.88rem;padding:10px;background:#f8fafc;border-radius:8px;border:1px dashed #cbd5e1;text-align:center;margin-top:6px;"><i class="fas fa-image" style="margin-right:6px;opacity:0.5;"></i>No payment screenshot uploaded yet</div>`;
+                            }
+                            editProofWrap.style.display = 'block';
+                        } else {
+                            editProofWrap.style.display = 'none';
+                        }
+
                         document.getElementById('editBookingModal').style.display = 'flex';
                         document.body.style.overflow = 'hidden';
                     }
 
-                    document.getElementById('editBookingModal').addEventListener('click', function(e) {
-                        if (e.target === this) { this.style.display='none'; document.body.style.overflow=''; }
+                    function updatePartnerEditTotal() {
+                        const travelers = parseFloat(document.getElementById('edit_travelers').value) || 0;
+                        const pricePerPerson = parseFloat(document.getElementById('edit_price_per_person').value) || 0;
+                        document.getElementById('edit_total_amount').value = (travelers * pricePerPerson).toFixed(2);
+                    }
+
+                    document.addEventListener('DOMContentLoaded', function() {
+                        document.getElementById('editBookingModal').addEventListener('click', function(e) {
+                            if (e.target === this) { this.style.display='none'; document.body.style.overflow=''; }
+                        });
                     });
 
                     // ── Delete Booking ────────────────────────────────────
@@ -2035,50 +2090,94 @@ if (($section ?? 'dashboard') === 'bookings') {
                                 <input type="hidden" name="action" value="edit_booking">
                                 <input type="hidden" name="booking_id" id="edit_booking_id" value="">
 
-                                <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px;">
+                                <div style="margin-bottom:20px;">
+                                    <label style="display:block;margin-bottom:8px;font-weight:700;font-size:0.85rem;color:#1e293b;">Booking Status</label>
+                                    <select name="booking_status" id="edit_booking_status" style="width:100%;background:white;border:1px solid #cbd5e1;border-radius:12px;padding:12px;box-shadow:0 1px 2px rgba(0,0,0,0.05);font-family:inherit;font-size:0.9rem;">
+                                        <option value="pending">Pending</option>
+                                        <option value="confirmed">Confirmed</option>
+                                        <option value="completed">Completed</option>
+                                        <option value="cancelled">Cancelled</option>
+                                    </select>
+                                </div>
+
+                                <div style="margin-bottom:20px;">
+                                    <label style="display:block;margin-bottom:8px;font-weight:700;font-size:0.85rem;color:#1e293b;">Payment Status</label>
+                                    <select name="payment_status" id="edit_payment_status" style="width:100%;background:white;border:1px solid #cbd5e1;border-radius:12px;padding:12px;box-shadow:0 1px 2px rgba(0,0,0,0.05);font-family:inherit;font-size:0.9rem;">
+                                        <option value="unpaid">Unpaid</option>
+                                        <option value="paid">Paid</option>
+                                        <option value="refunded">Refunded</option>
+                                    </select>
+                                </div>
+
+                                <div style="margin-bottom:20px;">
+                                    <label style="display:block;margin-bottom:8px;font-weight:700;font-size:0.85rem;color:#1e293b;">Visa Status</label>
+                                    <select name="visa_status" id="edit_visa_status" style="width:100%;background:white;border:1px solid #cbd5e1;border-radius:12px;padding:12px;box-shadow:0 1px 2px rgba(0,0,0,0.05);font-family:inherit;font-size:0.9rem;">
+                                        <option value="PENDING">Pending</option>
+                                        <option value="APPROVED">Approved</option>
+                                        <option value="DECLINED">Declined</option>
+                                    </select>
+                                </div>
+
+                                <div style="margin-bottom:20px;">
+                                    <label style="display:block;margin-bottom:8px;font-weight:700;font-size:0.85rem;color:#1e293b;">Travel Date</label>
+                                    <input type="date" name="travel_date" id="edit_travel_date" style="width:100%;background:white;border:1px solid #cbd5e1;border-radius:12px;padding:12px;box-shadow:0 1px 2px rgba(0,0,0,0.05);font-family:inherit;font-size:0.9rem;">
+                                </div>
+
+                                <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:15px; margin-bottom:20px;">
                                     <div>
-                                        <label style="display:block;margin-bottom:6px;font-weight:700;font-size:0.8rem;color:#374151;text-transform:uppercase;letter-spacing:0.5px;">Booking Status</label>
-                                        <select name="booking_status" id="edit_booking_status" style="width:100%;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:10px;font-family:inherit;font-size:0.9rem;background:white;">
-                                            <option value="pending">Pending</option>
-                                            <option value="confirmed">Confirmed</option>
-                                            <option value="completed">Completed</option>
-                                            <option value="cancelled">Cancelled</option>
-                                        </select>
+                                        <label style="display:block;margin-bottom:8px;font-weight:700;font-size:0.85rem;color:#1e293b;">Travelers</label>
+                                        <input type="number" min="1" name="number_of_travelers" id="edit_travelers" oninput="updatePartnerEditTotal()" style="width:100%;background:white;border:1px solid #cbd5e1;border-radius:12px;padding:12px;font-family:inherit;font-size:0.9rem;">
                                     </div>
                                     <div>
-                                        <label style="display:block;margin-bottom:6px;font-weight:700;font-size:0.8rem;color:#374151;text-transform:uppercase;letter-spacing:0.5px;">Payment Status</label>
-                                        <select name="payment_status" id="edit_payment_status" style="width:100%;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:10px;font-family:inherit;font-size:0.9rem;background:white;">
-                                            <option value="unpaid">Unpaid</option>
-                                            <option value="paid">Paid</option>
-                                        </select>
+                                        <label style="display:block;margin-bottom:8px;font-weight:700;font-size:0.85rem;color:#1e293b;">Price / Person</label>
+                                        <input type="number" step="0.01" min="0" name="price_per_person" id="edit_price_per_person" oninput="updatePartnerEditTotal()" style="width:100%;background:white;border:1px solid #cbd5e1;border-radius:12px;padding:12px;font-family:inherit;font-size:0.9rem;">
+                                    </div>
+                                    <div>
+                                        <label style="display:block;margin-bottom:8px;font-weight:700;font-size:0.85rem;color:#1e293b;">Total Amount</label>
+                                        <input type="number" step="0.01" name="total_amount" id="edit_total_amount" readonly style="width:100%;background:#f1f5f9;border:1px solid #cbd5e1;border-radius:12px;padding:12px;font-family:inherit;font-size:0.9rem;font-weight:800;color:#0284c7;cursor:not-allowed;">
                                     </div>
                                 </div>
 
-                                <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px;">
-                                    <div>
-                                        <label style="display:block;margin-bottom:6px;font-weight:700;font-size:0.8rem;color:#374151;text-transform:uppercase;letter-spacing:0.5px;">Payment Method</label>
-                                        <select name="payment_method" id="edit_payment_method" style="width:100%;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:10px;font-family:inherit;font-size:0.9rem;background:white;">
-                                            <option value="cash">Cash</option>
-                                            <option value="bank_transfer">Bank Transfer</option>
-                                            <option value="credit_card">Credit Card</option>
-                                            <option value="other">Other</option>
-                                        </select>
+                                <div style="margin-bottom:25px;">
+                                    <label style="display:flex;align-items:center;gap:6px;font-weight:700;font-size:0.85rem;color:#1e293b;margin-bottom:12px;"><i class="fas fa-tasks" style="color:#0284c7;"></i> Booking Tracking Steps</label>
+                                    <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:15px;">
+                                        <label style="display:flex;align-items:center;gap:12px;background:#f8fafc;padding:12px 16px;border-radius:12px;border:1px solid #e2e8f0;cursor:pointer;">
+                                            <input type="checkbox" name="travel_documents" id="edit_travel_documents" value="1" style="width:20px;height:20px;accent-color:#ff9800;margin:0;cursor:pointer;">
+                                            <span style="font-weight:600;color:#334155;font-size:0.95rem;"><i class="fas fa-file-alt" style="color:#ff9800;margin-right:8px;"></i> Travel Documents Prepared</span>
+                                        </label>
+                                        <label style="display:flex;align-items:center;gap:12px;background:#f8fafc;padding:12px 16px;border-radius:12px;border:1px solid #e2e8f0;cursor:pointer;">
+                                            <input type="checkbox" name="ready_for_travel" id="edit_ready_for_travel" value="1" style="width:20px;height:20px;accent-color:#22c55e;margin:0;cursor:pointer;">
+                                            <span style="font-weight:600;color:#334155;font-size:0.95rem;"><i class="fas fa-check-double" style="color:#22c55e;margin-right:8px;"></i> Ready for Travel</span>
+                                        </label>
                                     </div>
-                                    <div>
-                                        <label style="display:block;margin-bottom:6px;font-weight:700;font-size:0.8rem;color:#374151;text-transform:uppercase;letter-spacing:0.5px;">Total Amount (₱)</label>
-                                        <input type="number" step="0.01" name="total_amount" id="edit_total_amount" style="width:100%;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:10px;font-family:inherit;font-size:0.9rem;">
+                                    <div style="background:#eff6ff;padding:14px 16px;border-radius:12px;font-size:0.85rem;color:#1d4ed8;display:flex;align-items:flex-start;gap:10px;border:1px solid #bfdbfe;">
+                                        <i class="fas fa-info-circle" style="margin-top:2px;"></i>
+                                        <div>These steps are visible to the customer in their <strong>Booking Tracking</strong> view.</div>
                                     </div>
                                 </div>
 
-                                <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:24px;">
-                                    <div>
-                                        <label style="display:block;margin-bottom:6px;font-weight:700;font-size:0.8rem;color:#374151;text-transform:uppercase;letter-spacing:0.5px;">Travel Date</label>
-                                        <input type="date" name="travel_date" id="edit_travel_date" style="width:100%;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:10px;font-family:inherit;font-size:0.9rem;">
+                                <div id="edit_payment_proof_wrap" style="display:none;margin-bottom:25px;padding:16px;background:#f0fdf4;border-radius:12px;border:1px solid #bbf7d0;">
+                                    <h5 style="margin:0 0 12px;color:#15803d;font-weight:700;font-size:0.95rem;"><i class="fas fa-credit-card" style="color:#16a34a;margin-right:6px;"></i> Payment Proof from Customer</h5>
+                                    <div style="display:flex;flex-direction:column;gap:8px;">
+                                        <div id="edit_payment_method_row" style="display:none;gap:8px;align-items:center;font-size:0.9rem;"><span style="color:#64748b;font-weight:600;min-width:110px;">Method:</span><span id="edit_payment_method_val" style="color:#0f172a;font-weight:700;text-transform:capitalize;"></span></div>
+                                        <div id="edit_payment_ref_row" style="display:none;gap:8px;align-items:center;font-size:0.9rem;"><span style="color:#64748b;font-weight:600;min-width:110px;">Reference #:</span><span id="edit_payment_ref_val" style="color:#0f172a;font-weight:700;font-family:monospace;"></span></div>
+                                        <div id="edit_payment_proof_content"></div>
                                     </div>
-                                    <div>
-                                        <label style="display:block;margin-bottom:6px;font-weight:700;font-size:0.8rem;color:#374151;text-transform:uppercase;letter-spacing:0.5px;">Travelers</label>
-                                        <input type="number" min="1" name="number_of_travelers" id="edit_travelers" style="width:100%;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:10px;font-family:inherit;font-size:0.9rem;">
-                                    </div>
+                                </div>
+
+                                <div style="margin-bottom:25px;">
+                                    <label style="display:block;margin-bottom:8px;font-weight:700;font-size:0.85rem;color:#1e293b;">Flight Details <span style="color:#64748b;font-weight:normal;font-size:0.8rem;">(visible to customer in email)</span></label>
+                                    <textarea name="flight_details" id="edit_flight_details" rows="3" placeholder="Enter flight number, departure/arrival times, etc..." style="width:100%;background:white;border:1px solid #cbd5e1;border-radius:12px;padding:16px;box-shadow:inset 0 1px 2px rgba(0,0,0,0.05);resize:vertical;font-family:inherit;font-size:0.9rem;"></textarea>
+                                </div>
+
+                                <div style="margin-bottom:24px;">
+                                    <label style="display:block;margin-bottom:8px;font-weight:700;font-size:0.85rem;color:#1e293b;">Admin Notes <span style="color:#64748b;font-weight:normal;font-size:0.8rem;">(private note for this booking)</span></label>
+                                    <textarea name="admin_notes" id="edit_admin_notes" rows="4" placeholder="Add any notes about this booking..." style="width:100%;background:white;border:1px solid #cbd5e1;border-radius:12px;padding:16px;box-shadow:inset 0 1px 2px rgba(0,0,0,0.05);resize:vertical;font-family:inherit;font-size:0.9rem;"></textarea>
+                                </div>
+
+                                <div style="background:#f1f5f9;padding:14px 16px;border-radius:12px;color:#334155;font-size:0.85rem;display:flex;align-items:center;gap:10px;border:1px solid #e2e8f0;margin-bottom:20px;">
+                                    <i class="fas fa-circle-info" style="font-size:1.1rem;color:#64748b;"></i>
+                                    <span>Changes are saved and reflected immediately.</span>
                                 </div>
 
                                 <div style="display:flex; gap:10px; justify-content:flex-end; border-top:1px solid #f1f5f9; padding-top:20px;">

@@ -61,6 +61,9 @@ if (!isset($pdo) || !$pdo) {
 
 debugLog("Database connection successful");
 
+require_once __DIR__ . '/../api/partner-booking-tracker.php';
+ensurePartnerBookingTracking($pdo);
+
 // Migration for visa_status
 try {
     $stmtMigrate = $pdo->query("SHOW COLUMNS FROM bookings LIKE 'visa_status'");
@@ -759,10 +762,11 @@ EOF;
                     // Prepare booking data for email
                     $booking_data = [
                         'id' => $id,
-                        'booking_number' => $old_booking['booking_number'],
-                        'full_name' => $old_booking['full_name'],
-                        'email' => $old_booking['email'],
-                        'destination_name' => $old_booking['destination_name'],
+                        'booking_number' => $old_booking['booking_number'] ?? '',
+                        'full_name' => $old_booking['full_name'] ?? '',
+                        'email' => $old_booking['email'] ?? '',
+                        'destination_name' => $old_booking['destination_name'] ?? '',
+                        'package_name' => $old_booking['package_name'] ?? '',
                         'travel_date' => $old_booking['travel_date'],
                         'number_of_travelers' => $old_booking['number_of_travelers'],
                         'total_amount' => $old_booking['total_amount'],

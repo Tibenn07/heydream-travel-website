@@ -38,6 +38,9 @@ if ($pdo === null) {
     exit;
 }
 
+require_once __DIR__ . '/../api/partner-booking-tracker.php';
+ensurePartnerBookingTracking($pdo);
+
 // Personal correction for User Request
 $pdo->prepare("UPDATE bookings SET travel_date = '2026-05-20' WHERE booking_number IN ('FO-89118920260512', 'FO-FA655F20260513')")->execute();
 
@@ -5030,9 +5033,9 @@ $unreadMessagesCount = $stmtMessagesCount ? $stmtMessagesCount->fetchColumn() : 
                             </div>
                             <div class="form-group">
                                 <label style="color: #1e293b; font-weight: 700; margin-bottom: 8px;">Total Amount</label>
-                                <input type="number" id="total_amount" class="form-control" value="${booking.total_amount}" min="0" step="0.01" style="background: white; border: 1px solid #cbd5e1; border-radius: 12px; padding: 12px; font-weight: 800; color: #0284c7;">
+                                <input type="number" id="total_amount" class="form-control" value="${booking.total_amount}" min="0" step="0.01" readonly style="background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 12px; padding: 12px; font-weight: 800; color: #0284c7; cursor: not-allowed;">
                             </div>
-                        </div
+                        </div>
                         <div class="form-group" style="margin-bottom: 25px;">
                             <label style="color: #1e293b; font-weight: 700; margin-bottom: 12px;"><i class="fas fa-tasks" style="color:#0284c7; margin-right: 6px;"></i> ${isVisa ? 'Visa Assistance Tracking Steps' : 'Booking Tracking Steps'}</label>
                             

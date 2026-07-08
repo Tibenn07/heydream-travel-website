@@ -1,6 +1,59 @@
 <?php
+/**
+ * Self-healing fix for a legacy schema bug: on some deployments, `bookings.id`
+ * was created without PRIMARY KEY / AUTO_INCREMENT, so any INSERT that didn't
+ * supply an id got id = 0. Multiple bookings sharing id = 0 (or, from an old
+ * duplicate-submit race, sharing any other id) made `WHERE id = ?` ambiguous,
+ * so edits/deletes could silently hit the wrong row. This checks once (cheap)
+ * and repairs it once if needed, without touching any other data.
+ */
+function ensureBookingsPrimaryKey($pdo)
+{
+    try {
+        $hasPrimaryKey = $pdo->query("SHOW KEYS FROM bookings WHERE Key_name = 'PRIMARY'")->fetch();
+        if ($hasPrimaryKey) {
+            return;
+        }
+    } catch (Throwable $e) {
+        return;
+    }
+
+    try {
+        $pdo->exec("ALTER TABLE bookings ADD COLUMN tmp_pk_fix_rowid INT AUTO_INCREMENT UNIQUE FIRST");
+
+        $maxId = (int)$pdo->query("SELECT COALESCE(MAX(id), 0) FROM bookings")->fetchColumn();
+        $pdo->exec("SET @tmpfix_newid := {$maxId}");
+
+        // Renumber every id = 0 row, plus every row that isn't the first
+        // occurrence of its (non-zero) id, so all ids become unique.
+        $pdo->exec("
+            UPDATE bookings b
+            SET b.id = (@tmpfix_newid := @tmpfix_newid + 1)
+            WHERE b.id = 0
+               OR b.tmp_pk_fix_rowid NOT IN (
+                    SELECT first_rowid FROM (
+                        SELECT MIN(tmp_pk_fix_rowid) AS first_rowid
+                        FROM bookings
+                        WHERE id <> 0
+                        GROUP BY id
+                    ) firsts
+               )
+            ORDER BY b.tmp_pk_fix_rowid ASC
+        ");
+
+        $pdo->exec("ALTER TABLE bookings DROP COLUMN tmp_pk_fix_rowid");
+        $pdo->exec("ALTER TABLE bookings MODIFY id INT(11) NOT NULL AUTO_INCREMENT, ADD PRIMARY KEY (id)");
+    } catch (Throwable $e) {
+        // Best effort — if this environment can't run the migration (e.g. limited
+        // privileges), leave the table as-is rather than fail the request.
+        try { $pdo->exec("ALTER TABLE bookings DROP COLUMN tmp_pk_fix_rowid"); } catch (Throwable $e2) {}
+    }
+}
+
 function ensurePartnerBookingTracking($pdo)
 {
+    ensureBookingsPrimaryKey($pdo);
+
     $pdo->exec("CREATE TABLE IF NOT EXISTS partner_package_uploads (
         id INT AUTO_INCREMENT PRIMARY KEY,
         partner_id INT NOT NULL,
@@ -26,6 +79,22 @@ function ensurePartnerBookingTracking($pdo)
         ['partner_package_id', 'INT DEFAULT NULL'],
         ['partner_package_name', 'VARCHAR(255) DEFAULT NULL'],
         ['partner_source', 'VARCHAR(50) DEFAULT NULL'],
+        // Columns the admin and partner booking-edit/view screens depend on that
+        // aren't guaranteed to exist on every legacy copy of this table's schema.
+        ['address', 'TEXT DEFAULT NULL'],
+        ['package_duration', 'VARCHAR(50) DEFAULT NULL'],
+        ['price_per_person', 'DECIMAL(10,2) DEFAULT NULL'],
+        ['special_requests', 'TEXT DEFAULT NULL'],
+        ['flight_details', 'TEXT DEFAULT NULL'],
+        ['admin_notes', 'TEXT DEFAULT NULL'],
+        ['payment_reference', 'VARCHAR(100) DEFAULT NULL'],
+        ['payment_proof', 'VARCHAR(255) DEFAULT NULL'],
+        ['payment_processed', 'TINYINT(1) DEFAULT 0'],
+        ['travel_documents', 'TINYINT(1) DEFAULT 0'],
+        ['ready_for_travel', 'TINYINT(1) DEFAULT 0'],
+        ['reminder_sent', 'TINYINT(1) DEFAULT 0'],
+        ['visa_status', "VARCHAR(50) DEFAULT 'PENDING'"],
+        ['marketing_consent', 'TINYINT(1) DEFAULT 0'],
     ];
 
     foreach ($trackingColumns as [$column, $definition]) {
