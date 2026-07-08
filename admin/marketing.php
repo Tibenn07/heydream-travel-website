@@ -953,6 +953,63 @@ function getStatusInfo($status)
             border-radius: 12px !important;
             font-weight: 600 !important;
         }
+
+        /* Reported Issues: "Critical First" severity sort toggle */
+        #criticalFirstToggle:checked~.critical-toggle-track {
+            background: #b91c1c;
+        }
+
+        #criticalFirstToggle:checked~.critical-toggle-thumb {
+            transform: translateX(13px);
+        }
+
+        /* Reported Issues: screenshot zoom lightbox */
+        #screenshotZoomOverlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.92);
+            z-index: 20000;
+            align-items: center;
+            justify-content: center;
+            padding: 40px;
+            cursor: zoom-out;
+        }
+
+        #screenshotZoomOverlay.is-open {
+            display: flex;
+        }
+
+        #screenshotZoomImg {
+            max-width: 100%;
+            max-height: 100%;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+            cursor: default;
+        }
+
+        #screenshotZoomClose {
+            position: fixed;
+            top: 20px;
+            right: 30px;
+            background: rgba(255, 255, 255, 0.15);
+            color: white;
+            border: none;
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            font-size: 1.8rem;
+            line-height: 1;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.2s ease;
+        }
+
+        #screenshotZoomClose:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
     </style>
     <script>
         // Pending inquiry count from server
@@ -1748,6 +1805,11 @@ function getStatusInfo($status)
                 </button>
             </div>
 
+            <div style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 10px; padding: 12px 16px; margin-bottom: 16px; display: flex; align-items: center; gap: 10px; color: #1e40af; font-size: 0.85rem;">
+                <i class="fas fa-circle-info"></i>
+                <span>Click any record below to view its full details — including the attached screenshot, if one was submitted.</span>
+            </div>
+
             <div class="card">
                 <div class="table-responsive" style="overflow-x: auto;">
                     <table class="data-table" style="width: 100%; border-collapse: collapse; text-align: left;">
@@ -1757,7 +1819,19 @@ function getStatusInfo($status)
                                 <th style="padding: 15px 10px;">ID</th>
                                 <th style="padding: 15px 10px;">Reporter</th>
                                 <th style="padding: 15px 10px;">Category</th>
-                                <th style="padding: 15px 10px;">Severity</th>
+                                <th style="padding: 15px 10px;">
+                                    <div style="display: flex; align-items: center; gap: 8px;">
+                                        <span>Severity</span>
+                                        <label style="display: inline-flex; align-items: center; gap: 5px; cursor: pointer; font-weight: 500; font-size: 0.68rem; color: #64748b; text-transform: none; letter-spacing: normal;" title="Sort Critical severity records to the top">
+                                            <span style="position: relative; display: inline-block; width: 28px; height: 15px; flex-shrink: 0;">
+                                                <input type="checkbox" id="criticalFirstToggle" onchange="toggleCriticalFirstSort()" style="opacity: 0; width: 0; height: 0; position: absolute;">
+                                                <span class="critical-toggle-track" style="position: absolute; inset: 0; background: #cbd5e1; border-radius: 999px; transition: 0.2s; pointer-events: none;"></span>
+                                                <span class="critical-toggle-thumb" style="position: absolute; height: 11px; width: 11px; left: 2px; top: 2px; background: white; border-radius: 50%; transition: 0.2s; pointer-events: none; box-shadow: 0 1px 2px rgba(0,0,0,0.2);"></span>
+                                            </span>
+                                            Critical First
+                                        </label>
+                                    </div>
+                                </th>
                                 <th style="padding: 15px 10px;">Description</th>
                                 <th style="padding: 15px 10px;">Status</th>
                                 <th style="padding: 15px 10px;">Submitted</th>
@@ -2189,6 +2263,12 @@ function getStatusInfo($status)
                 </div>
             </form>
         </div>
+    </div>
+
+    <!-- Reported Issues: screenshot zoom lightbox (shared across all tickets) -->
+    <div id="screenshotZoomOverlay" onclick="closeScreenshotZoom()">
+        <button id="screenshotZoomClose" type="button" aria-label="Close" title="Close" onclick="closeScreenshotZoom()">&times;</button>
+        <img id="screenshotZoomImg" alt="Screenshot (zoomed)" onclick="event.stopPropagation()">
     </div>
 
     <!-- SCRIPTS -->

@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 require_once __DIR__ . '/../../config/database.php';
 require_once __DIR__ . '/../../api/partner-booking-tracker.php';
 
@@ -163,6 +163,12 @@ try {
 $section = $_GET['section'] ?? 'dashboard';
 $successMessage = '';
 $errorMessage = '';
+$viewUploadDetails = null;
+if ($section === 'partner-content-manager' && isset($_GET['view_upload_id']) && ctype_digit($_GET['view_upload_id'])) {
+    $stmt = $pdo->prepare("SELECT * FROM partner_package_uploads WHERE id = ? AND partner_id = ? LIMIT 1");
+    $stmt->execute([$_GET['view_upload_id'], $partnerId]);
+    $viewUploadDetails = $stmt->fetch(PDO::FETCH_ASSOC);
+}
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'upload_package') {
     $packageName = trim($_POST['package_name'] ?? '');
@@ -198,6 +204,95 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
             $imagePath
         ]);
         $successMessage = 'Package uploaded successfully and is waiting for review.';
+    }
+}
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'add_booking') {
+    $bookingNumber = 'MAN-' . strtoupper(substr(uniqid(), -6)) . date('Ymd');
+    $packageName = trim($_POST['package_name'] ?? '');
+    
+    $partnerPackageId = null;
+    $partnerSource = 'manual_partner';
+    if (strpos($packageName, '|') !== false) {
+        $parts = explode('|', $packageName, 2);
+        $partnerPackageId = (int)$parts[0];
+        $packageName = $parts[1];
+    }
+    
+    $fullName = trim($_POST['full_name'] ?? '');
+    $email = trim($_POST['email'] ?? '');
+    $phone = trim($_POST['phone'] ?? '');
+    $travelDate = trim($_POST['travel_date'] ?? date('Y-m-d'));
+    $travelers = (int)($_POST['number_of_travelers'] ?? 1);
+    $totalAmount = (float)($_POST['total_amount'] ?? 0);
+    $paymentStatus = trim($_POST['payment_status'] ?? 'unpaid');
+    $bookingStatus = trim($_POST['booking_status'] ?? 'pending');
+    $paymentMethod = trim($_POST['payment_method'] ?? 'cash');
+
+    if ($fullName === '' || $packageName === '') {
+        $errorMessage = 'Please provide customer name and select a package.';
+    } else {
+        $stmt = $pdo->prepare("
+            INSERT INTO bookings (
+                booking_number, package_name, full_name, email, phone, travel_date, number_of_travelers, total_amount, payment_status, booking_status, payment_method, partner_id, partner_company, partner_package_id, partner_source
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ");
+        $stmt->execute([
+            $bookingNumber, $packageName, $fullName, $email, $phone, $travelDate, $travelers, $totalAmount, $paymentStatus, $bookingStatus, $paymentMethod,
+            $partnerId, $partner['company_name'], $partnerPackageId, $partnerSource
+        ]);
+        $successMessage = 'Manual booking successfully recorded!';
+    }
+}
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'confirm_booking') {
+    $bookingId = (int)($_POST['booking_id'] ?? 0);
+    if ($bookingId > 0) {
+        $checkStmt = $pdo->prepare("SELECT id FROM bookings WHERE id = ? AND partner_id = ?");
+        $checkStmt->execute([$bookingId, $partnerId]);
+        if ($checkStmt->fetch()) {
+            $stmt = $pdo->prepare("UPDATE bookings SET booking_status = 'confirmed', payment_status = 'paid' WHERE id = ? AND partner_id = ?");
+            $stmt->execute([$bookingId, $partnerId]);
+            $successMessage = 'Booking #' . $bookingId . ' has been confirmed successfully!';
+        } else {
+            $errorMessage = 'You do not have permission to confirm this booking.';
+        }
+    }
+}
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'edit_booking') {
+    $bookingId = (int)($_POST['booking_id'] ?? 0);
+    if ($bookingId > 0) {
+        $checkStmt = $pdo->prepare("SELECT id FROM bookings WHERE id = ? AND partner_id = ?");
+        $checkStmt->execute([$bookingId, $partnerId]);
+        if ($checkStmt->fetch()) {
+            $newStatus  = trim($_POST['booking_status'] ?? 'pending');
+            $newPayment = trim($_POST['payment_status'] ?? 'unpaid');
+            $newMethod  = trim($_POST['payment_method']  ?? '');
+            $newAmount  = (float)($_POST['total_amount'] ?? 0);
+            $newTravel  = trim($_POST['travel_date'] ?? '');
+            $newTravelers = (int)($_POST['number_of_travelers'] ?? 1);
+            $stmt = $pdo->prepare("UPDATE bookings SET booking_status=?, payment_status=?, payment_method=?, total_amount=?, travel_date=?, number_of_travelers=? WHERE id=? AND partner_id=?");
+            $stmt->execute([$newStatus, $newPayment, $newMethod, $newAmount, $newTravel, $newTravelers, $bookingId, $partnerId]);
+            $successMessage = 'Booking updated successfully!';
+        } else {
+            $errorMessage = 'You do not have permission to edit this booking.';
+        }
+    }
+}
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'delete_booking') {
+    $bookingId = (int)($_POST['booking_id'] ?? 0);
+    if ($bookingId > 0) {
+        $checkStmt = $pdo->prepare("SELECT id FROM bookings WHERE id = ? AND partner_id = ?");
+        $checkStmt->execute([$bookingId, $partnerId]);
+        if ($checkStmt->fetch()) {
+            $stmt = $pdo->prepare("DELETE FROM bookings WHERE id = ? AND partner_id = ?");
+            $stmt->execute([$bookingId, $partnerId]);
+            $successMessage = 'Booking deleted successfully!';
+        } else {
+            $errorMessage = 'You do not have permission to delete this booking.';
+        }
     }
 }
 
@@ -260,9 +355,97 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     }
 }
 
-$packageStmt = $pdo->prepare("SELECT * FROM partner_package_uploads WHERE partner_id = ? ORDER BY created_at DESC");
-$packageStmt->execute([$partnerId]);
-$uploads = $packageStmt->fetchAll();
+$uploads = [];
+
+function getPartnerContentManagerDetailUrl($upload) {
+    if (empty($upload['source_type']) || empty($upload['source_id'])) {
+        return null;
+    }
+
+    switch ($upload['source_type']) {
+        case 'partner_package':
+            return 'partner-dashboard.php?section=partner-content-manager&view_upload_id=' . urlencode($upload['source_id']);
+        case 'flash_deal':
+            return 'partner-content-manager.php?page=flash-deals&source_type=flash_deal&source_id=' . urlencode($upload['source_id']);
+        case 'foreign_destination':
+            return 'partner-content-manager.php?page=foreign-destinations&source_type=foreign_destination&source_id=' . urlencode($upload['source_id']);
+        case 'local_destination':
+            return 'partner-content-manager.php?page=local-destinations&source_type=local_destination&source_id=' . urlencode($upload['source_id']);
+        case 'cruise':
+            return 'partner-content-manager.php?page=cruises&source_type=cruise&source_id=' . urlencode($upload['source_id']);
+        case 'site_service':
+            if (!empty($upload['service_type'])) {
+                if ($upload['service_type'] === 'premium') {
+                    return 'partner-content-manager.php?page=premium-services&source_type=site_service&source_id=' . urlencode($upload['source_id']);
+                }
+                if ($upload['service_type'] === 'experience') {
+                    return 'partner-content-manager.php?page=experiences&source_type=site_service&source_id=' . urlencode($upload['source_id']);
+                }
+                if ($upload['service_type'] === 'flight') {
+                    return 'partner-content-manager.php?page=flight-bookings&source_type=site_service&source_id=' . urlencode($upload['source_id']);
+                }
+            }
+            return 'partner-content-manager.php?page=premium-services&source_type=site_service&source_id=' . urlencode($upload['source_id']);
+        case 'visa':
+            return 'partner-content-manager.php?page=visa-assistance&source_type=visa&source_id=' . urlencode($upload['source_id']);
+    }
+
+    return null;
+}
+
+$packageSources = [
+    [
+        'query' => "SELECT id AS source_id, package_name AS title, destination_name, duration, price, upload_status AS status, created_at, 'Partner Upload' AS source, 'partner_package' AS source_type FROM partner_package_uploads WHERE partner_id = ?",
+    ],
+    [
+        'query' => "SELECT id AS source_id, title AS title, location AS destination_name, duration, price, IF(is_active = 1, 'active', 'inactive') AS status, created_at, 'Flash Deal' AS source, 'flash_deal' AS source_type FROM flash_deals WHERE partner_id = ?",
+    ],
+    [
+        'query' => "SELECT id AS source_id, name AS title, country AS destination_name, duration, price, IF(is_active = 1, 'active', 'inactive') AS status, created_at, 'Foreign Destination' AS source, 'foreign_destination' AS source_type FROM foreign_destinations WHERE partner_id = ?",
+    ],
+    [
+        'query' => "SELECT id AS source_id, name AS title, city AS destination_name, duration, price, IF(is_active = 1, 'active', 'inactive') AS status, created_at, 'Local Destination' AS source, 'local_destination' AS source_type FROM destinations WHERE type = 'local' AND partner_id = ?",
+    ],
+    [
+        'query' => "SELECT id AS source_id, title AS title, category AS destination_name, duration, price, IF(is_active = 1, 'active', 'inactive') AS status, created_at, 'Cruise' AS source, 'cruise' AS source_type FROM cruises WHERE partner_id = ?",
+    ],
+    [
+        'query' => "SELECT id AS source_id, title AS title, category AS destination_name, duration, price, IF(is_active = 1, 'active', 'inactive') AS status, created_at, 'Service' AS source, 'site_service' AS source_type, service_type FROM site_services WHERE partner_id = ?",
+    ],
+    [
+        'query' => "SELECT id AS source_id, title AS title, category AS destination_name, NULL AS duration, price, IF(is_active = 1, 'active', 'inactive') AS status, created_at, 'Visa' AS source, 'visa' AS source_type FROM visas WHERE partner_id = ?",
+    ],
+];
+
+foreach ($packageSources as $sourceConfig) {
+    try {
+        $stmt = $pdo->prepare($sourceConfig['query']);
+        $stmt->execute([$partnerId]);
+        $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        foreach ($rows as $row) {
+            $upload = [
+                'package_name' => $row['title'] ?? 'Untitled package',
+                'destination_name' => $row['destination_name'] ?? 'Not specified',
+                'duration' => $row['duration'] ?? '',
+                'price' => isset($row['price']) ? (float)$row['price'] : 0,
+                'upload_status' => $row['status'] ?? 'active',
+                'created_at' => $row['created_at'] ?? date('Y-m-d H:i:s'),
+                'source' => $row['source'] ?? 'Partner',
+                'source_type' => $row['source_type'] ?? 'partner_package',
+                'source_id' => $row['source_id'] ?? null,
+                'service_type' => $row['service_type'] ?? null,
+            ];
+            $upload['detail_url'] = getPartnerContentManagerDetailUrl($upload);
+            $uploads[] = $upload;
+        }
+    } catch (Throwable $e) {
+        // Ignore missing tables or read errors for optional partner content tables
+    }
+}
+
+usort($uploads, function ($a, $b) {
+    return strtotime($b['created_at']) <=> strtotime($a['created_at']);
+});
 
 $reportStmt = $pdo->prepare("SELECT * FROM partner_support_reports WHERE partner_id = ? ORDER BY created_at DESC LIMIT 5");
 $reportStmt->execute([$partnerId]);
@@ -275,20 +458,73 @@ $profile = $profileStmt->fetch();
 ensurePartnerBookingTracking($pdo);
 
 $partnerBookingStatsStmt = $pdo->prepare(
-    "SELECT COUNT(*) AS total_bookings, COALESCE(SUM(CASE WHEN payment_status = 'paid' OR booking_status IN ('confirmed','completed') THEN total_amount ELSE 0 END), 0) AS paid_revenue, COALESCE(SUM(CASE WHEN payment_status = 'unpaid' AND booking_status = 'pending' THEN total_amount ELSE 0 END), 0) AS pending_revenue FROM bookings WHERE partner_id = ? OR (partner_id IS NULL AND partner_company = ?)"
+    "SELECT COUNT(*) AS total_bookings,
+            COALESCE(SUM(CASE WHEN payment_status = 'paid' OR booking_status IN ('confirmed','completed') THEN total_amount ELSE 0 END), 0) AS paid_revenue,
+            COALESCE(SUM(CASE WHEN payment_status = 'unpaid' AND booking_status = 'pending' THEN total_amount ELSE 0 END), 0) AS pending_revenue
+     FROM bookings WHERE partner_id = ?"
 );
-$partnerBookingStatsStmt->execute([$partnerId, $partner['company_name'] ?? '']);
+$partnerBookingStatsStmt->execute([$partnerId]);
 $partnerBookingStats = $partnerBookingStatsStmt->fetch(PDO::FETCH_ASSOC) ?: [
     'total_bookings' => 0,
     'paid_revenue' => 0,
     'pending_revenue' => 0,
 ];
 
-$partnerBookingsStmt = $pdo->prepare(
-    "SELECT id, booking_number, full_name, package_name, partner_package_name, destination_name, total_amount, booking_status, payment_status, created_at FROM bookings WHERE partner_id = ? OR (partner_id IS NULL AND partner_company = ?) ORDER BY created_at DESC LIMIT 10"
+$recentBookingsStmt = $pdo->prepare(
+    "SELECT id, booking_number, full_name, package_name, partner_package_name, destination_name, total_amount, booking_status, payment_status, created_at
+     FROM bookings WHERE partner_id = ? ORDER BY created_at DESC LIMIT 10"
 );
-$partnerBookingsStmt->execute([$partnerId, $partner['company_name'] ?? '']);
-$partnerBookings = $partnerBookingsStmt->fetchAll();
+$recentBookingsStmt->execute([$partnerId]);
+$partnerBookings = $recentBookingsStmt->fetchAll();
+
+$paginatedBookings = [];
+$totalPages = 1;
+$currentPage = 1;
+$searchQuery = '';
+$statusFilter = '';
+
+if (($section ?? 'dashboard') === 'bookings') {
+    $searchQuery = trim($_GET['search'] ?? '');
+    $statusFilter = trim($_GET['status'] ?? '');
+    $currentPage = max(1, (int)($_GET['p'] ?? 1));
+    $limit = 10;
+    $offset = ($currentPage - 1) * $limit;
+
+    $whereClause = "partner_id = :partner_id";
+    $params = [
+        'partner_id' => $partnerId,
+    ];
+
+    if ($searchQuery !== '') {
+        $whereClause .= " AND (full_name LIKE :search OR package_name LIKE :search OR partner_package_name LIKE :search)";
+        $params['search'] = "%{$searchQuery}%";
+    }
+
+    if ($statusFilter !== '') {
+        $whereClause .= " AND booking_status = :status";
+        $params['status'] = $statusFilter;
+    }
+
+    $countStmt = $pdo->prepare("SELECT COUNT(*) FROM bookings WHERE {$whereClause}");
+    $countStmt->execute($params);
+    $totalBookingsCount = $countStmt->fetchColumn();
+    $totalPages = ceil($totalBookingsCount / $limit) ?: 1;
+
+    $paginatedBookingsStmt = $pdo->prepare(
+        "SELECT id, booking_number, package_name, partner_package_name, full_name, email, phone, number_of_travelers, travel_date, created_at, total_amount, payment_status, booking_status, payment_method 
+         FROM bookings 
+         WHERE {$whereClause} 
+         ORDER BY created_at DESC 
+         LIMIT :limit OFFSET :offset"
+    );
+    foreach ($params as $key => $val) {
+        $paginatedBookingsStmt->bindValue(":$key", $val);
+    }
+    $paginatedBookingsStmt->bindValue(':limit', $limit, PDO::PARAM_INT);
+    $paginatedBookingsStmt->bindValue(':offset', $offset, PDO::PARAM_INT);
+    $paginatedBookingsStmt->execute();
+    $paginatedBookings = $paginatedBookingsStmt->fetchAll(PDO::FETCH_ASSOC);
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -1073,6 +1309,98 @@ $partnerBookings = $partnerBookingsStmt->fetchAll();
             .mp-field-grid { grid-template-columns: 1fr; }
             .mp-card { padding: 20px; }
         }
+        .action-buttons {
+            display: flex;
+            gap: 10px;
+        }
+
+        .edit-btn,
+        .delete-btn,
+        .view-btn,
+        .approve-btn,
+        .reject-btn,
+        .incomplete-btn {
+            min-width: 36px;
+            height: 36px;
+            padding: 0 12px;
+            border-radius: 10px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            border: none;
+            cursor: pointer;
+            transition: var(--transition);
+            font-size: 0.85rem;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+
+        .edit-btn:empty,
+        .delete-btn:empty,
+        .view-btn:empty,
+        .approve-btn:empty,
+        .reject-btn:empty,
+        .incomplete-btn:empty,
+        .edit-btn i:only-child,
+        .delete-btn i:only-child,
+        .view-btn i:only-child,
+        .approve-btn i:only-child,
+        .reject-btn i:only-child,
+        .incomplete-btn i:only-child {
+            padding: 0;
+            width: 36px;
+        }
+
+        .edit-btn {
+            background: #fef3c7;
+            color: #d97706;
+        }
+
+        .edit-btn:hover {
+            background: #d97706;
+            color: white;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(217, 119, 6, 0.2);
+        }
+
+        .delete-btn {
+            background: #fee2e2;
+            color: #dc2626;
+        }
+
+        .delete-btn:hover {
+            background: #dc2626;
+            color: white;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(220, 38, 38, 0.2);
+        }
+
+        .view-btn {
+            background: #e0f2fe;
+            color: #0284c7;
+        }
+
+        .view-btn:hover {
+            background: #0284c7;
+            color: white;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(2, 132, 199, 0.2);
+        }
+
+        .approve-btn,
+        .confirm-btn {
+            background: #dcfce7;
+            color: #16a34a;
+        }
+
+        .approve-btn:hover,
+        .confirm-btn:hover {
+            background: #16a34a;
+            color: white;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(22, 163, 74, 0.2);
+        }
     </style>
 </head>
 <body>
@@ -1084,6 +1412,7 @@ $partnerBookings = $partnerBookingsStmt->fetchAll();
             </div>
             <nav class="nav-list">
                 <a href="partner-dashboard.php" class="<?= $section === 'dashboard' ? 'active' : '' ?>"><i class="fas fa-chart-pie"></i> Dashboard</a>
+                <a href="partner-dashboard.php?section=bookings" class="<?= $section === 'bookings' ? 'active' : '' ?>"><i class="fas fa-book-open"></i> Bookings</a>
                 <a href="partner-dashboard.php?section=profile" class="<?= $section === 'profile' ? 'active' : '' ?>"><i class="fas fa-user-tie"></i> My Profile</a>
                 <a href="partner-content-manager.php" class="nav-item"><i class="fas fa-edit"></i> Content Manager</a>
                 <a href="partner-dashboard.php?section=report-problems" class="<?= $section === 'report-problems' ? 'active' : '' ?>"><i class="fas fa-headset"></i> Report problems</a>
@@ -1097,10 +1426,13 @@ $partnerBookings = $partnerBookingsStmt->fetchAll();
         <main class="main-area">
             <div class="topbar">
                 <div>
-                    <h1><?= $section === 'partner-content-manager' ? 'Content Manager' : ($section === 'profile' ? 'My Profile' : ($section === 'report-problems' ? 'Report problems' : 'Dashboard')) ?></h1>
+                    <h1><?= $section === 'partner-content-manager' ? 'Content Manager' : ($section === 'bookings' ? 'Bookings' : ($section === 'profile' ? 'My Profile' : ($section === 'report-problems' ? 'Report problems' : 'Dashboard'))) ?></h1>
                     <p>Manage your partnership activity in a content-manager style workspace.</p>
                 </div>
                 <div class="top-actions">
+                    <?php if ($section === 'dashboard'): ?>
+                        <a class="pill-btn" href="partner-dashboard.php?section=bookings"><i class="fas fa-book-open"></i> View Bookings</a>
+                    <?php endif; ?>
                     <a class="pill-btn" href="partner-logout.php"><i class="fas fa-sign-out-alt"></i> Logout</a>
                 </div>
             </div>
@@ -1153,6 +1485,44 @@ $partnerBookings = $partnerBookingsStmt->fetchAll();
 
                 <section class="panel">
                     <div class="panel-head">
+                        <h3>Uploaded Packages</h3>
+                        <span class="muted">Packages created or uploaded through your partnership Content Manager</span>
+                    </div>
+                    <div class="table-wrap">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Package</th>
+                                    <th>Destination</th>
+                                    <th>Price</th>
+                                    <th>Status</th>
+                                    <th>Date</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php if (empty($uploads)): ?>
+                                    <tr><td colspan="5" class="muted">No packages uploaded yet. Use the Content Manager to add a package.</td></tr>
+                                <?php else: ?>
+                                    <?php foreach ($uploads as $upload): ?>
+                                        <tr>
+                                            <td>
+                                                <strong><?= htmlspecialchars($upload['package_name'] ?: 'Untitled package') ?></strong><br>
+                                                <span class="muted"><?= htmlspecialchars($upload['duration'] ?: 'Duration not added') ?></span>
+                                            </td>
+                                            <td><?= htmlspecialchars($upload['destination_name'] ?: 'Not specified') ?></td>
+                                            <td>₱<?= number_format((float)($upload['price'] ?? 0), 2) ?></td>
+                                            <td><span class="status-badge <?= htmlspecialchars($upload['upload_status']) ?>"><?= htmlspecialchars(ucfirst($upload['upload_status'] ?: 'pending')) ?></span></td>
+                                            <td><?= htmlspecialchars(date('M d, Y', strtotime($upload['created_at']))) ?></td>
+                                        </tr>
+                                    <?php endforeach; ?>
+                                <?php endif; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <section class="panel">
+                    <div class="panel-head">
                         <h3>Customer Booking Activity</h3>
                         <span class="muted">Packages booked by customers from your partnership listings</span>
                     </div>
@@ -1188,6 +1558,548 @@ $partnerBookings = $partnerBookingsStmt->fetchAll();
                             </tbody>
                         </table>
                     </div>
+                </section>
+            <?php elseif ($section === 'bookings'): ?>
+                <section class="panel">
+                    <div class="panel-head">
+                        <div>
+                            <h3>Bookings from Partner Packages</h3>
+                            <span class="muted">List of customer bookings for your uploaded partnership packages.</span>
+                        </div>
+                        <div style="display: flex; gap: 10px; align-items: center;">
+                            <button type="button" class="submit-btn" style="margin: 0; padding: 8px 16px; font-size: 0.9rem;" onclick="document.getElementById('addBookingModal').style.display='flex'">
+                                <i class="fas fa-plus"></i> Add Booking
+                            </button>
+                            <a class="pill-btn" href="partner-dashboard.php"><i class="fas fa-arrow-left"></i> Back to Dashboard</a>
+                        </div>
+                    </div>
+
+                    <form method="get" class="filter-form" style="display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap;">
+                        <input type="hidden" name="section" value="bookings">
+                        <input type="text" name="search" placeholder="Search by customer or package..." value="<?= htmlspecialchars($searchQuery) ?>" style="flex: 1; padding: 10px; border: 1px solid var(--border); border-radius: 6px;">
+                        <select name="status" style="padding: 10px; border: 1px solid var(--border); border-radius: 6px;">
+                            <option value="">All Statuses</option>
+                            <option value="pending" <?= $statusFilter === 'pending' ? 'selected' : '' ?>>Pending</option>
+                            <option value="confirmed" <?= $statusFilter === 'confirmed' ? 'selected' : '' ?>>Confirmed</option>
+                            <option value="completed" <?= $statusFilter === 'completed' ? 'selected' : '' ?>>Completed</option>
+                            <option value="cancelled" <?= $statusFilter === 'cancelled' ? 'selected' : '' ?>>Cancelled</option>
+                        </select>
+                        <button type="submit" class="submit-btn" style="padding: 10px 20px; margin: 0;"><i class="fas fa-search"></i> Search</button>
+                        <?php if ($searchQuery || $statusFilter): ?>
+                            <a href="?section=bookings" class="pill-btn" style="padding: 10px 20px; line-height: 1.5; text-decoration: none;">Clear</a>
+                        <?php endif; ?>
+                    </form>
+                    <!-- Stats Cards styled like admin dashboard -->
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 24px;">
+                        <div style="background: white; border-radius: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); border: 1px solid #f1f5f9; padding: 20px; display: flex; align-items: center; gap: 16px;">
+                            <div style="width: 52px; height: 52px; border-radius: 12px; background: #e3f2fd; display: flex; align-items: center; justify-content: center; font-size: 24px;">📦</div>
+                            <div>
+                                <div style="font-size: 0.72rem; color: #64748b; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">Total Bookings</div>
+                                <div style="font-size: 1.8rem; font-weight: 800; color: #1e293b; letter-spacing: -0.5px;"><?= (int)($partnerBookingStats['total_bookings'] ?? 0) ?></div>
+                            </div>
+                        </div>
+                        <div style="background: white; border-radius: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); border: 1px solid #f1f5f9; padding: 20px; display: flex; align-items: center; gap: 16px;">
+                            <div style="width: 52px; height: 52px; border-radius: 12px; background: #f0fdf4; display: flex; align-items: center; justify-content: center; font-size: 24px;">₱</div>
+                            <div>
+                                <div style="font-size: 0.72rem; color: #64748b; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">Paid Revenue</div>
+                                <div style="font-size: 1.8rem; font-weight: 800; color: #1e293b; letter-spacing: -0.5px;">₱<?= number_format((float)($partnerBookingStats['paid_revenue'] ?? 0), 2) ?></div>
+                            </div>
+                        </div>
+                        <div style="background: white; border-radius: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); border: 1px solid #f1f5f9; padding: 20px; display: flex; align-items: center; gap: 16px;">
+                            <div style="width: 52px; height: 52px; border-radius: 12px; background: #fffbeb; display: flex; align-items: center; justify-content: center; font-size: 24px;">⏳</div>
+                            <div>
+                                <div style="font-size: 0.72rem; color: #64748b; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">Pending Revenue</div>
+                                <div style="font-size: 1.8rem; font-weight: 800; color: #1e293b; letter-spacing: -0.5px;">₱<?= number_format((float)($partnerBookingStats['pending_revenue'] ?? 0), 2) ?></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Admin-style data table -->
+                    <div style="background: white; border-radius: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); border: 1px solid #f1f5f9; overflow: hidden; margin-top: 0;">
+                        <div style="padding: 20px 28px; border-bottom: 1px solid #f1f5f9; display: flex; justify-content: space-between; align-items: center; background: linear-gradient(to right, #fafafa, #ffffff);">
+                            <h2 style="font-size: 1.1rem; font-weight: 700; color: #1e293b; display: flex; align-items: center; gap: 10px; margin: 0;">
+                                <i class="fas fa-list-ul" style="color: hsl(35, 100%, 55%);"></i>
+                                All Bookings
+                                <span style="font-size: 0.85rem; color: #64748b; font-weight: 500;">(<?= count($paginatedBookings) ?> shown)</span>
+                            </h2>
+                        </div>
+                        <div style="width: 100%; overflow-x: auto;">
+                            <table style="width: 100%; border-collapse: separate; border-spacing: 0; min-width: 900px;">
+                                <thead>
+                                    <tr>
+                                        <th style="background: #f8fafc; padding: 14px 20px; font-size: 0.72rem; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 1px; border-bottom: 1px solid #f1f5f9; text-align: left;">PHONE</th>
+                                        <th style="background: #f8fafc; padding: 14px 20px; font-size: 0.72rem; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 1px; border-bottom: 1px solid #f1f5f9; text-align: left;">CUSTOMER</th>
+                                        <th style="background: #f8fafc; padding: 14px 20px; font-size: 0.72rem; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 1px; border-bottom: 1px solid #f1f5f9; text-align: left;">SERVICE #</th>
+                                        <th style="background: #f8fafc; padding: 14px 20px; font-size: 0.72rem; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 1px; border-bottom: 1px solid #f1f5f9; text-align: left;">APPLIED ON</th>
+                                        <th style="background: #f8fafc; padding: 14px 20px; font-size: 0.72rem; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 1px; border-bottom: 1px solid #f1f5f9; text-align: left;">PACKAGE</th>
+                                        <th style="background: #f8fafc; padding: 14px 20px; font-size: 0.72rem; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 1px; border-bottom: 1px solid #f1f5f9; text-align: left;">TRAVEL DATE</th>
+                                        <th style="background: #f8fafc; padding: 14px 20px; font-size: 0.72rem; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 1px; border-bottom: 1px solid #f1f5f9; text-align: center;">PAYMENT</th>
+                                        <th style="background: #f8fafc; padding: 14px 20px; font-size: 0.72rem; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 1px; border-bottom: 1px solid #f1f5f9; text-align: center;">STATUS</th>
+                                        <th style="background: #f8fafc; padding: 14px 20px; font-size: 0.72rem; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 1px; border-bottom: 1px solid #f1f5f9; text-align: center;">ACTIONS</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <?php if (empty($paginatedBookings)): ?>
+                                        <tr>
+                                            <td colspan="9" style="text-align: center; padding: 60px 20px; color: #64748b; font-size: 0.95rem;">
+                                                <div style="font-size: 3rem; margin-bottom: 12px;">📭</div>
+                                                <strong>No bookings found</strong><br>
+                                                <span style="font-size: 0.85rem;">No customer bookings match your current filters.</span>
+                                            </td>
+                                        </tr>
+                                    <?php else: ?>
+                                        <?php foreach ($paginatedBookings as $booking): ?>
+                                            <?php
+                                                $displayPackage = $booking['partner_package_name'] ?: $booking['package_name'];
+                                                $bStatus = strtolower($booking['booking_status'] ?: 'pending');
+                                                $pStatus = strtolower($booking['payment_status'] ?: 'unpaid');
+
+                                                // Booking status badge styles (matching admin dashboard)
+                                                $bBadgeStyle = match($bStatus) {
+                                                    'confirmed'  => 'background:#f0fdf4; color:#15803d; border:1px solid #bbf7d0;',
+                                                    'completed'  => 'background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe;',
+                                                    'cancelled'  => 'background:#fef2f2; color:#b91c1c; border:1px solid #fecaca;',
+                                                    default      => 'background:#fffbeb; color:#b45309; border:1px solid #fde68a;',
+                                                };
+                                                // Payment badge
+                                                $pBadgeStyle = $pStatus === 'paid'
+                                                    ? 'background:#f0fdf4; color:#15803d; border:1px solid #bbf7d0;'
+                                                    : 'background:#fffbeb; color:#b45309; border:1px solid #fde68a;';
+                                            ?>
+                                            <tr style="transition: background 0.2s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background=''">
+                                                <td style="padding: 16px 20px; font-size: 0.9rem; border-bottom: 1px solid #f1f5f9; color: #1e293b; font-weight: 700;">
+                                                    <?= htmlspecialchars($booking['phone'] ?: 'N/A') ?>
+                                                </td>
+                                                <td style="padding: 16px 20px; font-size: 0.9rem; border-bottom: 1px solid #f1f5f9; color: #1e293b;">
+                                                    <span style="font-weight: 700; color: #4f46e5;"><?= htmlspecialchars($booking['full_name'] ?: '—') ?></span>
+                                                </td>
+                                                <td style="padding: 16px 20px; font-size: 0.9rem; border-bottom: 1px solid #f1f5f9; color: #1e293b;">
+                                                    <strong><?= htmlspecialchars($booking['booking_number'] ?: '—') ?></strong>
+                                                </td>
+                                                <td style="padding: 16px 20px; font-size: 0.9rem; border-bottom: 1px solid #f1f5f9; color: #1e293b;">
+                                                    <div style="font-weight: 700; color: #1e293b;"><?= date('M j, Y', strtotime($booking['created_at'])) ?></div>
+                                                    <div style="font-size: 0.75rem; color: #64748b;"><?= date('h:i A', strtotime($booking['created_at'])) ?></div>
+                                                </td>
+                                                <td style="padding: 16px 20px; font-size: 0.9rem; border-bottom: 1px solid #f1f5f9; color: #334155;">
+                                                    <?= htmlspecialchars($displayPackage ?: 'Package not listed') ?>
+                                                </td>
+                                                <td style="padding: 16px 20px; font-size: 0.9rem; border-bottom: 1px solid #f1f5f9; color: #475569; font-weight: 600;">
+                                                    <?= htmlspecialchars($booking['travel_date'] ?: '—') ?>
+                                                </td>
+                                                <td style="padding: 16px 20px; font-size: 0.9rem; border-bottom: 1px solid #f1f5f9; text-align: center;">
+                                                    <span style="padding: 6px 14px; border-radius: 10px; font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; <?= $pBadgeStyle ?>">
+                                                        <?= strtoupper($pStatus) ?>
+                                                    </span>
+                                                </td>
+                                                <td style="padding: 16px 20px; font-size: 0.9rem; border-bottom: 1px solid #f1f5f9; text-align: center;">
+                                                    <span style="padding: 6px 14px; border-radius: 10px; font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; <?= $bBadgeStyle ?>">
+                                                        <?= strtoupper($bStatus) ?>
+                                                    </span>
+                                                </td>
+                                                <td style="padding: 16px 20px; font-size: 0.9rem; border-bottom: 1px solid #f1f5f9; text-align: center;">
+                                                    <div style="display: flex; gap: 8px; justify-content: center; align-items: center;">
+                                                        <button type="button" class="view-btn"
+                                                            onclick="openBookingDetailModal(<?= htmlspecialchars(json_encode($booking)) ?>)"
+                                                            title="Details">
+                                                            <i class="fas fa-eye"></i>
+                                                        </button>
+                                                        <button type="button" class="edit-btn"
+                                                            onclick="openEditBookingModal(<?= htmlspecialchars(json_encode($booking)) ?>)"
+                                                            title="Edit Booking">
+                                                            <i class="fas fa-edit"></i>
+                                                        </button>
+                                                        <button type="button" class="delete-btn"
+                                                            onclick="confirmDeleteBooking(<?= $booking['id'] ?>)"
+                                                            title="Delete Booking">
+                                                            <i class="fas fa-trash"></i>
+                                                        </button>
+                                                        <?php if ($bStatus === 'pending'): ?>
+                                                        <form method="post" action="partner-dashboard.php?section=bookings" style="display:inline;" onsubmit="return confirm('Confirm this booking?');">
+                                                            <input type="hidden" name="action" value="confirm_booking">
+                                                            <input type="hidden" name="booking_id" value="<?= $booking['id'] ?>">
+                                                            <button type="submit" class="approve-btn" title="Confirm Booking">
+                                                                <i class="fas fa-check"></i>
+                                                            </button>
+                                                        </form>
+                                                        <?php endif; ?>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        <?php endforeach; ?>
+                                    <?php endif; ?>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <?php if ($totalPages > 1): ?>
+                        <div style="display: flex; gap: 6px; margin-top: 20px; justify-content: flex-end;">
+                            <?php for ($i = 1; $i <= $totalPages; $i++): ?>
+                                <a href="?section=bookings&search=<?= urlencode($searchQuery) ?>&status=<?= urlencode($statusFilter) ?>&p=<?= $i ?>"
+                                   style="display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;border-radius:8px;text-decoration:none;font-size:0.85rem;font-weight:600;transition:all 0.2s;
+                                   <?= $i === $currentPage ? 'background:hsl(230,60%,50%);color:white;box-shadow:0 4px 12px rgba(59,70,163,0.3);' : 'background:white;color:#334155;border:1px solid #e2e8f0;' ?>">
+                                    <?= $i ?>
+                                </a>
+                            <?php endfor; ?>
+                        </div>
+                    <?php endif; ?>
+
+                    <!-- Add Booking Modal -->
+                    <div id="addBookingModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15,23,42,0.6); backdrop-filter: blur(8px); z-index: 9999; justify-content: center; align-items: center;">
+                        <div style="background: white; padding: 28px; border-radius: 20px; width: 90%; max-width: 560px; max-height: 90vh; overflow-y: auto; box-shadow: 0 25px 50px rgba(0,0,0,0.25); animation: slideIn 0.25s ease;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid #f1f5f9; padding-bottom: 16px;">
+                                <h3 style="margin: 0; color: #0f172a; font-size: 1.1rem;">Record Manual Booking</h3>
+                                <button type="button" onclick="document.getElementById('addBookingModal').style.display='none'" style="background: none; border: 1px solid #e2e8f0; border-radius: 8px; width:36px; height:36px; font-size: 1.2rem; cursor: pointer; color: #64748b;">×</button>
+                            </div>
+                            <form method="post" action="partner-dashboard.php?section=bookings">
+                                <input type="hidden" name="action" value="add_booking">
+                                
+                                <div class="form-group" style="margin-bottom: 15px;">
+                                    <label style="display: block; margin-bottom: 6px; font-weight: 600; font-size: 0.85rem; color: #374151; text-transform: uppercase; letter-spacing: 0.5px;">Package <span style="color:var(--danger)">*</span></label>
+                                    <select name="package_name" required style="width: 100%; padding: 10px 12px; border: 1.5px solid #e2e8f0; border-radius: 10px; font-family: inherit; font-size: 0.9rem;">
+                                        <option value="">-- Select a Package --</option>
+                                        <?php foreach ($uploads as $up): ?>
+                                            <option value="<?= $up['source_id'] ?>|<?= htmlspecialchars($up['package_name']) ?>"><?= htmlspecialchars($up['package_name']) ?> (<?= htmlspecialchars($up['source']) ?>)</option>
+                                        <?php endforeach; ?>
+                                        <option value="0|Custom/Offline Package">Custom/Offline Package</option>
+                                    </select>
+                                </div>
+                                
+                                <div class="form-group" style="margin-bottom: 15px;">
+                                    <label style="display: block; margin-bottom: 6px; font-weight: 600; font-size: 0.85rem; color: #374151; text-transform: uppercase; letter-spacing: 0.5px;">Customer Name <span style="color:var(--danger)">*</span></label>
+                                    <input type="text" name="full_name" required style="width: 100%; padding: 10px 12px; border: 1.5px solid #e2e8f0; border-radius: 10px; font-family: inherit; font-size: 0.9rem;">
+                                </div>
+                                
+                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+                                    <div class="form-group">
+                                        <label style="display: block; margin-bottom: 6px; font-weight: 600; font-size: 0.85rem; color: #374151; text-transform: uppercase; letter-spacing: 0.5px;">Email</label>
+                                        <input type="email" name="email" style="width: 100%; padding: 10px 12px; border: 1.5px solid #e2e8f0; border-radius: 10px; font-family: inherit; font-size: 0.9rem;">
+                                    </div>
+                                    <div class="form-group">
+                                        <label style="display: block; margin-bottom: 6px; font-weight: 600; font-size: 0.85rem; color: #374151; text-transform: uppercase; letter-spacing: 0.5px;">Phone</label>
+                                        <input type="text" name="phone" style="width: 100%; padding: 10px 12px; border: 1.5px solid #e2e8f0; border-radius: 10px; font-family: inherit; font-size: 0.9rem;">
+                                    </div>
+                                </div>
+                                
+                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+                                    <div class="form-group">
+                                        <label style="display: block; margin-bottom: 6px; font-weight: 600; font-size: 0.85rem; color: #374151; text-transform: uppercase; letter-spacing: 0.5px;">Travel Date</label>
+                                        <input type="date" name="travel_date" style="width: 100%; padding: 10px 12px; border: 1.5px solid #e2e8f0; border-radius: 10px; font-family: inherit; font-size: 0.9rem;">
+                                    </div>
+                                    <div class="form-group">
+                                        <label style="display: block; margin-bottom: 6px; font-weight: 600; font-size: 0.85rem; color: #374151; text-transform: uppercase; letter-spacing: 0.5px;">Travelers</label>
+                                        <input type="number" name="number_of_travelers" min="1" value="1" style="width: 100%; padding: 10px 12px; border: 1.5px solid #e2e8f0; border-radius: 10px; font-family: inherit; font-size: 0.9rem;">
+                                    </div>
+                                </div>
+                                
+                                <div class="form-group" style="margin-bottom: 15px;">
+                                    <label style="display: block; margin-bottom: 6px; font-weight: 600; font-size: 0.85rem; color: #374151; text-transform: uppercase; letter-spacing: 0.5px;">Total Amount (₱)</label>
+                                    <input type="number" step="0.01" name="total_amount" value="0" style="width: 100%; padding: 10px 12px; border: 1.5px solid #e2e8f0; border-radius: 10px; font-family: inherit; font-size: 0.9rem;">
+                                </div>
+                                
+                                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; margin-bottom: 25px;">
+                                    <div class="form-group">
+                                        <label style="display: block; margin-bottom: 6px; font-weight: 600; font-size: 0.85rem; color: #374151; text-transform: uppercase; letter-spacing: 0.5px;">Booking Status</label>
+                                        <select name="booking_status" style="width: 100%; padding: 10px 12px; border: 1.5px solid #e2e8f0; border-radius: 10px; font-family: inherit; font-size: 0.9rem;">
+                                            <option value="pending">Pending</option>
+                                            <option value="confirmed">Confirmed</option>
+                                            <option value="completed">Completed</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group">
+                                        <label style="display: block; margin-bottom: 6px; font-weight: 600; font-size: 0.85rem; color: #374151; text-transform: uppercase; letter-spacing: 0.5px;">Payment Status</label>
+                                        <select name="payment_status" style="width: 100%; padding: 10px 12px; border: 1.5px solid #e2e8f0; border-radius: 10px; font-family: inherit; font-size: 0.9rem;">
+                                            <option value="unpaid">Unpaid</option>
+                                            <option value="paid">Paid</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group">
+                                        <label style="display: block; margin-bottom: 6px; font-weight: 600; font-size: 0.85rem; color: #374151; text-transform: uppercase; letter-spacing: 0.5px;">Method</label>
+                                        <select name="payment_method" style="width: 100%; padding: 10px 12px; border: 1.5px solid #e2e8f0; border-radius: 10px; font-family: inherit; font-size: 0.9rem;">
+                                            <option value="cash">Cash</option>
+                                            <option value="bank_transfer">Bank Transfer</option>
+                                            <option value="credit_card">Credit Card</option>
+                                            <option value="other">Other</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                
+                                <div style="display: flex; justify-content: flex-end; gap: 10px;">
+                                    <button type="button" class="pill-btn" onclick="document.getElementById('addBookingModal').style.display='none'">Cancel</button>
+                                    <button type="submit" class="submit-btn" style="margin: 0;"><i class="fas fa-save"></i> Save Booking</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+
+                    <!-- Booking Detail Modal — matches admin dashboard "Booking and Customer Details" -->
+                    <div id="bookingDetailModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(15,23,42,0.6); backdrop-filter:blur(8px); z-index:10000; justify-content:center; align-items:center;">
+                        <div style="background:white; border-radius:20px; box-shadow:0 25px 50px rgba(0,0,0,0.25); max-width:700px; width:92%; max-height:90vh; overflow-y:auto; animation:slideIn 0.25s ease;">
+                            <!-- Header -->
+                            <div style="display:flex; align-items:center; gap:16px; padding:24px 28px; border-bottom:1px solid #f1f5f9; background:linear-gradient(to right,#fafafa,#ffffff); border-radius:20px 20px 0 0;">
+                                <div style="flex:1;">
+                                    <h2 style="margin:0;font-size:1.15rem;font-weight:700;color:#0f172a;" id="bm_modal_title">Booking and Customer Details</h2>
+                                </div>
+                                <button type="button" onclick="document.getElementById('bookingDetailModal').style.display='none'; document.body.style.overflow='';"
+                                    style="width:38px;height:38px;background:none;border:1px solid #e2e8f0;border-radius:10px;font-size:18px;cursor:pointer;color:#64748b;transition:all 0.2s;"
+                                    onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='none'">✕</button>
+                            </div>
+                            <!-- Body — matches admin's confirmation-details exactly -->
+                            <div style="padding:24px 28px;" id="bm_modal_body">
+                                <div class="confirmation-details" style="font-family:inherit;">
+                                    <h4 style="color:#1e293b;font-size:1.1rem;font-weight:800;border-bottom:2px solid #f1f5f9;padding-bottom:12px;margin-bottom:20px;display:flex;align-items:center;gap:8px;">
+                                        <i class="fas fa-ticket-alt" style="color:#0284c7;"></i>
+                                        <span id="bm_section_title">Booking and Customer Details</span>
+                                    </h4>
+                                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:25px;line-height:1.6;font-size:0.95rem;">
+                                        <div><strong style="color:#64748b;display:block;font-size:0.8rem;text-transform:uppercase;letter-spacing:0.5px;">Booking Number</strong> <span style="color:#0f172a;font-weight:600;" id="bm_id">—</span></div>
+                                        <div><strong style="color:#64748b;display:block;font-size:0.8rem;text-transform:uppercase;letter-spacing:0.5px;">Receipt Number</strong> <span style="color:#6366f1;font-weight:800;font-family:monospace;" id="bm_receipt">—</span></div>
+                                        <div><strong style="color:#64748b;display:block;font-size:0.8rem;text-transform:uppercase;letter-spacing:0.5px;">Booking Date</strong> <span style="color:#0f172a;font-weight:600;" id="bm_created">—</span></div>
+                                        <div><strong style="color:#64748b;display:block;font-size:0.8rem;text-transform:uppercase;letter-spacing:0.5px;">Customer Name</strong> <span style="color:#0f172a;font-weight:600;" id="bm_name">—</span></div>
+                                        <div style="min-width:0;"><strong style="color:#64748b;display:block;font-size:0.8rem;text-transform:uppercase;letter-spacing:0.5px;">Email</strong> <span style="color:#0f172a;font-weight:600;word-break:break-all;" id="bm_email">—</span></div>
+                                        <div><strong style="color:#64748b;display:block;font-size:0.8rem;text-transform:uppercase;letter-spacing:0.5px;">Phone</strong> <span style="color:#0f172a;font-weight:600;" id="bm_phone">—</span></div>
+                                        <div><strong style="color:#64748b;display:block;font-size:0.8rem;text-transform:uppercase;letter-spacing:0.5px;">Address</strong> <span style="color:#0f172a;font-weight:600;" id="bm_address">N/A</span></div>
+                                        <div><strong style="color:#64748b;display:block;font-size:0.8rem;text-transform:uppercase;letter-spacing:0.5px;">Location / Destination</strong> <span style="color:#0f172a;font-weight:600;" id="bm_destination">—</span></div>
+                                        <div><strong style="color:#64748b;display:block;font-size:0.8rem;text-transform:uppercase;letter-spacing:0.5px;">Package</strong> <span style="color:#0f172a;font-weight:600;" id="bm_package">—</span></div>
+                                        <div><strong style="color:#64748b;display:block;font-size:0.8rem;text-transform:uppercase;letter-spacing:0.5px;">Duration</strong> <span style="color:#0f172a;font-weight:600;" id="bm_duration">—</span></div>
+                                        <div><strong style="color:#64748b;display:block;font-size:0.8rem;text-transform:uppercase;letter-spacing:0.5px;">Travel Date</strong> <span style="color:#0f172a;font-weight:600;" id="bm_travel">—</span></div>
+                                        <div><strong style="color:#64748b;display:block;font-size:0.8rem;text-transform:uppercase;letter-spacing:0.5px;">Travelers</strong> <span style="color:#0f172a;font-weight:600;" id="bm_travelers">—</span></div>
+                                        <div><strong style="color:#64748b;display:block;font-size:0.8rem;text-transform:uppercase;letter-spacing:0.5px;">Price per Person</strong> <span style="color:#0f172a;font-weight:600;" id="bm_price_per_person">—</span></div>
+                                        <!-- Total Amount — full-width row -->
+                                        <div style="grid-column:1/-1;background:#f8fafc;padding:12px;border-radius:8px;display:flex;justify-content:space-between;align-items:center;border:1px solid #e2e8f0;margin-top:5px;">
+                                            <strong style="color:#1e293b;font-size:1rem;">Total Amount</strong>
+                                            <span style="color:#0284c7;font-weight:800;font-size:1.1rem;" id="bm_amount">—</span>
+                                        </div>
+                                        <!-- Status badges row -->
+                                        <div style="grid-column:1/-1;display:flex;justify-content:space-between;gap:0;align-items:flex-start;flex-wrap:wrap;padding:14px;background:#f8fafc;border-radius:10px;border:1px solid #e2e8f0;">
+                                            <div style="text-align:center;flex:1;"><strong style="color:#64748b;display:block;font-size:0.8rem;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">Visa Status</strong><span id="bm_visa_badge">—</span></div>
+                                            <div style="text-align:center;flex:1;"><strong style="color:#64748b;display:block;font-size:0.8rem;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">Booking Status</strong><span id="bm_status">—</span></div>
+                                            <div style="text-align:center;flex:1;"><strong style="color:#64748b;display:block;font-size:0.8rem;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">Payment Status</strong><span id="bm_payment_status">—</span></div>
+                                        </div>
+                                    </div>
+                                    <!-- Special Requests -->
+                                    <div id="bm_special_req_wrap" style="display:none;margin-top:20px;padding:16px;background:#eff6ff;border-radius:12px;border:1px solid #bfdbfe;">
+                                        <h5 style="margin:0 0 8px;color:#1e3a8a;font-weight:700;font-size:0.95rem;"><i class="fas fa-star" style="color:#3b82f6;margin-right:6px;"></i> Special Requests</h5>
+                                        <div style="font-size:0.9rem;line-height:1.6;color:#1e40af;" id="bm_special_req"></div>
+                                    </div>
+                                </div>
+                            </div>
+                            <!-- Footer -->
+                            <div style="padding:18px 28px;border-top:1px solid #f1f5f9;background:linear-gradient(to right,#fafafa,#ffffff);display:flex;gap:10px;justify-content:flex-end;border-radius:0 0 20px 20px;">
+                                <form id="bm_confirm_form" method="post" action="partner-dashboard.php?section=bookings" style="display:none;">
+                                    <input type="hidden" name="action" value="confirm_booking">
+                                    <input type="hidden" name="booking_id" id="bm_confirm_id" value="">
+                                    <button type="submit" class="confirm-btn" onclick="return confirm('Confirm this booking?')" style="height:40px;padding:0 20px;font-size:0.9rem;font-weight:700;">
+                                        <i class="fas fa-check"></i> Confirm Booking
+                                    </button>
+                                </form>
+                                <button type="button" onclick="document.getElementById('bookingDetailModal').style.display='none'; document.body.style.overflow='';"
+                                    style="height:40px;padding:0 20px;border-radius:10px;display:inline-flex;align-items:center;gap:8px;border:1px solid #e2e8f0;cursor:pointer;background:#e2e8f0;color:#334155;font-weight:600;font-size:0.9rem;transition:all 0.3s;"
+                                    onmouseover="this.style.background='#cbd5e1'" onmouseout="this.style.background='#e2e8f0'">
+                                    Close
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+
+                    <script>
+                    function openBookingDetailModal(b) {
+                        const fmt = (v) => v || 'N/A';
+                        const fmtDate = (v) => {
+                            if (!v || v === '0000-00-00' || v === '0000-00-00 00:00:00') return '—';
+                            return new Date(v).toLocaleDateString('en-PH', {year:'numeric', month:'long', day:'numeric'});
+                        };
+                        const fmtMoney = (v) => {
+                            const n = parseFloat(v);
+                            return isNaN(n) ? '₱0.00' : '₱' + n.toLocaleString('en-PH', {minimumFractionDigits:2});
+                        };
+                        const escHtml = (s) => s ? String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') : '';
+
+                        // Header
+                        document.getElementById('bm_modal_title').textContent = 'Booking and Customer Details';
+                        document.getElementById('bm_section_title').textContent = 'Booking and Customer Details';
+
+                        // Fields
+                        document.getElementById('bm_id').textContent = b.booking_number || b.id || '—';
+                        document.getElementById('bm_receipt').textContent = 'HD-REC-' + String(b.id || 0).padStart(6, '0');
+                        document.getElementById('bm_created').textContent = fmtDate(b.created_at);
+                        document.getElementById('bm_name').textContent = fmt(b.full_name);
+                        document.getElementById('bm_email').textContent = fmt(b.email);
+                        document.getElementById('bm_phone').textContent = fmt(b.phone);
+                        document.getElementById('bm_address').textContent = b.address || 'N/A';
+                        document.getElementById('bm_destination').textContent = fmt(b.destination_name || b.package_location);
+                        document.getElementById('bm_package').textContent = fmt(b.partner_package_name || b.package_name);
+                        document.getElementById('bm_duration').textContent = fmt(b.package_duration);
+                        document.getElementById('bm_travel').textContent = fmtDate(b.travel_date);
+                        document.getElementById('bm_travelers').textContent = b.number_of_travelers || '—';
+                        document.getElementById('bm_price_per_person').textContent = fmtMoney(b.price_per_person || 0);
+                        document.getElementById('bm_amount').textContent = fmtMoney(b.total_amount);
+
+                        // Booking status badge — matching admin style
+                        const bStatus = (b.booking_status || 'pending').toLowerCase();
+                        const bBadgeColors = {
+                            confirmed: 'background:#f0fdf4;color:#15803d;border:1px solid #bbf7d0;',
+                            completed: 'background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;',
+                            cancelled:  'background:#fef2f2;color:#b91c1c;border:1px solid #fecaca;',
+                            pending:    'background:#fffbeb;color:#b45309;border:1px solid #fde68a;'
+                        };
+                        const bBadge = bBadgeColors[bStatus] || bBadgeColors.pending;
+                        document.getElementById('bm_status').innerHTML = `<span style="display:inline-flex;align-items:center;padding:6px 14px;border-radius:10px;font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;box-shadow:0 2px 4px rgba(0,0,0,0.05);${bBadge}">${bStatus.toUpperCase()}</span>`;
+
+                        // Payment status badge
+                        const pStatus = (b.payment_status || 'unpaid').toLowerCase();
+                        const pBadge = pStatus === 'paid'
+                            ? 'background:#f0fdf4;color:#15803d;border:1px solid #bbf7d0;'
+                            : 'background:#fffbeb;color:#b45309;border:1px solid #fde68a;';
+                        document.getElementById('bm_payment_status').innerHTML = `<span style="display:inline-flex;align-items:center;padding:6px 14px;border-radius:10px;font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;box-shadow:0 2px 4px rgba(0,0,0,0.05);${pBadge}">${pStatus.toUpperCase()}</span>`;
+
+                        // Visa status badge
+                        const vRaw = (b.visa_status || 'PENDING').toUpperCase();
+                        const vBadge = vRaw === 'APPROVED' ? 'background:#f0fdf4;color:#15803d;border:1px solid #bbf7d0;'
+                                     : vRaw === 'DECLINED'  ? 'background:#fef2f2;color:#b91c1c;border:1px solid #fecaca;'
+                                                            : 'background:#fffbeb;color:#b45309;border:1px solid #fde68a;';
+                        document.getElementById('bm_visa_badge').innerHTML = `<span style="display:inline-flex;align-items:center;padding:6px 14px;border-radius:10px;font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;box-shadow:0 2px 4px rgba(0,0,0,0.05);${vBadge}">${vRaw}</span>`;
+
+                        // Special requests
+                        const srWrap = document.getElementById('bm_special_req_wrap');
+                        if (b.special_requests) {
+                            document.getElementById('bm_special_req').textContent = b.special_requests;
+                            srWrap.style.display = 'block';
+                        } else {
+                            srWrap.style.display = 'none';
+                        }
+
+                        // Show Confirm button only for pending bookings
+                        document.getElementById('bm_confirm_id').value = b.id;
+                        document.getElementById('bm_confirm_form').style.display = bStatus === 'pending' ? 'inline-flex' : 'none';
+
+                        document.getElementById('bookingDetailModal').style.display = 'flex';
+                        document.body.style.overflow = 'hidden';
+                    }
+
+                    document.getElementById('bookingDetailModal').addEventListener('click', function(e) {
+                        if (e.target === this) { this.style.display='none'; document.body.style.overflow=''; }
+                    });
+                    document.addEventListener('keydown', function(e) {
+                        if (e.key==='Escape') {
+                            document.getElementById('bookingDetailModal').style.display='none';
+                            document.getElementById('editBookingModal').style.display='none';
+                            document.body.style.overflow='';
+                        }
+                    });
+
+                    // ── Edit Booking Modal ────────────────────────────────
+                    function openEditBookingModal(b) {
+                        document.getElementById('edit_booking_id').value       = b.id;
+                        document.getElementById('edit_booking_status').value   = b.booking_status || 'pending';
+                        document.getElementById('edit_payment_status').value   = b.payment_status || 'unpaid';
+                        document.getElementById('edit_payment_method').value   = b.payment_method || 'cash';
+                        document.getElementById('edit_total_amount').value     = b.total_amount || 0;
+                        document.getElementById('edit_travel_date').value      = b.travel_date || '';
+                        document.getElementById('edit_travelers').value        = b.number_of_travelers || 1;
+                        document.getElementById('edit_bm_label').textContent   = '#' + (b.booking_number || b.id);
+                        document.getElementById('edit_customer_name').textContent = b.full_name || '—';
+                        document.getElementById('editBookingModal').style.display = 'flex';
+                        document.body.style.overflow = 'hidden';
+                    }
+
+                    document.getElementById('editBookingModal').addEventListener('click', function(e) {
+                        if (e.target === this) { this.style.display='none'; document.body.style.overflow=''; }
+                    });
+
+                    // ── Delete Booking ────────────────────────────────────
+                    function confirmDeleteBooking(id) {
+                        if (!confirm('Are you sure you want to delete this booking? This action cannot be undone.')) return;
+                        document.getElementById('delete_booking_id').value = id;
+                        document.getElementById('deleteBookingForm').submit();
+                    }
+                    </script>
+
+                    <!-- Edit Booking Modal (matching admin dashboard style) -->
+                    <div id="editBookingModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(15,23,42,0.6); backdrop-filter:blur(8px); z-index:10000; justify-content:center; align-items:center;">
+                        <div style="background:white; border-radius:20px; box-shadow:0 25px 50px rgba(0,0,0,0.25); max-width:560px; width:92%; max-height:88vh; overflow-y:auto; animation:slideIn 0.25s ease;">
+                            <!-- Header -->
+                            <div style="display:flex; align-items:center; gap:16px; padding:24px 28px; border-bottom:1px solid #f1f5f9; background:linear-gradient(to right,#fafafa,#ffffff); border-radius:20px 20px 0 0;">
+                                <div style="width:48px;height:48px;background:linear-gradient(135deg,#f59e0b,#d97706);border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:22px;">✏️</div>
+                                <div style="flex:1;">
+                                    <h2 style="margin:0;font-size:1.1rem;font-weight:700;color:#0f172a;">Edit Booking <span id="edit_bm_label" style="color:#d97706;"></span></h2>
+                                    <p style="margin:4px 0 0;font-size:0.8rem;color:#64748b;">Customer: <span id="edit_customer_name" style="font-weight:600;color:#1e293b;"></span></p>
+                                </div>
+                                <button onclick="document.getElementById('editBookingModal').style.display='none'; document.body.style.overflow='';"
+                                    style="width:38px;height:38px;background:none;border:1px solid #e2e8f0;border-radius:10px;font-size:18px;cursor:pointer;color:#64748b;transition:all 0.2s;"
+                                    onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='none'">✕</button>
+                            </div>
+                            <!-- Form -->
+                            <form method="post" action="partner-dashboard.php?section=bookings" style="padding:24px 28px;">
+                                <input type="hidden" name="action" value="edit_booking">
+                                <input type="hidden" name="booking_id" id="edit_booking_id" value="">
+
+                                <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px;">
+                                    <div>
+                                        <label style="display:block;margin-bottom:6px;font-weight:700;font-size:0.8rem;color:#374151;text-transform:uppercase;letter-spacing:0.5px;">Booking Status</label>
+                                        <select name="booking_status" id="edit_booking_status" style="width:100%;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:10px;font-family:inherit;font-size:0.9rem;background:white;">
+                                            <option value="pending">Pending</option>
+                                            <option value="confirmed">Confirmed</option>
+                                            <option value="completed">Completed</option>
+                                            <option value="cancelled">Cancelled</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label style="display:block;margin-bottom:6px;font-weight:700;font-size:0.8rem;color:#374151;text-transform:uppercase;letter-spacing:0.5px;">Payment Status</label>
+                                        <select name="payment_status" id="edit_payment_status" style="width:100%;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:10px;font-family:inherit;font-size:0.9rem;background:white;">
+                                            <option value="unpaid">Unpaid</option>
+                                            <option value="paid">Paid</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px;">
+                                    <div>
+                                        <label style="display:block;margin-bottom:6px;font-weight:700;font-size:0.8rem;color:#374151;text-transform:uppercase;letter-spacing:0.5px;">Payment Method</label>
+                                        <select name="payment_method" id="edit_payment_method" style="width:100%;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:10px;font-family:inherit;font-size:0.9rem;background:white;">
+                                            <option value="cash">Cash</option>
+                                            <option value="bank_transfer">Bank Transfer</option>
+                                            <option value="credit_card">Credit Card</option>
+                                            <option value="other">Other</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label style="display:block;margin-bottom:6px;font-weight:700;font-size:0.8rem;color:#374151;text-transform:uppercase;letter-spacing:0.5px;">Total Amount (₱)</label>
+                                        <input type="number" step="0.01" name="total_amount" id="edit_total_amount" style="width:100%;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:10px;font-family:inherit;font-size:0.9rem;">
+                                    </div>
+                                </div>
+
+                                <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:24px;">
+                                    <div>
+                                        <label style="display:block;margin-bottom:6px;font-weight:700;font-size:0.8rem;color:#374151;text-transform:uppercase;letter-spacing:0.5px;">Travel Date</label>
+                                        <input type="date" name="travel_date" id="edit_travel_date" style="width:100%;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:10px;font-family:inherit;font-size:0.9rem;">
+                                    </div>
+                                    <div>
+                                        <label style="display:block;margin-bottom:6px;font-weight:700;font-size:0.8rem;color:#374151;text-transform:uppercase;letter-spacing:0.5px;">Travelers</label>
+                                        <input type="number" min="1" name="number_of_travelers" id="edit_travelers" style="width:100%;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:10px;font-family:inherit;font-size:0.9rem;">
+                                    </div>
+                                </div>
+
+                                <div style="display:flex; gap:10px; justify-content:flex-end; border-top:1px solid #f1f5f9; padding-top:20px;">
+                                    <button type="button" onclick="document.getElementById('editBookingModal').style.display='none'; document.body.style.overflow='';"
+                                        style="height:40px;padding:0 20px;border-radius:10px;border:1px solid #e2e8f0;cursor:pointer;background:#f8fafc;color:#334155;font-weight:600;font-size:0.9rem;transition:all 0.2s;"
+                                        onmouseover="this.style.background='#e2e8f0'" onmouseout="this.style.background='#f8fafc'">Cancel</button>
+                                    <button type="submit"
+                                        style="height:40px;padding:0 20px;border-radius:10px;border:none;cursor:pointer;background:linear-gradient(135deg,#f59e0b,#d97706);color:white;font-weight:700;font-size:0.9rem;transition:all 0.2s;display:inline-flex;align-items:center;gap:8px;"
+                                        onmouseover="this.style.opacity='0.9';this.style.transform='translateY(-1px)'" onmouseout="this.style.opacity='1';this.style.transform=''">
+                                        <i class="fas fa-save"></i> Save Changes
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+
+                    <!-- Hidden Delete Form -->
+                    <form id="deleteBookingForm" method="post" action="partner-dashboard.php?section=bookings" style="display:none;">
+                        <input type="hidden" name="action" value="delete_booking">
+                        <input type="hidden" name="booking_id" id="delete_booking_id" value="">
+                    </form>
                 </section>
             <?php elseif ($section === 'partner-content-manager'): ?>
                 <section class="panel">

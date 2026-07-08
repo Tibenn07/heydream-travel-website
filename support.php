@@ -76,12 +76,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($_FILES['screenshot']['error'] !== UPLOAD_ERR_OK) {
             $errors[] = 'Screenshot upload failed. Please try again.';
         } else {
-            $allowed = ['jpg' => true, 'jpeg' => true, 'png' => true];
+            $allowedExtToMime = ['jpg' => 'image/jpeg', 'jpeg' => 'image/jpeg', 'png' => 'image/png'];
             $ext = strtolower(pathinfo($_FILES['screenshot']['name'], PATHINFO_EXTENSION));
-            if (!isset($allowed[$ext])) {
-                $errors[] = 'Screenshot must be a PNG or JPG image.';
+            if (!isset($allowedExtToMime[$ext])) {
+                $errors[] = 'Screenshot must be a JPG or PNG image.';
             } elseif ($_FILES['screenshot']['size'] > 5 * 1024 * 1024) {
                 $errors[] = 'Screenshot must be under 5MB.';
+            } elseif (function_exists('finfo_open')) {
+                // Verify the actual file content, not just its extension/filename — this is
+                // standard PHP (fileinfo has shipped enabled by default since PHP 5.3), so it
+                // works the same on any server. Guarded anyway in case a host disables it,
+                // so the form still works (falling back to the extension check above) instead
+                // of breaking entirely.
+                $finfo = finfo_open(FILEINFO_MIME_TYPE);
+                $actualMime = finfo_file($finfo, $_FILES['screenshot']['tmp_name']);
+                finfo_close($finfo);
+                if (!in_array($actualMime, ['image/jpeg', 'image/png'], true)) {
+                    $errors[] = 'Screenshot must be a genuine JPG or PNG image (no GIF, JFIF, or other formats).';
+                }
             }
         }
     }
@@ -894,7 +906,7 @@ $prefillPhone = $currentUser['phone'] ?? '';
                             <button type="button" class="btn-change" onclick="event.stopPropagation(); document.getElementById('screenshot').click();">Change</button>
                             <button type="button" class="btn-remove" onclick="event.stopPropagation(); removeScreenshot();">Remove</button>
                         </div>
-                        <input type="file" name="screenshot" id="screenshot" accept="image/png,image/jpeg" style="display:none;" onchange="handleScreenshotChange(this)">
+                        <input type="file" name="screenshot" id="screenshot" accept=".jpg,.jpeg,.png" style="display:none;" onchange="handleScreenshotChange(this)">
                     </div>
 
                     <div class="urgent-toggle">
@@ -1002,6 +1014,16 @@ $prefillPhone = $currentUser['phone'] ?? '';
         function handleScreenshotChange(input) {
             if (!input.files || !input.files[0]) return;
             const file = input.files[0];
+            // Check the filename extension, not just file.type — browsers often report
+            // .jfif/.pjp/.pjpeg files as "image/jpeg" too, so a MIME-only check would
+            // wrongly let them through here even though the server rejects them by extension.
+            const extMatch = /\.([a-z0-9]+)$/i.exec(file.name || '');
+            const ext = extMatch ? extMatch[1].toLowerCase() : '';
+            if (!['jpg', 'jpeg', 'png'].includes(ext)) {
+                alert('Screenshot must be a .jpg, .jpeg, or .png file (no .gif, .jfif, .pjp, or other formats).');
+                input.value = '';
+                return;
+            }
             if (file.size > 5 * 1024 * 1024) {
                 alert('Screenshot must be under 5MB.');
                 input.value = '';

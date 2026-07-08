@@ -109,7 +109,10 @@ function initHomePackages(destinationsData) {
                 promo_start: dest.promo_start,
                 promo_end: dest.promo_end,
                 blocked_months: dest.blocked_months,
-                highlight_duration: parseInt(dest.highlight_duration || 1)
+                highlight_duration: parseInt(dest.highlight_duration || 1),
+                partner_id: dest.partner_id ?? null,
+                partner_company: dest.partner_company || null,
+                partner_source: dest.partner_source || null
             };
         });
     }
@@ -1342,6 +1345,10 @@ function sendHomeBookingToServer(btn, originalText, paymentMethodName, paymentRe
     formData.append('special_requests', homeBookingData.specialRequests);
     formData.append('total_amount', finalAmount);
     formData.append('currency', window.currentHomeDestCurrency || '₱');
+    if (window.currentHomeDest?.partner_id) formData.append('partner_id', window.currentHomeDest.partner_id);
+    if (window.currentHomeDest?.partner_company) formData.append('partner_company', window.currentHomeDest.partner_company);
+    if (window.currentHomeDest?.partner_source) formData.append('partner_source', window.currentHomeDest.partner_source);
+    if (window.currentHomeDest?.name) formData.append('partner_package_name', window.currentHomeDest.name);
     formData.append('payment_method', homeSelectedPayment);
     if (paymentRef) formData.append('payment_reference', paymentRef);
     if (appliedVoucher) {
@@ -1462,7 +1469,12 @@ function handleHomeBooking(event, destinationId, price, destinationName, duratio
             travel_date: travelDate,
             number_of_travelers: travelers,
             special_requests: specialRequests,
-            total_amount: totalAmount
+            total_amount: totalAmount,
+            currency: window.currentHomeDestCurrency || '₱',
+            partner_id: window.currentHomeDest?.partner_id ?? null,
+            partner_company: window.currentHomeDest?.partner_company ?? null,
+            partner_package_name: window.currentHomeDest?.name ?? null,
+            partner_source: window.currentHomeDest?.partner_source ?? null
         })
     })
         .then(response => response.json())

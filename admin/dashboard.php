@@ -53,6 +53,47 @@ $totalRevenuePeso = $pdo->query("SELECT SUM(total_amount) FROM bookings WHERE pa
 $totalUsers = $pdo->query("SELECT COUNT(*) FROM users")->fetchColumn();
 $totalDestinations = $pdo->query("SELECT COUNT(*) FROM destinations")->fetchColumn();
 
+// Daily booking counts for a 14-day window (for the bookings trend chart)
+// Window starts at $bookingsChartStartDate and covers that date + the next 13 days.
+// The start date can never be later than "today - 13 days", so the window never reaches into the future.
+$bookingsChartMaxStart = date('Y-m-d', strtotime('-13 days'));
+$bookingsChartStartDate = $_GET['start_date'] ?? $bookingsChartMaxStart;
+$validStart = DateTime::createFromFormat('Y-m-d', $bookingsChartStartDate);
+if (!$validStart || $validStart->format('Y-m-d') !== $bookingsChartStartDate || $bookingsChartStartDate > $bookingsChartMaxStart) {
+    $bookingsChartStartDate = $bookingsChartMaxStart;
+}
+$bookingsChartEndDate = date('Y-m-d', strtotime($bookingsChartStartDate . ' +13 days'));
+
+$dailyBookingsRaw = $pdo->prepare("SELECT DATE(created_at) as booking_date, COUNT(*) as total
+    FROM bookings
+    WHERE DATE(created_at) BETWEEN ? AND ?
+    GROUP BY DATE(created_at)");
+$dailyBookingsRaw->execute([$bookingsChartStartDate, $bookingsChartEndDate]);
+$dailyBookingsRaw = $dailyBookingsRaw->fetchAll(PDO::FETCH_KEY_PAIR);
+
+$dailyBookingsLast14 = [];
+for ($i = 0; $i < 14; $i++) {
+    $d = date('Y-m-d', strtotime($bookingsChartStartDate . " +{$i} days"));
+    $dailyBookingsLast14[$d] = (int) ($dailyBookingsRaw[$d] ?? 0);
+}
+$bookingsChartLabels = array_map(fn($d) => date('M j', strtotime($d)), array_keys($dailyBookingsLast14));
+$bookingsChartData = array_values($dailyBookingsLast14);
+$bookingsChartTotal = array_sum($bookingsChartData);
+$bookingsChartAvg = $bookingsChartTotal > 0 ? round($bookingsChartTotal / 14, 1) : 0;
+$bookingsChartPeak = $bookingsChartData ? max($bookingsChartData) : 0;
+$bookingsChartPeakDateLabel = null;
+if ($bookingsChartPeak > 0) {
+    $peakIndex = array_search($bookingsChartPeak, $bookingsChartData, true);
+    $peakDateKey = array_keys($dailyBookingsLast14)[$peakIndex];
+    $bookingsChartPeakDateLabel = date('M j, Y', strtotime($peakDateKey));
+}
+$bookingsChartRangeLabel = date('M j', strtotime($bookingsChartStartDate)) . ' – ' . date('M j, Y', strtotime($bookingsChartEndDate));
+
+// Year range for the "Month" view's year selector
+$bookingsChartCurrentYear = (int) date('Y');
+$bookingsChartMinYearRow = $pdo->query("SELECT MIN(YEAR(created_at)) as minY FROM bookings")->fetch();
+$bookingsChartMinYear = ($bookingsChartMinYearRow && $bookingsChartMinYearRow['minY']) ? (int) $bookingsChartMinYearRow['minY'] : $bookingsChartCurrentYear;
+
 // Get pending requests count for badge
 $pendingRequestsCount = 0;
 if ($_SESSION['admin_role'] === 'super_admin') {
@@ -104,6 +145,7 @@ $unreadMessagesCount = $stmtMessagesCount ? $stmtMessagesCount->fetchColumn() : 
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
     <style>
         :root {
             --primary-hsl: 230, 60%, 50%;
@@ -528,10 +570,257 @@ $unreadMessagesCount = $stmtMessagesCount ? $stmtMessagesCount->fetchColumn() : 
             color: var(--accent);
         }
 
+        /* --- Booking Trends chart card --- */
+        .chart-card-body {
+            padding: 24px 30px;
+        }
+
+        .chart-mode-toggle {
+            display: inline-flex;
+            gap: 4px;
+            background: var(--bg);
+            border: 1px solid #f1f5f9;
+            border-radius: 12px;
+            padding: 4px;
+            margin-bottom: 18px;
+        }
+
+        .chart-mode-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            border: none;
+            background: transparent;
+            color: var(--text-muted);
+            font-family: 'Poppins', sans-serif;
+            font-size: 0.85rem;
+            font-weight: 600;
+            border-radius: 9px;
+            padding: 9px 18px;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .chart-mode-btn:hover {
+            color: var(--text-main);
+        }
+
+        .chart-mode-btn.is-active {
+            background: var(--card-bg);
+            color: var(--primary);
+            box-shadow: var(--shadow-sm);
+        }
+
+        .chart-filter-row {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: flex-end;
+            gap: 12px;
+            margin-bottom: 22px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid #f1f5f9;
+        }
+
+        .chart-filter-field {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .chart-filter-field label {
+            font-size: 0.72rem;
+            color: var(--text-muted);
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .chart-filter-hint {
+            font-size: 0.72rem;
+            color: var(--text-muted);
+            font-weight: 500;
+            font-style: italic;
+        }
+
+        .chart-filter-field input[type="date"],
+        .chart-filter-field select {
+            font-family: 'Poppins', sans-serif;
+            font-size: 0.88rem;
+            color: var(--text-main);
+            background: var(--card-bg);
+            border: 1.5px solid #e2e8f0;
+            border-radius: 10px;
+            padding: 9px 12px;
+            transition: var(--transition);
+            cursor: pointer;
+        }
+
+        .chart-filter-field input[type="date"]:focus,
+        .chart-filter-field select:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px hsla(var(--primary-hsl), 0.15);
+        }
+
+        .chart-filter-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            border: none;
+            border-radius: 10px;
+            padding: 10px 18px;
+            font-family: 'Poppins', sans-serif;
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .chart-filter-apply {
+            background: var(--primary);
+            color: white;
+        }
+
+        .chart-filter-apply:hover {
+            background: var(--primary-dark);
+        }
+
+        .chart-filter-apply:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .chart-filter-reset {
+            background: var(--bg);
+            color: var(--text-muted);
+            border: 1.5px solid #e2e8f0;
+        }
+
+        .chart-filter-reset:hover {
+            background: #f1f5f9;
+            color: var(--text-main);
+        }
+
+        .chart-range-label {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--primary);
+            background: hsla(var(--primary-hsl), 0.08);
+            border-radius: 999px;
+            padding: 8px 14px;
+            margin-left: auto;
+        }
+
+        .chart-filter-error {
+            display: none;
+            width: 100%;
+            font-size: 0.78rem;
+            color: #ef4444;
+            font-weight: 600;
+        }
+
+        .chart-summary-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+
+        .chart-summary-item {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            background: var(--bg);
+            border: 1px solid #f1f5f9;
+            border-radius: 12px;
+            padding: 12px 20px;
+            min-width: 140px;
+        }
+
+        .chart-summary-label {
+            font-size: 0.72rem;
+            color: var(--text-muted);
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .chart-summary-value {
+            font-size: 1.5rem;
+            font-weight: 800;
+            color: var(--text-main);
+            letter-spacing: -0.5px;
+        }
+
+        .chart-summary-sub {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            font-weight: 600;
+        }
+
+        .chart-canvas-wrap {
+            position: relative;
+            height: 280px;
+            width: 100%;
+        }
+
+        @media (max-width: 640px) {
+            .chart-card-body {
+                padding: 20px;
+            }
+
+            .chart-filter-row {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .chart-filter-field input[type="date"] {
+                width: 100%;
+            }
+
+            .chart-range-label {
+                margin-left: 0;
+                justify-content: center;
+            }
+
+            .chart-summary-item {
+                flex: 1 1 auto;
+                min-width: 100px;
+                padding: 10px 14px;
+            }
+
+            .chart-summary-value {
+                font-size: 1.2rem;
+            }
+
+            .chart-canvas-wrap {
+                height: 220px;
+            }
+        }
+
         .table-responsive {
             width: 100%;
             overflow-x: auto;
             scrollbar-width: thin;
+        }
+
+        /* All Active Bookings table: no visible scrollbar, click-and-drag to pan left/right instead */
+        #bookingsTableScroll {
+            scrollbar-width: none;
+            -ms-overflow-style: none;
+            cursor: grab;
+        }
+
+        #bookingsTableScroll::-webkit-scrollbar {
+            display: none;
+        }
+
+        #bookingsTableScroll.is-dragging {
+            cursor: grabbing;
+            user-select: none;
         }
 
         table {
@@ -1857,6 +2146,69 @@ $unreadMessagesCount = $stmtMessagesCount ? $stmtMessagesCount->fetchColumn() : 
 
             <div class="data-table">
                 <div class="table-header">
+                    <h2><i class="fas fa-chart-column"></i> Booking Trends</h2>
+                    <button class="edit-btn" onclick="document.querySelector('[data-page=\'bookings\']').click()"><i
+                            class="fas fa-eye"></i> View All</button>
+                </div>
+                <div class="chart-card-body">
+                    <div class="chart-mode-toggle" role="tablist">
+                        <button type="button" class="chart-mode-btn is-active" id="bookingsModeDayBtn" data-mode="day">
+                            <i class="fas fa-calendar-day"></i> Day
+                        </button>
+                        <button type="button" class="chart-mode-btn" id="bookingsModeMonthBtn" data-mode="month">
+                            <i class="fas fa-calendar"></i> Month
+                        </button>
+                    </div>
+                    <div class="chart-filter-row">
+                        <div class="chart-filter-field" id="bookingsDayFilterField">
+                            <label for="bookingsStartDate">Start Date</label>
+                            <input type="date" id="bookingsStartDate"
+                                value="<?= htmlspecialchars($bookingsChartStartDate) ?>"
+                                max="<?= htmlspecialchars($bookingsChartMaxStart) ?>">
+                            <span class="chart-filter-hint">Shows this date + the next 13 days (14 days total)</span>
+                        </div>
+                        <div class="chart-filter-field" id="bookingsYearFilterField" style="display:none;">
+                            <label for="bookingsYearSelect">Year</label>
+                            <select id="bookingsYearSelect">
+                                <?php for ($y = $bookingsChartCurrentYear; $y >= $bookingsChartMinYear; $y--): ?>
+                                    <option value="<?= $y ?>"><?= $y ?></option>
+                                <?php endfor; ?>
+                            </select>
+                        </div>
+                        <button type="button" class="chart-filter-btn chart-filter-apply" id="bookingsFilterApply">
+                            <i class="fas fa-check"></i> <span id="bookingsFilterApplyText">Click to Apply</span>
+                        </button>
+                        <button type="button" class="chart-filter-btn chart-filter-reset" id="bookingsFilterReset">
+                            <i class="fas fa-rotate-left"></i> Reset
+                        </button>
+                        <span class="chart-range-label" id="bookingsRangeLabel">
+                            <i class="fas fa-calendar-days"></i> <span id="bookingsRangeLabelText"><?= htmlspecialchars($bookingsChartRangeLabel) ?></span>
+                        </span>
+                        <span class="chart-filter-error" id="bookingsFilterError"></span>
+                    </div>
+                    <div class="chart-summary-row">
+                        <div class="chart-summary-item">
+                            <span class="chart-summary-label">Total in Range</span>
+                            <span class="chart-summary-value" id="bookingsTotalValue"><?= $bookingsChartTotal ?></span>
+                        </div>
+                        <div class="chart-summary-item">
+                            <span class="chart-summary-label" id="bookingsAvgLabel">Daily Average</span>
+                            <span class="chart-summary-value" id="bookingsAvgValue"><?= $bookingsChartAvg ?></span>
+                        </div>
+                        <div class="chart-summary-item">
+                            <span class="chart-summary-label" id="bookingsPeakLabel">Busiest Day</span>
+                            <span class="chart-summary-value" id="bookingsPeakValue"><?= $bookingsChartPeak ?></span>
+                            <span class="chart-summary-sub" id="bookingsPeakDateValue"><?= $bookingsChartPeakDateLabel ? htmlspecialchars($bookingsChartPeakDateLabel) : 'No bookings yet' ?></span>
+                        </div>
+                    </div>
+                    <div class="chart-canvas-wrap">
+                        <canvas id="bookingsTrendChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <div class="data-table">
+                <div class="table-header">
                     <h2><i class="fas fa-clock"></i> Recent Bookings</h2>
                 </div>
                 <div class="table-responsive">
@@ -1920,130 +2272,6 @@ $unreadMessagesCount = $stmtMessagesCount ? $stmtMessagesCount->fetchColumn() : 
                 </div>
             </div>
 
-            <div class="data-table" style="margin-top: 30px;">
-                <div class="table-header">
-                    <h2><i class="fas fa-users"></i> Recent Customer Bookings</h2>
-                    <button class="edit-btn" onclick="document.querySelector('[data-page=\'bookings\']').click()"><i
-                            class="fas fa-eye"></i> View All</button>
-                </div>
-                <div class="table-responsive">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Phone</th>
-                                <th>Customer Name</th>
-                                <th>Service #</th>
-                                <th>Travel Documents</th>
-                                <th>Email</th>
-                                <th>Destination</th>
-                                <th>Package</th>
-                                <th>Travel Date</th>
-                                <th>Travelers</th>
-                                <th>Total</th>
-                                <th>Visa</th>
-                                <th>Status</th>
-                                <th>Payment Info</th>
-                                <th style="text-align: center;">ACTION</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <?php
-                            $stmt = $pdo->prepare("SELECT * FROM bookings ORDER BY created_at DESC LIMIT 10");
-                            $stmt->execute();
-                            $recentCustomerBookings = $stmt->fetchAll();
-                            foreach ($recentCustomerBookings as $booking):
-                                $statusClass = '';
-                                switch ($booking['booking_status']) {
-                                    case 'pending':
-                                        $statusClass = 'status-pending';
-                                        break;
-                                    case 'confirmed':
-                                        $statusClass = 'status-confirmed';
-                                        break;
-                                    case 'cancelled':
-                                        $statusClass = 'status-cancelled';
-                                        break;
-                                    case 'completed':
-                                        $statusClass = 'status-completed';
-                                        break;
-                                }
-                                $paymentMethodDisplay = $booking['payment_method'] ? ucfirst($booking['payment_method']) : '-';
-                                $paymentRefDisplay = $booking['payment_reference'] ? '<br><small>Ref: ' . htmlspecialchars($booking['payment_reference']) . '</small>' : '';
-
-                                // Use real data from database consistently
-                                $contactNum = (!empty($booking['contact_number']) && $booking['contact_number'] !== 'N/A')
-                                    ? $booking['contact_number']
-                                    : (!empty($booking['phone']) ? $booking['phone'] : 'N/A');
-                                ?>
-                                <tr>
-                                    <td><?= htmlspecialchars($contactNum) ?></td>
-                                    <td onclick="viewUserHistory('<?= $booking['email'] ?>', '<?= htmlspecialchars($booking['full_name'], ENT_QUOTES) ?>')"
-                                        style="cursor: pointer; color: var(--primary); font-weight: 600;"
-                                        title="Click to view travel history">
-                                        <?= htmlspecialchars($booking['full_name']) ?>
-                                    </td>
-                                    <td><strong><?= $booking['booking_number'] ?></strong></td>
-                                    <td>
-                                        <span
-                                            class="status-badge <?= ($booking['travel_documents'] == 1) ? 'status-confirmed' : 'status-pending' ?>">
-                                            <i
-                                                class="fas <?= ($booking['travel_documents'] == 1) ? 'fa-check-circle' : 'fa-clock' ?>"></i>
-                                            <?= ($booking['travel_documents'] == 1) ? 'PREPARED' : 'PENDING' ?>
-                                        </span>
-                                    </td>
-                                    <td><?= htmlspecialchars($booking['email']) ?></td>
-                                    <td><?= htmlspecialchars($booking['destination_name']) ?></td>
-                                    <td><?= htmlspecialchars($booking['package_name']) ?>
-                                        (<?= $booking['package_duration'] ?>)</td>
-                                    <td><?= date('M d, Y', strtotime($booking['travel_date'])) ?></td>
-                                    <td><?= $booking['number_of_travelers'] ?></td>
-                                    <td><?= ((strpos($booking['booking_number'], 'FO-') === 0 || strpos($booking['booking_number'], 'FOR-') === 0) ? '$' : '₱') . number_format($booking['total_amount'], 2) ?>
-                                    </td>
-                                    <td>
-                                        <span
-                                            class="status-badge status-<?= (strtolower($booking['visa_status'] ?? 'PENDING') === 'approved') ? 'confirmed' : ((strtolower($booking['visa_status'] ?? 'PENDING') === 'declined') ? 'cancelled' : 'pending') ?>">
-                                            <?php
-                                            $isVisaRelated = ($booking['destination_name'] === 'Visa Assistance' ||
-                                                stripos($booking['package_name'] ?? '', 'Visa') !== false ||
-                                                (isset($booking['booking_number']) && (strpos($booking['booking_number'], 'FO-') === 0 || strpos($booking['booking_number'], 'FL-') === 0 || strpos($booking['booking_number'], 'VI-') === 0)));
-
-                                            $vStatus = strtoupper($booking['visa_status'] ?? 'PENDING');
-                                            if ($vStatus === 'PAID') {
-                                                $vStatus = 'APPROVED';
-                                            }
-                                            $isVisaMatch = ($vStatus === 'APPROVED' || $vStatus === 'N/A' || !$isVisaRelated);
-                                            echo $vStatus;
-                                            ?>
-                                        </span>
-                                    </td>
-                                    <td><span
-                                            class="status-badge <?= $statusClass ?>"><?= ucfirst($booking['booking_status']) ?></span>
-                                    </td>
-                                    <td <?= ($booking['payment_status'] === 'paid') ? 'onclick="showReceiptAlert(' . $booking['id'] . ')"' : '' ?>
-                                        style="<?= ($booking['payment_status'] === 'paid') ? 'cursor: pointer;' : '' ?>">
-                                        <?= $paymentMethodDisplay ?>     <?= $paymentRefDisplay ?>
-                                    </td>
-                                    <td class="action-buttons">
-                                        <button class="view-btn" onclick="viewBookingConfirmation(<?= $booking['id'] ?>)"
-                                            title="Details">
-                                            <i class="fas fa-file-alt"></i>
-                                            <span>Details</span>
-                                        </button>
-                                        <button class="edit-btn" onclick="editBooking(<?= $booking['id'] ?>)" title="Edit">
-                                            <i class="fas fa-edit"></i>
-                                            <span>Edit</span>
-                                        </button>
-                                        <button type="button" class="delete-btn" onclick="event.stopPropagation(); deleteBooking(<?= (int)($booking['id'] ?? 0) ?>, <?= htmlspecialchars(json_encode((string)($booking['booking_number'] ?? '')), ENT_QUOTES, 'UTF-8') ?>)" title="Delete">
-                                            <i class="fas fa-trash"></i>
-                                            <span>Delete</span>
-                                        </button>
-                                    </td>
-                                </tr>
-                            <?php endforeach; ?>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
         </div>
 
 
@@ -2133,7 +2361,7 @@ $unreadMessagesCount = $stmtMessagesCount ? $stmtMessagesCount->fetchColumn() : 
                         </button>
                     <?php endif; ?>
                 </div>
-                <div class="table-responsive">
+                <div class="table-responsive" id="bookingsTableScroll">
                     <table>
                         <thead>
                             <tr>
@@ -6539,6 +6767,238 @@ $unreadMessagesCount = $stmtMessagesCount ? $stmtMessagesCount->fetchColumn() : 
             if (typeof updateFilterBadges === 'function') {
                 updateFilterBadges();
             }
+        });
+    </script>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const chartCanvas = document.getElementById('bookingsTrendChart');
+            if (!chartCanvas || typeof Chart === 'undefined') return;
+
+            const initialLabels = <?= json_encode($bookingsChartLabels) ?>;
+            const initialData = <?= json_encode($bookingsChartData) ?>;
+            const maxStartDate = <?= json_encode($bookingsChartMaxStart) ?>;
+
+            // Matches the --primary / --accent values defined in :root above.
+            // (Custom properties that reference other var()s can't be read back
+            // resolved via getPropertyValue, so the theme colors are mirrored here.)
+            const primary = 'hsl(230, 60%, 50%)';
+            const accent = 'hsl(35, 100%, 55%)';
+
+            const bookingsChart = new Chart(chartCanvas.getContext('2d'), {
+                type: 'bar',
+                data: {
+                    labels: initialLabels,
+                    datasets: [{
+                        label: 'Bookings',
+                        data: initialData,
+                        backgroundColor: primary,
+                        hoverBackgroundColor: accent,
+                        borderRadius: 8,
+                        maxBarThickness: 36
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    animation: { duration: 400 },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            backgroundColor: '#0f172a',
+                            titleFont: { family: 'Poppins', weight: '600' },
+                            bodyFont: { family: 'Poppins' },
+                            padding: 10,
+                            cornerRadius: 8,
+                            callbacks: {
+                                label: function (ctx) {
+                                    const n = ctx.parsed.y;
+                                    return n + (n === 1 ? ' booking' : ' bookings');
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: { precision: 0, font: { family: 'Poppins' }, color: '#64748b' },
+                            grid: { color: '#f1f5f9' }
+                        },
+                        x: {
+                            ticks: { font: { family: 'Poppins' }, color: '#64748b' },
+                            grid: { display: false }
+                        }
+                    }
+                }
+            });
+
+            const startInput = document.getElementById('bookingsStartDate');
+            const yearSelect = document.getElementById('bookingsYearSelect');
+            const dayField = document.getElementById('bookingsDayFilterField');
+            const yearField = document.getElementById('bookingsYearFilterField');
+            const modeDayBtn = document.getElementById('bookingsModeDayBtn');
+            const modeMonthBtn = document.getElementById('bookingsModeMonthBtn');
+            const applyBtn = document.getElementById('bookingsFilterApply');
+            const resetBtn = document.getElementById('bookingsFilterReset');
+            const errorEl = document.getElementById('bookingsFilterError');
+            const rangeLabelText = document.getElementById('bookingsRangeLabelText');
+            const totalEl = document.getElementById('bookingsTotalValue');
+            const avgEl = document.getElementById('bookingsAvgValue');
+            const avgLabelEl = document.getElementById('bookingsAvgLabel');
+            const peakEl = document.getElementById('bookingsPeakValue');
+            const peakLabelEl = document.getElementById('bookingsPeakLabel');
+            const peakDateEl = document.getElementById('bookingsPeakDateValue');
+
+            if (!startInput || !yearSelect) return;
+            startInput.max = maxStartDate;
+
+            let currentMode = 'day';
+            const defaultYear = yearSelect.value;
+
+            function showFilterError(message) {
+                errorEl.textContent = message;
+                errorEl.style.display = message ? 'block' : 'none';
+            }
+
+            function setMode(mode) {
+                currentMode = mode;
+                showFilterError('');
+                modeDayBtn.classList.toggle('is-active', mode === 'day');
+                modeMonthBtn.classList.toggle('is-active', mode === 'month');
+                dayField.style.display = mode === 'day' ? 'flex' : 'none';
+                yearField.style.display = mode === 'month' ? 'flex' : 'none';
+                avgLabelEl.textContent = mode === 'day' ? 'Daily Average' : 'Monthly Average';
+                peakLabelEl.textContent = mode === 'day' ? 'Busiest Day' : 'Busiest Month';
+
+                if (mode === 'day') {
+                    loadBookingTrends({ period: 'day', startDate: startInput.value || maxStartDate });
+                } else {
+                    loadBookingTrends({ period: 'month', year: yearSelect.value || defaultYear });
+                }
+            }
+
+            async function loadBookingTrends(params) {
+                showFilterError('');
+                applyBtn.disabled = true;
+                try {
+                    const qs = params.period === 'month'
+                        ? `period=month&year=${encodeURIComponent(params.year)}`
+                        : `start_date=${encodeURIComponent(params.startDate)}`;
+                    const res = await fetch(`admin-api.php?action=get_booking_trends&${qs}`);
+                    const result = await res.json();
+                    if (!result.success) {
+                        showFilterError(result.message || 'Unable to load that data.');
+                        return;
+                    }
+                    bookingsChart.data.labels = result.labels;
+                    bookingsChart.data.datasets[0].data = result.data;
+                    bookingsChart.update();
+
+                    totalEl.textContent = result.total;
+                    avgEl.textContent = result.avg;
+                    peakEl.textContent = result.peak;
+                    peakDateEl.textContent = result.peakDateLabel || 'No bookings yet';
+                    rangeLabelText.textContent = result.rangeLabel;
+                    if (result.period === 'day') {
+                        startInput.value = result.startDate;
+                    } else {
+                        yearSelect.value = result.year;
+                    }
+                } catch (e) {
+                    showFilterError('Something went wrong loading that data. Please try again.');
+                } finally {
+                    applyBtn.disabled = false;
+                }
+            }
+
+            modeDayBtn.addEventListener('click', () => setMode('day'));
+            modeMonthBtn.addEventListener('click', () => setMode('month'));
+
+            applyBtn.addEventListener('click', function () {
+                if (currentMode === 'day') {
+                    const chosen = startInput.value;
+                    if (!chosen) {
+                        showFilterError('Please choose a start date.');
+                        return;
+                    }
+                    if (chosen > maxStartDate) {
+                        showFilterError(`Start date can be at most ${maxStartDate} so the 14-day range doesn't go past today.`);
+                        startInput.value = maxStartDate;
+                        return;
+                    }
+                    loadBookingTrends({ period: 'day', startDate: chosen });
+                } else {
+                    loadBookingTrends({ period: 'month', year: yearSelect.value });
+                }
+            });
+
+            resetBtn.addEventListener('click', function () {
+                if (currentMode === 'day') {
+                    startInput.value = maxStartDate;
+                    loadBookingTrends({ period: 'day', startDate: maxStartDate });
+                } else {
+                    yearSelect.value = defaultYear;
+                    loadBookingTrends({ period: 'month', year: defaultYear });
+                }
+            });
+
+            startInput.addEventListener('change', function () {
+                if (startInput.value > maxStartDate) {
+                    showFilterError(`Start date can be at most ${maxStartDate} so the 14-day range doesn't go past today.`);
+                    startInput.value = maxStartDate;
+                } else {
+                    showFilterError('');
+                }
+            });
+        });
+    </script>
+
+    <script>
+        // All Active Bookings table: click-and-drag horizontal panning (no visible scrollbar)
+        document.addEventListener('DOMContentLoaded', function () {
+            const scroller = document.getElementById('bookingsTableScroll');
+            if (!scroller) return;
+
+            let isDown = false;
+            let startX = 0;
+            let startScrollLeft = 0;
+            let dragged = false;
+            const DRAG_THRESHOLD = 5;
+
+            scroller.addEventListener('mousedown', function (e) {
+                isDown = true;
+                dragged = false;
+                startX = e.pageX;
+                startScrollLeft = scroller.scrollLeft;
+            });
+
+            document.addEventListener('mousemove', function (e) {
+                if (!isDown) return;
+                const delta = e.pageX - startX;
+                if (Math.abs(delta) > DRAG_THRESHOLD) {
+                    dragged = true;
+                    scroller.classList.add('is-dragging');
+                }
+                if (dragged) {
+                    e.preventDefault();
+                    scroller.scrollLeft = startScrollLeft - delta;
+                }
+            });
+
+            document.addEventListener('mouseup', function () {
+                isDown = false;
+                scroller.classList.remove('is-dragging');
+            });
+
+            // Suppress the click (row/button activation) that follows an actual drag,
+            // without affecting normal clicks/taps that never moved the mouse.
+            scroller.addEventListener('click', function (e) {
+                if (dragged) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    dragged = false;
+                }
+            }, true);
         });
     </script>
 </body>

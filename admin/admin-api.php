@@ -2010,6 +2010,119 @@ EOF;
             }
             break;
 
+        case 'get_booking_trends':
+            debugLog("Processing get_booking_trends");
+
+            $period = ($_GET['period'] ?? 'day') === 'month' ? 'month' : 'day';
+
+            if ($period === 'month') {
+                $currentYear = (int) date('Y');
+                $minYearRow = $pdo->query("SELECT MIN(YEAR(created_at)) as minY FROM bookings")->fetch();
+                $minYear = $minYearRow && $minYearRow['minY'] ? (int) $minYearRow['minY'] : $currentYear;
+
+                $requestedYear = (int) ($_GET['year'] ?? $currentYear);
+                if ($requestedYear < 2000 || $requestedYear > $currentYear) {
+                    echo json_encode(['success' => false, 'message' => 'Year must be between ' . $minYear . ' and ' . $currentYear . '.']);
+                    break;
+                }
+
+                $stmt = $pdo->prepare("SELECT MONTH(created_at) as m, COUNT(*) as total
+                    FROM bookings
+                    WHERE YEAR(created_at) = ?
+                    GROUP BY MONTH(created_at)");
+                $stmt->execute([$requestedYear]);
+                $rawCounts = $stmt->fetchAll(PDO::FETCH_KEY_PAIR);
+
+                $labels = [];
+                $data = [];
+                $peak = 0;
+                $peakMonth = 1;
+                for ($m = 1; $m <= 12; $m++) {
+                    $count = (int) ($rawCounts[$m] ?? 0);
+                    $labels[] = date('M', mktime(0, 0, 0, $m, 1));
+                    $data[] = $count;
+                    if ($count > $peak) {
+                        $peak = $count;
+                        $peakMonth = $m;
+                    }
+                }
+
+                $total = array_sum($data);
+                $avg = $total > 0 ? round($total / 12, 1) : 0;
+
+                echo json_encode([
+                    'success' => true,
+                    'labels' => $labels,
+                    'data' => $data,
+                    'total' => $total,
+                    'avg' => $avg,
+                    'peak' => $peak,
+                    'peakDateLabel' => $peak > 0 ? date('F Y', mktime(0, 0, 0, $peakMonth, 1, $requestedYear)) : null,
+                    'rangeLabel' => 'Year ' . $requestedYear,
+                    'minYear' => $minYear,
+                    'maxYear' => $currentYear,
+                    'year' => $requestedYear,
+                    'period' => 'month',
+                ]);
+                break;
+            }
+
+            $maxStartDate = date('Y-m-d', strtotime('-13 days'));
+            $requestedStart = $_GET['start_date'] ?? $maxStartDate;
+
+            $startDateTime = DateTime::createFromFormat('Y-m-d', $requestedStart);
+            if (!$startDateTime || $startDateTime->format('Y-m-d') !== $requestedStart) {
+                echo json_encode(['success' => false, 'message' => 'Invalid start date.']);
+                break;
+            }
+            if ($requestedStart > $maxStartDate) {
+                echo json_encode(['success' => false, 'message' => 'Start date cannot be later than ' . date('M j, Y', strtotime($maxStartDate)) . ' (14 days must fit within today).']);
+                break;
+            }
+
+            $startDate = $requestedStart;
+            $endDate = date('Y-m-d', strtotime($startDate . ' +13 days'));
+
+            $stmt = $pdo->prepare("SELECT DATE(created_at) as booking_date, COUNT(*) as total
+                FROM bookings
+                WHERE DATE(created_at) BETWEEN ? AND ?
+                GROUP BY DATE(created_at)");
+            $stmt->execute([$startDate, $endDate]);
+            $rawCounts = $stmt->fetchAll(PDO::FETCH_KEY_PAIR);
+
+            $labels = [];
+            $data = [];
+            $peak = 0;
+            $peakDate = $startDate;
+            for ($i = 0; $i < 14; $i++) {
+                $d = date('Y-m-d', strtotime($startDate . " +{$i} days"));
+                $count = (int) ($rawCounts[$d] ?? 0);
+                $labels[] = date('M j', strtotime($d));
+                $data[] = $count;
+                if ($count > $peak) {
+                    $peak = $count;
+                    $peakDate = $d;
+                }
+            }
+
+            $total = array_sum($data);
+            $avg = $total > 0 ? round($total / 14, 1) : 0;
+
+            echo json_encode([
+                'success' => true,
+                'labels' => $labels,
+                'data' => $data,
+                'total' => $total,
+                'avg' => $avg,
+                'peak' => $peak,
+                'peakDateLabel' => $peak > 0 ? date('M j, Y', strtotime($peakDate)) : null,
+                'rangeLabel' => date('M j', strtotime($startDate)) . ' – ' . date('M j, Y', strtotime($endDate)),
+                'maxStartDate' => $maxStartDate,
+                'startDate' => $startDate,
+                'period' => 'day',
+            ]);
+            break;
+
         default:
             debugLog("Invalid action: " . $action);
             echo json_encode(['success' => false, 'message' => 'Invalid action']);

@@ -95,6 +95,14 @@ foreach ($home_local_destinations as &$dest) {
     } else {
         $dest['hotels'] = [];
     }
+
+    if (!empty($dest['partner_id'])) {
+        $dest['partner_source'] = 'partner_package';
+        $dest['partner_package_name'] = $dest['name'];
+    } else {
+        $dest['partner_source'] = null;
+        $dest['partner_package_name'] = null;
+    }
 }
 
 

@@ -4429,9 +4429,15 @@ async function aiGenerateSubject() {
 // ── REPORTED ISSUES MANAGEMENT STATE ───────────────────────────
 let currentReportedIssues = [];
 let currentIssueFilter = 'All';
+let criticalFirstSort = false;
 
 function setIssueFilter(filterName) {
     currentIssueFilter = filterName;
+    renderReportedIssues();
+}
+
+function toggleCriticalFirstSort() {
+    criticalFirstSort = document.getElementById('criticalFirstToggle')?.checked ?? !criticalFirstSort;
     renderReportedIssues();
 }
 
@@ -4520,6 +4526,13 @@ function renderReportedIssues() {
         filtered = [...currentReportedIssues].sort((a, b) => priority[a.status] - priority[b.status]);
     }
 
+    // "Critical First" toggle: re-sort so Critical severity tickets are always at the top,
+    // regardless of status. Overrides the status-based grouping/dividers while active.
+    if (criticalFirstSort) {
+        const severityRank = { 'Critical': 0, 'High': 1, 'Medium': 2, 'Low': 3 };
+        filtered = [...filtered].sort((a, b) => (severityRank[a.severity] ?? 4) - (severityRank[b.severity] ?? 4));
+    }
+
     if (filtered.length === 0) {
         tbody.innerHTML = `
             <tr>
@@ -4535,7 +4548,7 @@ function renderReportedIssues() {
     let lastStatus = null;
     tbody.innerHTML = filtered.map(issue => {
         let dividerHtml = '';
-        if (currentIssueFilter === 'All' && issue.status !== lastStatus) {
+        if (currentIssueFilter === 'All' && !criticalFirstSort && issue.status !== lastStatus) {
             lastStatus = issue.status;
             let sectionTitle = 'Pending Tickets';
             let sectionColor = '#ef4444';
@@ -4580,7 +4593,7 @@ function renderReportedIssues() {
 
         return `
             ${dividerHtml}
-            <tr style="border-bottom: 1px solid #e2e8f0; font-size: 0.8rem; vertical-align: top;">
+            <tr onclick="viewIssueDetails(${issue.id})" style="border-bottom: 1px solid #e2e8f0; font-size: 0.8rem; vertical-align: top; cursor: pointer;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background=''">
                 <td style="padding: 15px 10px; font-weight: bold; color: #0f172a;">#${issue.id}</td>
                 <td style="padding: 15px 10px;">
                     <strong style="color: #0f172a; display:block;">${escapeHTML(issue.name)}</strong>
@@ -4589,8 +4602,9 @@ function renderReportedIssues() {
                 </td>
                 <td style="padding: 15px 10px;"><span style="background: #f1f5f9; color: #334155; padding: 3px 8px; border-radius: 6px; font-size: 0.75rem; font-weight: 600;">${escapeHTML(issue.category)}</span></td>
                 <td style="padding: 15px 10px;">
-                    <span style="color: ${severityColor}; font-weight: 700; display: inline-flex; align-items: center; gap: 4px;">
-                        <i class="fas fa-circle" style="font-size: 0.5rem;"></i> ${escapeHTML(issue.severity)}
+                    <span style="display: inline-flex; align-items: center; gap: 8px;">
+                        <span style="width: 4px; height: 18px; border-radius: 2px; background: ${severityColor}; flex-shrink: 0; ${issue.severity === 'Critical' ? 'box-shadow: 0 0 6px ' + severityColor + ';' : ''}"></span>
+                        <span style="color: ${severityColor}; font-weight: 700;">${escapeHTML(issue.severity)}</span>
                     </span>
                 </td>
                 <td style="padding: 15px 10px; max-width: 320px; line-height: 1.4; color: #334155;">
@@ -4598,7 +4612,7 @@ function renderReportedIssues() {
                 </td>
                 <td style="padding: 15px 10px;">${statusBadge}</td>
                 <td style="padding: 15px 10px; color: #64748b; font-size: 0.75rem;">${parseMySQLDate(issue.created_at).toLocaleString()}</td>
-                <td style="padding: 15px 10px; text-align: right;">
+                <td style="padding: 15px 10px; text-align: right;" onclick="event.stopPropagation()">
                     <div style="display: flex; justify-content: flex-end; gap: 6px; flex-wrap: wrap;">
                         <select onchange="updateIssueStatus(${issue.id}, this.value)" style="padding: 4px 8px; font-size: 0.75rem; border-radius: 6px; border: 1px solid #cbd5e1; background: white; cursor: pointer;">
                             <option value="Pending" ${issue.status === 'Pending' ? 'selected' : ''}>Pending</option>
@@ -4611,6 +4625,59 @@ function renderReportedIssues() {
             </tr>
         `;
     }).join('');
+}
+
+function viewIssueDetails(id) {
+    const issue = currentReportedIssues.find(i => i.id == id);
+    if (!issue) return;
+
+    const hasScreenshot = !!issue.screenshot_path;
+    const noScreenshotHtml = `<div style="padding: 28px; text-align: center; color: #94a3b8; background: #f8fafc; border-radius: 10px; border: 1px dashed #cbd5e1;"><i class="fas fa-image" style="font-size: 1.8rem; display: block; margin-bottom: 8px;"></i>No screenshot attached</div>`;
+
+    Swal.fire({
+        title: `Ticket #${issue.id}`,
+        html: `
+            <div style="text-align: left; font-size: 0.88rem; line-height: 1.7; color: #334155;">
+                <p><strong>Reporter:</strong> ${escapeHTML(issue.name)} &lt;${escapeHTML(issue.email)}&gt;</p>
+                <p><strong>Contact:</strong> ${escapeHTML(issue.contact || 'No phone provided')}</p>
+                <p><strong>Category:</strong> ${escapeHTML(issue.category)} &nbsp;&middot;&nbsp; <strong>Severity:</strong> ${escapeHTML(issue.severity)} &nbsp;&middot;&nbsp; <strong>Status:</strong> ${escapeHTML(issue.status)}</p>
+                <p><strong>Submitted:</strong> ${parseMySQLDate(issue.created_at).toLocaleString()}</p>
+                <p style="margin-top: 12px;"><strong>Description:</strong></p>
+                <div style="white-space: pre-wrap; background: #f8fafc; padding: 12px; border-radius: 10px; border: 1px solid #e2e8f0;">${escapeHTML(issue.description)}</div>
+                <p style="margin-top: 14px;"><strong>Screenshot:</strong></p>
+                <div id="issueScreenshotContainer" style="display: flex; flex-direction: column; align-items: center;">
+                    ${hasScreenshot
+                        ? `<img id="issueScreenshotImg" src="../${issue.screenshot_path}" alt="Reported screenshot" title="Click to zoom" style="max-width: 100%; max-height: 400px; display: block; margin: 0 auto; border-radius: 10px; border: 1px solid #e2e8f0; cursor: zoom-in;" onclick="openScreenshotZoom(this.src)">
+                           <span style="margin-top: 6px; font-size: 0.72rem; color: #94a3b8;"><i class="fas fa-magnifying-glass-plus"></i> Click to zoom</span>`
+                        : noScreenshotHtml}
+                </div>
+            </div>
+        `,
+        width: 560,
+        confirmButtonText: 'Close',
+        confirmButtonColor: '#003580',
+        didOpen: () => {
+            const img = document.getElementById('issueScreenshotImg');
+            if (img) {
+                img.addEventListener('error', () => {
+                    const container = document.getElementById('issueScreenshotContainer');
+                    if (container) container.innerHTML = `<div style="padding: 28px; text-align: center; color: #94a3b8; background: #f8fafc; border-radius: 10px; border: 1px dashed #cbd5e1;"><i class="fas fa-triangle-exclamation" style="font-size: 1.8rem; display: block; margin-bottom: 8px;"></i>Screenshot file could not be loaded</div>`;
+                });
+            }
+        }
+    });
+}
+
+function openScreenshotZoom(src) {
+    const overlay = document.getElementById('screenshotZoomOverlay');
+    const img = document.getElementById('screenshotZoomImg');
+    if (!overlay || !img) return;
+    img.src = src;
+    overlay.classList.add('is-open');
+}
+
+function closeScreenshotZoom() {
+    document.getElementById('screenshotZoomOverlay')?.classList.remove('is-open');
 }
 
 async function updateIssueStatus(id, status) {
