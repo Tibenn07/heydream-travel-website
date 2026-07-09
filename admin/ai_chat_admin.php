@@ -125,6 +125,50 @@ switch ($action) {
         }
         break;
 
+    case 'bulk_delete_sessions':
+        $input = json_decode(file_get_contents('php://input'), true);
+        $sessionIds = $input['session_ids'] ?? [];
+
+        if (empty($sessionIds) || !is_array($sessionIds)) {
+            echo json_encode(['success' => false, 'message' => 'Invalid session IDs']);
+            exit;
+        }
+
+        try {
+            $pdo->beginTransaction();
+            $placeholders = implode(',', array_fill(0, count($sessionIds), '?'));
+            $stmt = $pdo->prepare("DELETE FROM ai_chat_messages WHERE session_id IN ($placeholders)");
+            $stmt->execute($sessionIds);
+            $stmt = $pdo->prepare("DELETE FROM ai_chat_sessions WHERE session_id IN ($placeholders)");
+            $stmt->execute($sessionIds);
+            $pdo->commit();
+            echo json_encode(['success' => true]);
+        } catch (PDOException $e) {
+            $pdo->rollBack();
+            echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+        }
+        break;
+
+    case 'bulk_update_sessions':
+        $input = json_decode(file_get_contents('php://input'), true);
+        $sessionIds = $input['session_ids'] ?? [];
+        $status = $input['status'] ?? '';
+
+        if (empty($sessionIds) || !is_array($sessionIds) || empty($status)) {
+            echo json_encode(['success' => false, 'message' => 'Invalid request']);
+            exit;
+        }
+
+        try {
+            $placeholders = implode(',', array_fill(0, count($sessionIds), '?'));
+            $stmt = $pdo->prepare("UPDATE ai_chat_sessions SET status = ? WHERE session_id IN ($placeholders)");
+            $stmt->execute(array_merge([$status], $sessionIds));
+            echo json_encode(['success' => true]);
+        } catch (PDOException $e) {
+            echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+        }
+        break;
+
     case 'get_issues':
         try {
             $stmt = $pdo->query("SELECT * FROM reported_issues ORDER BY created_at DESC");

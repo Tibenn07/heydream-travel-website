@@ -441,6 +441,38 @@ function getStatusInfo($status)
             border-bottom: 1px solid #e2e8f0;
         }
 
+        .chat-list-toolbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            padding: 15px 20px;
+            border-bottom: 1px solid #e2e8f0;
+            background: #f8fafc;
+        }
+
+        .select-all-label {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.95rem;
+            color: #334155;
+            cursor: pointer;
+        }
+
+        .select-all-label input {
+            width: 18px;
+            height: 18px;
+            accent-color: #003580;
+            cursor: pointer;
+        }
+
+        .selected-count {
+            font-size: 0.9rem;
+            color: #475569;
+            opacity: 0.9;
+        }
+
         .ai-sessions-list {
             flex: 1;
             overflow-y: auto;
@@ -492,6 +524,30 @@ function getStatusInfo($status)
 
         .chat-session-item:hover {
             background: #f1f5f9 !important;
+        }
+
+        .chat-session-item.selected {
+            background: #e0f2fe !important;
+            border-color: #60a5fa !important;
+        }
+
+        .session-checkbox {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 24px;
+            min-height: 24px;
+            border-radius: 8px;
+            background: #ffffff;
+            border: 1px solid #cbd5e1;
+            box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.05);
+        }
+
+        .session-checkbox input {
+            width: 18px;
+            height: 18px;
+            accent-color: #003580;
+            cursor: pointer;
         }
 
         .chat-session-item.active {
@@ -1714,6 +1770,7 @@ function getStatusInfo($status)
                 <div class="header-actions">
                     <button class="btn btn-primary" onclick="loadChatSessions()"><i class="fas fa-sync"></i> Refresh
                         Chats</button>
+                    <button id="delete-selected-sessions-btn" class="btn btn-danger" onclick="bulkDeleteSelectedSessions()" disabled><i class="fas fa-trash-alt"></i> Delete Selected</button>
                 </div>
             </div>
 
@@ -1721,6 +1778,10 @@ function getStatusInfo($status)
                 <!-- Chat Sessions List -->
                 <div class="card chat-sessions-card">
                     <h3 class="card-title"><i class="fas fa-users"></i> Active Sessions</h3>
+                    <div class="chat-list-toolbar">
+                        <label class="select-all-label"><input type="checkbox" id="select-all-chat-sessions" onchange="toggleSelectAllSessions(this)"> Select All</label>
+                        <span id="selected-chat-count" class="selected-count">0 selected</span>
+                    </div>
                     <div id="ai-sessions-list" class="ai-sessions-list">
                         <div class="empty-state">Loading chat sessions...</div>
                     </div>

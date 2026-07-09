@@ -211,6 +211,7 @@ function switchSection(id) {
 let activeChatSessionId = null;
 let activeChatCustomerName = 'Customer';
 let chatPollingInterval = null;
+let selectedChatSessions = new Set();
 
 function parseMySQLDate(dateStr) {
     if (!dateStr) return new Date();
@@ -221,6 +222,109 @@ function parseMySQLDate(dateStr) {
         d = new Date(dateStr);
     }
     return isNaN(d.getTime()) ? new Date() : d;
+}
+
+function updateSelectedCount() {
+    const count = selectedChatSessions.size;
+    const counter = document.getElementById('selected-chat-count');
+    const deleteBtn = document.getElementById('delete-selected-sessions-btn');
+    const selectAll = document.getElementById('select-all-chat-sessions');
+    if (counter) counter.textContent = `${count} selected`;
+    if (deleteBtn) deleteBtn.disabled = count === 0;
+
+    const totalCheckboxes = document.querySelectorAll('.chat-session-item input[type="checkbox"]').length;
+    if (selectAll) selectAll.checked = totalCheckboxes > 0 && count === totalCheckboxes;
+}
+
+function toggleChatSelection(event, sessionId) {
+    event.stopPropagation();
+    const checked = event.target.checked;
+    const item = event.target.closest('.chat-session-item');
+    if (checked) {
+        selectedChatSessions.add(sessionId);
+    } else {
+        selectedChatSessions.delete(sessionId);
+    }
+    if (item) {
+        item.classList.toggle('selected', checked);
+    }
+    updateSelectedCount();
+}
+
+function toggleSelectAllSessions(checkbox) {
+    const items = document.querySelectorAll('.chat-session-item');
+    items.forEach(item => {
+        const sessionId = item.dataset.sessionId;
+        const input = item.querySelector('input[type="checkbox"]');
+        if (!input) return;
+        input.checked = checkbox.checked;
+        if (checkbox.checked) {
+            selectedChatSessions.add(sessionId);
+            item.classList.add('selected');
+        } else {
+            selectedChatSessions.delete(sessionId);
+            item.classList.remove('selected');
+        }
+    });
+    updateSelectedCount();
+}
+
+async function bulkDeleteSelectedSessions() {
+    if (selectedChatSessions.size === 0) {
+        Swal.fire('No Chats Selected', 'Select at least one chat session to delete.', 'info');
+        return;
+    }
+
+    const result = await Swal.fire({
+        title: 'Delete selected chat sessions?',
+        text: 'This will permanently delete all selected conversations. This cannot be undone.',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#ef4444',
+        cancelButtonColor: '#64748b',
+        confirmButtonText: 'Delete Selected'
+    });
+
+    if (!result.isConfirmed) return;
+
+    const sessionIds = Array.from(selectedChatSessions);
+    try {
+        const res = await fetch('ai_chat_admin.php?action=bulk_delete_sessions', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ session_ids: sessionIds })
+        });
+        const data = await res.json();
+
+        if (data.success) {
+            Swal.fire('Deleted!', `${sessionIds.length} chat session(s) were deleted.`, 'success');
+            if (sessionIds.includes(activeChatSessionId)) {
+                activeChatSessionId = null;
+                document.getElementById('active-chat-user').textContent = 'Select a Chat';
+                document.getElementById('active-chat-status').textContent = 'No active session';
+                document.getElementById('admin-chat-messages').innerHTML = `
+                    <div class="empty-chat">
+                        <i class="fas fa-comments"></i>
+                        <p>Select a session from the list to view or join the conversation.</p>
+                    </div>
+                `;
+                document.getElementById('admin-chat-input').disabled = true;
+                document.getElementById('admin-send-btn').disabled = true;
+                document.getElementById('takeover-btn').style.display = 'none';
+                document.getElementById('transfer-btn').style.display = 'none';
+                document.getElementById('delete-chat-btn').style.display = 'none';
+            }
+            selectedChatSessions.clear();
+            const selectAll = document.getElementById('select-all-chat-sessions');
+            if (selectAll) selectAll.checked = false;
+            updateSelectedCount();
+            loadChatSessions();
+        } else {
+            Swal.fire('Error', data.message || 'Unable to delete selected sessions.', 'error');
+        }
+    } catch (e) {
+        Swal.fire('Error', 'Failed to delete selected chat sessions.', 'error');
+    }
 }
 
 function renderChatSessionsList(sessions) {
@@ -235,6 +339,8 @@ function renderChatSessionsList(sessions) {
     list.innerHTML = sessions.map(s => {
         const isUnread = parseInt(s.unread_count || '0') > 0;
         const unreadClass = isUnread ? 'unread' : 'read';
+        const selectedClass = selectedChatSessions.has(s.session_id) ? 'selected' : '';
+        const checkedAttr = selectedChatSessions.has(s.session_id) ? 'checked' : '';
         
         let lastMsgText = s.last_message || 'No messages yet';
         if (lastMsgText.length > 40) {
@@ -242,7 +348,10 @@ function renderChatSessionsList(sessions) {
         }
 
         return `
-            <div class="chat-session-item ${unreadClass} ${activeChatSessionId === s.session_id ? 'active' : ''}" onclick="viewChat('${s.session_id}', '${s.customer_name}')" data-session-id="${s.session_id}">
+            <div class="chat-session-item ${unreadClass} ${selectedClass} ${activeChatSessionId === s.session_id ? 'active' : ''}" onclick="viewChat('${s.session_id}', '${s.customer_name}')" data-session-id="${s.session_id}">
+                <label class="session-checkbox">
+                    <input type="checkbox" data-session-id="${s.session_id}" ${checkedAttr} onclick="toggleChatSelection(event, '${s.session_id}')">
+                </label>
                 <div class="session-avatar">${s.customer_name.charAt(0).toUpperCase()}</div>
                 <div class="session-info" style="flex: 1; min-width: 0;">
                     <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px;">
@@ -256,6 +365,8 @@ function renderChatSessionsList(sessions) {
             </div>
         `;
     }).join('');
+
+    updateSelectedCount();
 }
 
 async function loadChatSessions() {
