@@ -910,9 +910,27 @@ $unreadMessagesCount = $stmtMessagesCount ? $stmtMessagesCount->fetchColumn() : 
         }
 
         /* --- Icons & Buttons --- */
+        /* Deliberately NOT display:flex — this class is applied directly to <td>
+           elements across the admin tables. display:flex on a table cell makes
+           browsers insert an anonymous table-cell to compensate, which breaks
+           border alignment and row-hover highlighting between rows. Plain
+           inline-flex buttons + margin spacing keeps proper table-cell layout. */
         .action-buttons {
-            display: flex;
-            gap: 10px;
+            text-align: center;
+            white-space: nowrap;
+        }
+
+        .action-buttons > * {
+            margin: 0 4px;
+            vertical-align: middle;
+        }
+
+        .action-buttons > *:first-child {
+            margin-left: 0;
+        }
+
+        .action-buttons > *:last-child {
+            margin-right: 0;
         }
 
         .edit-btn,
@@ -4848,11 +4866,11 @@ $unreadMessagesCount = $stmtMessagesCount ? $stmtMessagesCount->fetchColumn() : 
                                         ${booking.payment_method ? `<div style="display:flex;gap:8px;align-items:center;font-size:0.9rem;"><span style="color:#64748b;font-weight:600;min-width:110px;">Method:</span><span style="color:#0f172a;font-weight:700;text-transform:capitalize;">${escapeHtml(booking.payment_method)}</span></div>` : ''}
                                         ${booking.payment_reference ? `<div style="display:flex;gap:8px;align-items:center;font-size:0.9rem;"><span style="color:#64748b;font-weight:600;min-width:110px;">Reference #:</span><span style="color:#0f172a;font-weight:700;font-family:monospace;">${escapeHtml(booking.payment_reference)}</span></div>` : ''}
                                         ${booking.payment_proof ? `
-                                        <div style="margin-top: 8px;">
+                                        <div style="margin-top: 8px; text-align: center;">
                                             <span style="color:#64748b;font-weight:600;font-size:0.9rem;display:block;margin-bottom:8px;">Payment Proof:</span>
                                             ${/\.(jpg|jpeg|png|gif|webp)$/i.test(booking.payment_proof) ? `
-                                            <a href="../${booking.payment_proof}" target="_blank" title="Click to view full image">
-                                                <img src="../${booking.payment_proof}" alt="Payment Proof" style="max-width:100%;max-height:220px;border-radius:10px;border:2px solid #bbf7d0;box-shadow:0 4px 12px rgba(0,0,0,0.1);cursor:pointer;object-fit:cover;display:block;">
+                                            <a href="../${booking.payment_proof}" target="_blank" title="Click to view full image" style="display:inline-block;">
+                                                <img src="../${booking.payment_proof}" alt="Payment Proof" style="max-width:100%;max-height:220px;border-radius:10px;border:2px solid #bbf7d0;box-shadow:0 4px 12px rgba(0,0,0,0.1);cursor:pointer;object-fit:cover;display:block;margin:0 auto;">
                                             </a>
                                             <p style="font-size:0.78rem;color:#64748b;margin-top:6px;text-align:center;"><i class="fas fa-search-plus" style="margin-right:4px;"></i>Click image to view full size</p>
                                             ` : `
@@ -4864,6 +4882,29 @@ $unreadMessagesCount = $stmtMessagesCount ? $stmtMessagesCount->fetchColumn() : 
                                     </div>
                                 </div>` : ''}
 
+                                ${!isInquiry ? `
+                                <div style="margin-top: 20px; padding: 16px; background: #fdf4ff; border-radius: 12px; border: 1px solid #f0abfc;">
+                                    <h5 style="margin: 0 0 12px; color: #a21caf; font-weight: 700; font-size: 0.95rem;"><i class="fas fa-handshake" style="color: #c026d3; margin-right: 6px;"></i> Partner Details</h5>
+                                    ${booking.partner_id ? `
+                                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; line-height: 1.6; font-size: 0.92rem;">
+                                        <div><strong style="color:#64748b;display:block;font-size:0.78rem;text-transform:uppercase;letter-spacing:0.5px;">Name</strong> <span style="color:#0f172a;font-weight:600;">${escapeHtml(booking.partner_contact_person || booking.partner_business_name || booking.partner_company || 'Partner')}</span></div>
+                                        <div><strong style="color:#64748b;display:block;font-size:0.78rem;text-transform:uppercase;letter-spacing:0.5px;">Company</strong> <span style="color:#0f172a;font-weight:600;">${escapeHtml(booking.partner_business_name || booking.partner_company || 'N/A')}</span></div>
+                                        <div style="min-width:0;"><strong style="color:#64748b;display:block;font-size:0.78rem;text-transform:uppercase;letter-spacing:0.5px;">Email</strong> <span style="color:#0f172a;font-weight:600;word-break:break-all;">${escapeHtml(booking.partner_email || 'N/A')}</span></div>
+                                        <div><strong style="color:#64748b;display:block;font-size:0.78rem;text-transform:uppercase;letter-spacing:0.5px;">Number</strong> <span style="color:#0f172a;font-weight:600;">${escapeHtml(booking.partner_profile_phone || booking.partner_phone || 'N/A')}</span></div>
+                                    </div>
+                                    <a href="Partnership/partner-profile.php?id=${booking.partner_id}" target="_blank" class="view-btn" style="text-decoration:none;display:inline-flex;align-items:center;gap:6px;">
+                                        <i class="fas fa-arrow-up-right-from-square"></i> View Partner Profile
+                                    </a>
+                                    ` : `
+                                    <div style="display: flex; align-items: center; gap: 10px;">
+                                        <i class="fas fa-star" style="color: #c026d3; font-size: 1.1rem;"></i>
+                                        <div>
+                                            <strong style="color: #0f172a; display: block;">Made by HeyDream</strong>
+                                            <span style="font-size: 0.78rem; color: #64748b;">This package is offered directly by HeyDream Travel and Tours.</span>
+                                        </div>
+                                    </div>
+                                    `}
+                                </div>` : ''}
 
                                 ${booking.special_requests ? `
                                 <div style="margin-top: 20px; padding: 16px; background: #eff6ff; border-radius: 12px; border: 1px solid #bfdbfe;">
@@ -5065,13 +5106,13 @@ $unreadMessagesCount = $stmtMessagesCount ? $stmtMessagesCount->fetchColumn() : 
                                 ${booking.payment_method ? `<div style="display:flex;gap:8px;align-items:center;font-size:0.9rem;"><span style="color:#64748b;font-weight:600;min-width:110px;">Method:</span><span style="color:#0f172a;font-weight:700;text-transform:capitalize;">${escapeHtml(booking.payment_method)}</span></div>` : ''}
                                 ${booking.payment_reference ? `<div style="display:flex;gap:8px;align-items:center;font-size:0.9rem;"><span style="color:#64748b;font-weight:600;min-width:110px;">Reference #:</span><span style="color:#0f172a;font-weight:700;font-family:monospace;">${escapeHtml(booking.payment_reference)}</span></div>` : ''}
                                 ${booking.payment_proof ? `
-                                <div style="margin-top: 10px;">
+                                <div style="margin-top: 10px; text-align: center;">
                                     <span style="color:#64748b;font-weight:600;font-size:0.88rem;display:block;margin-bottom:10px;text-transform:uppercase;letter-spacing:0.5px;">Payment Screenshot / Receipt:</span>
                                     ${/\.(jpg|jpeg|png|gif|webp)$/i.test(booking.payment_proof) ? `
-                                    <a href="../${booking.payment_proof}" target="_blank" title="Click to view full size">
+                                    <a href="../${booking.payment_proof}" target="_blank" title="Click to view full size" style="display:inline-block;">
                                         <img src="../${booking.payment_proof}" alt="Payment Proof"
                                             style="max-width:100%; max-height:260px; border-radius:12px; border:2px solid #bbf7d0;
-                                                   box-shadow:0 4px 16px rgba(0,0,0,0.12); cursor:zoom-in; object-fit:contain; display:block; background:#f8fafc;">
+                                                   box-shadow:0 4px 16px rgba(0,0,0,0.12); cursor:zoom-in; object-fit:contain; display:block; margin:0 auto; background:#f8fafc;">
                                     </a>
                                     <p style="font-size:0.78rem;color:#64748b;margin-top:8px;text-align:center;">
                                         <i class="fas fa-expand-alt" style="margin-right:4px;"></i>Click image to open full size in new tab

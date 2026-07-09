@@ -107,6 +107,95 @@ function ensurePartnerBookingTracking($pdo)
 }
 
 /**
+ * Self-healing setup for the shared `reported_issues` table (also used by
+ * support.php and admin/marketing.php's "Reported Issues" tab), plus a
+ * one-time backfill of any legacy rows from the old partner-only
+ * `partner_support_reports` table so nothing submitted before this change
+ * gets lost.
+ */
+function ensurePartnerReportedIssues($pdo)
+{
+    $pdo->exec("CREATE TABLE IF NOT EXISTS reported_issues (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        name VARCHAR(255) NOT NULL,
+        email VARCHAR(255) NOT NULL,
+        contact VARCHAR(255) DEFAULT NULL,
+        category VARCHAR(100) NOT NULL,
+        severity VARCHAR(50) NOT NULL,
+        description TEXT NOT NULL,
+        status VARCHAR(50) DEFAULT 'Pending',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        subject VARCHAR(255) DEFAULT NULL,
+        screenshot_path VARCHAR(500) DEFAULT NULL,
+        partner_id INT DEFAULT NULL
+    )");
+
+    $reportColumns = [
+        ['subject', 'VARCHAR(255) DEFAULT NULL'],
+        ['screenshot_path', 'VARCHAR(500) DEFAULT NULL'],
+        ['partner_id', 'INT DEFAULT NULL'],
+    ];
+    foreach ($reportColumns as [$column, $definition]) {
+        try {
+            $pdo->exec("ALTER TABLE reported_issues ADD COLUMN {$column} {$definition}");
+        } catch (Throwable $e) {
+            // Ignore if column already exists
+        }
+    }
+
+    try {
+        $tableCheck = $pdo->query("SHOW TABLES LIKE 'partner_support_reports'")->fetch();
+        if (!$tableCheck) {
+            return;
+        }
+
+        try {
+            $pdo->exec("ALTER TABLE partner_support_reports ADD COLUMN migrated TINYINT(1) DEFAULT 0");
+        } catch (Throwable $e) {
+            // Ignore if column already exists
+        }
+
+        $legacyRows = $pdo->query("SELECT * FROM partner_support_reports WHERE migrated = 0 OR migrated IS NULL")->fetchAll(PDO::FETCH_ASSOC);
+        if (!$legacyRows) {
+            return;
+        }
+
+        $partnerStmt = $pdo->prepare("SELECT contact_person, company_name, email, phone FROM partner_applications WHERE id = ? LIMIT 1");
+        $insertStmt = $pdo->prepare("
+            INSERT INTO reported_issues (name, email, contact, category, severity, description, status, subject, partner_id)
+            VALUES (?, ?, ?, 'Other', ?, ?, ?, ?, ?)
+        ");
+        $markMigratedStmt = $pdo->prepare("UPDATE partner_support_reports SET migrated = 1 WHERE id = ?");
+
+        foreach ($legacyRows as $row) {
+            $partnerStmt->execute([$row['partner_id']]);
+            $partnerInfo = $partnerStmt->fetch(PDO::FETCH_ASSOC);
+            if (!$partnerInfo) {
+                $markMigratedStmt->execute([$row['id']]);
+                continue;
+            }
+
+            $severity = (strtolower($row['priority'] ?? '') === 'high') ? 'Critical' : 'Medium';
+            $status = (strtolower($row['status'] ?? '') === 'open') ? 'Pending' : ($row['status'] ?: 'Pending');
+
+            $insertStmt->execute([
+                $partnerInfo['contact_person'] ?: $partnerInfo['company_name'],
+                $partnerInfo['email'],
+                $partnerInfo['phone'],
+                $severity,
+                $row['message'],
+                $status,
+                $row['subject'],
+                $row['partner_id'],
+            ]);
+            $markMigratedStmt->execute([$row['id']]);
+        }
+    } catch (Throwable $e) {
+        // Best effort — legacy backfill failing should never block the request.
+    }
+}
+
+/**
  * Resolve the partner who owns the package being booked.
  *
  * Priority:

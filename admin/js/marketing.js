@@ -4638,8 +4638,10 @@ function renderReportedIssues() {
     }
 
     // "Critical First" toggle: re-sort so Critical severity tickets are always at the top,
-    // regardless of status. Overrides the status-based grouping/dividers while active.
+    // and hide Resolved tickets entirely so they don't clutter an urgent-review pass.
+    // Overrides the status-based grouping/dividers while active.
     if (criticalFirstSort) {
+        filtered = filtered.filter(i => i.status !== 'Resolved');
         const severityRank = { 'Critical': 0, 'High': 1, 'Medium': 2, 'Low': 3 };
         filtered = [...filtered].sort((a, b) => (severityRank[a.severity] ?? 4) - (severityRank[b.severity] ?? 4));
     }
@@ -4745,13 +4747,33 @@ function viewIssueDetails(id) {
     const hasScreenshot = !!issue.screenshot_path;
     const noScreenshotHtml = `<div style="padding: 28px; text-align: center; color: #94a3b8; background: #f8fafc; border-radius: 10px; border: 1px dashed #cbd5e1;"><i class="fas fa-image" style="font-size: 1.8rem; display: block; margin-bottom: 8px;"></i>No screenshot attached</div>`;
 
+    let severityColor = '#64748b';
+    if (issue.severity === 'Low') severityColor = '#10b981';
+    else if (issue.severity === 'Medium') severityColor = '#f59e0b';
+    else if (issue.severity === 'High') severityColor = '#ef4444';
+    else if (issue.severity === 'Critical') severityColor = '#b91c1c';
+
+    const statusColors = {
+        'Pending': { bg: '#fee2e2', color: '#ef4444' },
+        'In Progress': { bg: '#fef3c7', color: '#d97706' },
+        'Resolved': { bg: '#d1fae5', color: '#059669' },
+    };
+    const statusStyle = statusColors[issue.status] || statusColors['Pending'];
+    const badge = (label, bg, color) => `<span style="display:inline-flex;align-items:center;background:${bg};color:${color};padding:5px 12px;border-radius:999px;font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:0.4px;">${escapeHTML(label)}</span>`;
+
     Swal.fire({
         title: `Ticket #${issue.id}`,
         html: `
             <div style="text-align: left; font-size: 0.88rem; line-height: 1.7; color: #334155;">
+                ${issue.subject ? `<h3 style="margin: 0 0 10px; font-size: 1.05rem; color: #0f172a;">${escapeHTML(issue.subject)}</h3>` : ''}
+                <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom: 14px;">
+                    ${badge(issue.category, '#f1f5f9', '#334155')}
+                    ${badge(issue.severity, severityColor + '22', severityColor)}
+                    ${badge(issue.status, statusStyle.bg, statusStyle.color)}
+                    ${issue.partner_id ? badge('Partner: ' + (issue.partner_company || '#' + issue.partner_id), '#f3e8ff', '#7e22ce') : ''}
+                </div>
                 <p><strong>Reporter:</strong> ${escapeHTML(issue.name)} &lt;${escapeHTML(issue.email)}&gt;</p>
                 <p><strong>Contact:</strong> ${escapeHTML(issue.contact || 'No phone provided')}</p>
-                <p><strong>Category:</strong> ${escapeHTML(issue.category)} &nbsp;&middot;&nbsp; <strong>Severity:</strong> ${escapeHTML(issue.severity)} &nbsp;&middot;&nbsp; <strong>Status:</strong> ${escapeHTML(issue.status)}</p>
                 <p><strong>Submitted:</strong> ${parseMySQLDate(issue.created_at).toLocaleString()}</p>
                 <p style="margin-top: 12px;"><strong>Description:</strong></p>
                 <div style="white-space: pre-wrap; background: #f8fafc; padding: 12px; border-radius: 10px; border: 1px solid #e2e8f0;">${escapeHTML(issue.description)}</div>

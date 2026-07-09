@@ -15,6 +15,9 @@ if ($pdo === null) {
     exit;
 }
 
+require_once __DIR__ . '/../api/partner-booking-tracker.php';
+ensurePartnerReportedIssues($pdo);
+
 $action = $_GET['action'] ?? '';
 
 switch ($action) {
@@ -171,7 +174,12 @@ switch ($action) {
 
     case 'get_issues':
         try {
-            $stmt = $pdo->query("SELECT * FROM reported_issues ORDER BY created_at DESC");
+            $stmt = $pdo->query("
+                SELECT ri.*, pa.company_name AS partner_company
+                FROM reported_issues ri
+                LEFT JOIN partner_applications pa ON ri.partner_id = pa.id
+                ORDER BY ri.created_at DESC
+            ");
             $issues = $stmt->fetchAll();
             echo json_encode(['success' => true, 'issues' => $issues]);
         } catch (PDOException $e) {

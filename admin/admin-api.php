@@ -572,11 +572,23 @@ EOF;
             $booking_number_param = trim($_GET['booking_number'] ?? '');
 
             // For id=0 records, look up by booking_number instead
+            // Joins both partner_applications (registration data — contact person,
+            // email) and partner_profiles (the partner's own editable business
+            // name/phone from partner-dashboard.php's My Profile page), so this
+            // reflects whatever the partner most recently saved there.
+            $bookingWithPartnerSql = "
+                SELECT b.*, pa.contact_person AS partner_contact_person, pa.email AS partner_email, pa.phone AS partner_phone,
+                       pp.business_display_name AS partner_business_name, pp.phone AS partner_profile_phone
+                FROM bookings b
+                LEFT JOIN partner_applications pa ON b.partner_id = pa.id
+                LEFT JOIN partner_profiles pp ON b.partner_id = pp.partner_id
+                WHERE b.%s = ?
+            ";
             if ($id === 0 && $booking_number_param !== '') {
-                $stmt = $pdo->prepare("SELECT * FROM bookings WHERE booking_number = ?");
+                $stmt = $pdo->prepare(sprintf($bookingWithPartnerSql, 'booking_number'));
                 $stmt->execute([$booking_number_param]);
             } else {
-                $stmt = $pdo->prepare("SELECT * FROM bookings WHERE id = ?");
+                $stmt = $pdo->prepare(sprintf($bookingWithPartnerSql, 'id'));
                 $stmt->execute([$id]);
             }
             $booking = $stmt->fetch(PDO::FETCH_ASSOC);

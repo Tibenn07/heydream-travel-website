@@ -345,16 +345,67 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'submit_report') {
-    $subject = trim($_POST['subject'] ?? '');
-    $message = trim($_POST['message'] ?? '');
-    $priority = trim($_POST['priority'] ?? 'medium');
+    $reportCategory = trim($_POST['category'] ?? '');
+    $reportSubject = trim($_POST['subject'] ?? '');
+    $reportMessage = trim($_POST['message'] ?? '');
+    $reportUrgent = isset($_POST['urgent']) ? 1 : 0;
 
-    if ($subject === '' || $message === '') {
-        $errorMessage = 'Please add a subject and a detailed description.';
+    if ($reportCategory === '' || $reportSubject === '' || $reportMessage === '') {
+        $errorMessage = 'Please select a category and fill in the subject and issue description.';
     } else {
-        $stmt = $pdo->prepare("INSERT INTO partner_support_reports (partner_id, subject, message, priority, status) VALUES (?, ?, ?, ?, 'open')");
-        $stmt->execute([$partnerId, $subject, $message, $priority]);
-        $successMessage = 'Your report has been submitted successfully.';
+        $screenshotPath = null;
+        $screenshotError = null;
+
+        if (!empty($_FILES['screenshot']) && $_FILES['screenshot']['error'] !== UPLOAD_ERR_NO_FILE) {
+            if ($_FILES['screenshot']['error'] !== UPLOAD_ERR_OK) {
+                $screenshotError = 'Screenshot upload failed. Please try again.';
+            } else {
+                $allowedExtToMime = ['jpg' => 'image/jpeg', 'jpeg' => 'image/jpeg', 'png' => 'image/png'];
+                $ext = strtolower(pathinfo($_FILES['screenshot']['name'], PATHINFO_EXTENSION));
+                if (!isset($allowedExtToMime[$ext])) {
+                    $screenshotError = 'Screenshot must be a JPG or PNG image.';
+                } elseif ($_FILES['screenshot']['size'] > 5 * 1024 * 1024) {
+                    $screenshotError = 'Screenshot must be under 5MB.';
+                } elseif (function_exists('finfo_open')) {
+                    $finfo = finfo_open(FILEINFO_MIME_TYPE);
+                    $actualMime = finfo_file($finfo, $_FILES['screenshot']['tmp_name']);
+                    finfo_close($finfo);
+                    if (!in_array($actualMime, ['image/jpeg', 'image/png'], true)) {
+                        $screenshotError = 'Screenshot must be a genuine JPG or PNG image.';
+                    }
+                }
+            }
+        }
+
+        if ($screenshotError !== null) {
+            $errorMessage = $screenshotError;
+        } else {
+            if (!empty($_FILES['screenshot']) && $_FILES['screenshot']['error'] === UPLOAD_ERR_OK) {
+                $uploadDir = __DIR__ . '/../../uploads/reports/';
+                if (!is_dir($uploadDir)) {
+                    mkdir($uploadDir, 0755, true);
+                    file_put_contents($uploadDir . '.htaccess', "Options -Indexes\nphp_flag engine off\n<FilesMatch \"\\.(php|phtml|php3|php4|php5|phar)$\">\n    Require all denied\n</FilesMatch>\n");
+                }
+                $ext = strtolower(pathinfo($_FILES['screenshot']['name'], PATHINFO_EXTENSION));
+                $filename = 'report_' . date('Ymd_His') . '_' . random_int(1000, 9999) . '.' . $ext;
+                if (move_uploaded_file($_FILES['screenshot']['tmp_name'], $uploadDir . $filename)) {
+                    $screenshotPath = 'uploads/reports/' . $filename;
+                }
+            }
+
+            $severity = $reportUrgent ? 'Critical' : 'Medium';
+            $reporterName = $partner['contact_person'] ?: $partner['company_name'];
+
+            $stmt = $pdo->prepare("
+                INSERT INTO reported_issues (name, email, contact, category, severity, description, status, subject, screenshot_path, partner_id)
+                VALUES (?, ?, ?, ?, ?, ?, 'Pending', ?, ?, ?)
+            ");
+            $stmt->execute([
+                $reporterName, $partner['email'], $partner['phone'],
+                $reportCategory, $severity, $reportMessage, $reportSubject, $screenshotPath, $partnerId,
+            ]);
+            $successMessage = 'Your report has been submitted successfully.';
+        }
     }
 }
 
@@ -495,9 +546,9 @@ usort($uploads, function ($a, $b) {
     return strtotime($b['created_at']) <=> strtotime($a['created_at']);
 });
 
-$reportStmt = $pdo->prepare("SELECT * FROM partner_support_reports WHERE partner_id = ? ORDER BY created_at DESC LIMIT 5");
+$reportStmt = $pdo->prepare("SELECT * FROM reported_issues WHERE partner_id = ? ORDER BY created_at DESC LIMIT 8");
 $reportStmt->execute([$partnerId]);
-$reports = $reportStmt->fetchAll();
+$reports = $reportStmt->fetchAll(PDO::FETCH_ASSOC);
 
 $profileStmt = $pdo->prepare("SELECT * FROM partner_profiles WHERE partner_id = ? LIMIT 1");
 $profileStmt->execute([$partnerId]);
@@ -1759,6 +1810,184 @@ if (($section ?? 'dashboard') === 'bookings') {
             transform: translateY(-2px);
             box-shadow: 0 4px 12px rgba(22, 163, 74, 0.2);
         }
+
+        /* ===================== Report Problems redesign (scoped to .rp-*) ===================== */
+        /* Submit Report on top, Recent Reports below — stacked at every screen size. */
+        .rp-grid { display: flex; flex-direction: column; gap: 20px; }
+
+        .rp-form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+        @media (max-width: 640px) {
+            .rp-form-row { grid-template-columns: 1fr; }
+        }
+
+        .rp-form-group { margin-bottom: 14px; }
+        .rp-label { display: block; margin-bottom: 6px; font-weight: 700; font-size: 0.82rem; color: var(--text); }
+        .rp-select,
+        .rp-input,
+        .rp-textarea {
+            width: 100%;
+            background: white;
+            border: 1.5px solid var(--border);
+            border-radius: 12px;
+            padding: 10px 14px;
+            font-family: inherit;
+            font-size: 0.9rem;
+            color: var(--text);
+        }
+        .rp-select:focus,
+        .rp-input:focus,
+        .rp-textarea:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px var(--primary-soft);
+        }
+        .rp-textarea { min-height: 80px; resize: vertical; }
+
+        .rp-dropzone {
+            border: 2px dashed #c7d9f5;
+            border-radius: 18px;
+            min-height: 140px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            cursor: pointer;
+            text-align: center;
+            padding: 24px;
+            position: relative;
+            overflow: hidden;
+            background: linear-gradient(180deg, #fafcff, #f3f8ff);
+            transition: all 0.2s ease;
+        }
+        .rp-dropzone:hover {
+            border-color: var(--primary);
+            background: var(--primary-soft);
+            transform: translateY(-1px);
+            box-shadow: 0 8px 20px rgba(15,76,129,0.08);
+        }
+        .rp-dropzone-icon-circle {
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            background: var(--primary-soft);
+            color: var(--primary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.1rem;
+            margin-bottom: 4px;
+        }
+        .rp-dropzone-text { font-weight: 700; font-size: 0.92rem; color: var(--text); }
+        .rp-dropzone-hint { font-size: 0.76rem; color: var(--muted); }
+        .rp-preview-img { max-width: 100%; max-height: 200px; border-radius: 14px; display: none; box-shadow: 0 4px 14px rgba(15,23,42,0.1); }
+        .rp-dropzone-actions { display: none; gap: 10px; margin-top: 10px; justify-content: center; }
+        .rp-dropzone-actions button {
+            border: none; border-radius: 999px; padding: 8px 18px;
+            font-size: 0.78rem; font-weight: 700; cursor: pointer;
+            transition: transform 0.15s ease;
+        }
+        .rp-dropzone-actions button:hover { transform: translateY(-1px); }
+        .rp-btn-change { background: var(--primary-soft); color: var(--primary); }
+        .rp-btn-remove { background: #fee2e2; color: var(--danger); }
+
+        .rp-urgent-toggle {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            background: linear-gradient(180deg, #fff7ed, #fffaf3);
+            border: 2px solid #ffedd5;
+            border-radius: 18px;
+            padding: 16px 20px;
+            height: 100%;
+            box-sizing: border-box;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .rp-urgent-toggle:hover { border-color: var(--accent); box-shadow: 0 8px 20px rgba(245,158,11,0.1); }
+        .rp-urgent-toggle input { width: 20px; height: 20px; accent-color: var(--accent); cursor: pointer; flex-shrink: 0; }
+        .rp-urgent-icon-circle {
+            width: 36px; height: 36px; border-radius: 50%; flex-shrink: 0;
+            background: #ffedd5; color: var(--accent);
+            display: flex; align-items: center; justify-content: center; font-size: 1rem;
+        }
+        .rp-urgent-toggle-text strong { display: block; color: #9a3412; font-size: 0.9rem; }
+        .rp-urgent-toggle-text span { color: #c2410c; font-size: 0.76rem; }
+
+        .rp-send-btn {
+            border: none;
+            border-radius: 999px;
+            padding: 14px 36px;
+            background: linear-gradient(135deg, var(--primary), var(--accent));
+            color: white;
+            font-weight: 700;
+            font-size: 0.95rem;
+            font-family: inherit;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            box-shadow: 0 10px 24px rgba(15,76,129,0.22);
+            transition: all 0.2s ease;
+        }
+        .rp-send-btn:hover { transform: translateY(-2px); box-shadow: 0 14px 30px rgba(15,76,129,0.3); }
+        .rp-send-btn:active { transform: translateY(0); }
+
+        /* Decorative backdrop behind the Screenshot/Urgent/Send block so the
+           left/right margins around the centered content read as a designed
+           panel instead of dead whitespace. */
+        .rp-finish-wrap {
+            position: relative;
+            overflow: hidden;
+            border-radius: 24px;
+            padding: 28px 20px 32px;
+            margin-top: 6px;
+            background: linear-gradient(135deg, #f7fbff 0%, #fff9f2 100%);
+            border: 1px solid var(--border);
+        }
+        .rp-finish-wrap::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background-image:
+                radial-gradient(circle at 6% 15%, var(--primary-soft) 0, transparent 32%),
+                radial-gradient(circle at 94% 12%, #ffedd5 0, transparent 30%),
+                radial-gradient(circle at 8% 90%, #ffedd5 0, transparent 28%),
+                radial-gradient(circle at 95% 92%, var(--primary-soft) 0, transparent 30%);
+            pointer-events: none;
+        }
+        .rp-finish-decor {
+            position: absolute;
+            font-size: 3.2rem;
+            color: var(--primary);
+            opacity: 0.07;
+            pointer-events: none;
+            transform: rotate(-12deg);
+        }
+        .rp-finish-decor.rp-decor-tl { top: 10px; left: 18px; }
+        .rp-finish-decor.rp-decor-tr { top: 10px; right: 18px; color: var(--accent); transform: rotate(14deg); }
+        .rp-finish-decor.rp-decor-bl { bottom: 6px; left: 22px; color: var(--accent); transform: rotate(10deg); }
+        .rp-finish-decor.rp-decor-br { bottom: 6px; right: 22px; transform: rotate(-10deg); }
+        @media (max-width: 640px) {
+            .rp-finish-decor { display: none; }
+        }
+        .rp-finish-content { position: relative; z-index: 1; }
+
+        .rp-table tbody tr { cursor: pointer; }
+        .rp-table tbody tr:hover td { background-color: var(--bg); }
+        .rp-badge {
+            display: inline-flex; align-items: center; gap: 4px;
+            padding: 4px 10px; border-radius: 999px;
+            font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px;
+        }
+        .rp-badge-category { background: #f1f5f9; color: #475569; }
+        .rp-badge-critical { background: #fee2e2; color: #b91c1c; }
+        .rp-badge-medium { background: #fef3c7; color: #b45309; }
+        .rp-status-pending { background: #fee2e2; color: #ef4444; }
+        .rp-status-progress { background: #fef3c7; color: #d97706; }
+        .rp-status-resolved { background: #d1fae5; color: #059669; }
+        .rp-empty { text-align: center; padding: 40px 20px; color: var(--muted); }
+        .rp-empty i { font-size: 2rem; margin-bottom: 10px; display: block; opacity: 0.5; }
     </style>
 </head>
 <body>
@@ -2949,66 +3178,222 @@ if (($section ?? 'dashboard') === 'bookings') {
                     }
                 </script>
             <?php else: ?>
-                <section class="panel">
-                    <div class="panel-head">
-                        <h3>Submit a Report</h3>
-                        <span class="muted">Share an issue with the HeyDream team.</span>
-                    </div>
-                    <form method="post">
-                        <input type="hidden" name="action" value="submit_report">
-                        <div class="form-grid">
-                            <div class="form-group">
-                                <label for="subject">Subject</label>
-                                <input type="text" id="subject" name="subject" placeholder="Example: Upload issue" required>
-                            </div>
-                            <div class="form-group">
-                                <label for="priority">Priority</label>
-                                <select id="priority" name="priority">
-                                    <option value="low">Low</option>
-                                    <option value="medium" selected>Medium</option>
-                                    <option value="high">High</option>
-                                </select>
-                            </div>
+                <?php
+                    $rpCategories = ['Booking Issue', 'Payment Issue', 'Technical / Website Issue', 'Content / Package Issue', 'Account Issue', 'Other'];
+                ?>
+                <div class="rp-grid">
+                    <section class="panel">
+                        <div class="panel-head">
+                            <h3>Submit a Report</h3>
+                            <span class="muted">Share an issue with the HeyDream team.</span>
                         </div>
-                        <div class="form-group" style="margin-top: 14px;">
-                            <label for="message">What is the issue?</label>
-                            <textarea id="message" name="message" placeholder="Tell us what went wrong or what you need help with."></textarea>
-                        </div>
-                        <div style="margin-top: 16px;"><button class="submit-btn" type="submit"><i class="fas fa-paper-plane"></i> Send Report</button></div>
-                    </form>
-                </section>
+                        <form method="post" enctype="multipart/form-data" id="rpForm">
+                            <input type="hidden" name="action" value="submit_report">
 
-                <section class="panel">
-                    <div class="panel-head">
-                        <h3>Recent Reports</h3>
-                    </div>
-                    <?php if (empty($reports)): ?>
-                        <p class="muted">No reports submitted yet.</p>
-                    <?php else: ?>
-                        <div class="table-wrap">
-                            <table>
-                                <thead>
-                                    <tr>
-                                        <th>Subject</th>
-                                        <th>Priority</th>
-                                        <th>Status</th>
-                                        <th>Date</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <?php foreach ($reports as $report): ?>
-                                        <tr>
-                                            <td><?= htmlspecialchars($report['subject']) ?></td>
-                                            <td><?= htmlspecialchars(ucfirst($report['priority'])) ?></td>
-                                            <td><?= htmlspecialchars(ucfirst($report['status'])) ?></td>
-                                            <td><?= htmlspecialchars(date('M d, Y', strtotime($report['created_at']))) ?></td>
-                                        </tr>
-                                    <?php endforeach; ?>
-                                </tbody>
-                            </table>
+                            <div class="rp-form-row">
+                                <div class="rp-form-group">
+                                    <label class="rp-label" for="rp_category">Category <span style="color:var(--danger)">*</span></label>
+                                    <select class="rp-select" id="rp_category" name="category" required>
+                                        <option value="" hidden selected>-- Select a category --</option>
+                                        <?php foreach ($rpCategories as $rpCat): ?>
+                                            <option value="<?= htmlspecialchars($rpCat) ?>"><?= htmlspecialchars($rpCat) ?></option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                </div>
+
+                                <div class="rp-form-group">
+                                    <label class="rp-label" for="rp_subject">Subject <span style="color:var(--danger)">*</span></label>
+                                    <input class="rp-input" type="text" id="rp_subject" name="subject" placeholder="Example: Upload issue" required>
+                                </div>
+                            </div>
+
+                            <div class="rp-form-group">
+                                <label class="rp-label" for="rp_message">What is the issue? <span style="color:var(--danger)">*</span></label>
+                                <textarea class="rp-textarea" id="rp_message" name="message" placeholder="Tell us what went wrong or what you need help with." required></textarea>
+                            </div>
+
+                            <div class="rp-finish-wrap">
+                                <i class="fas fa-camera-retro rp-finish-decor rp-decor-tl"></i>
+                                <i class="fas fa-bolt rp-finish-decor rp-decor-tr"></i>
+                                <i class="fas fa-headset rp-finish-decor rp-decor-bl"></i>
+                                <i class="fas fa-paper-plane rp-finish-decor rp-decor-br"></i>
+
+                                <div class="rp-finish-content">
+                                    <div class="rp-form-group" style="text-align:center;">
+                                        <label class="rp-label" style="text-align:center;">Screenshot <span style="color:var(--muted);font-weight:normal;">(optional)</span></label>
+                                        <div class="rp-dropzone" id="rpDropzone" onclick="document.getElementById('rp_screenshot').click()" style="max-width:420px;margin:0 auto;">
+                                            <div id="rpDropzonePrompt">
+                                                <div class="rp-dropzone-icon-circle" style="margin:0 auto 4px;"><i class="fas fa-camera"></i></div>
+                                                <div class="rp-dropzone-text">Click to upload a screenshot</div>
+                                                <div class="rp-dropzone-hint">PNG or JPG, up to 5MB</div>
+                                            </div>
+                                            <img id="rpPreviewImg" class="rp-preview-img" alt="Screenshot preview">
+                                        </div>
+                                        <div class="rp-dropzone-actions" id="rpDropzoneActions" style="justify-content:center;">
+                                            <button type="button" class="rp-btn-change" onclick="event.stopPropagation(); document.getElementById('rp_screenshot').click();">Change</button>
+                                            <button type="button" class="rp-btn-remove" onclick="event.stopPropagation(); rpRemoveScreenshot();">Remove</button>
+                                        </div>
+                                        <input type="file" name="screenshot" id="rp_screenshot" accept=".jpg,.jpeg,.png" style="display:none;" onchange="rpHandleScreenshotChange(this)">
+                                    </div>
+
+                                    <div class="rp-form-group" style="display:flex; justify-content:center;">
+                                        <label class="rp-urgent-toggle" style="max-width:420px;">
+                                            <div class="rp-urgent-icon-circle"><i class="fas fa-bolt"></i></div>
+                                            <input type="checkbox" name="urgent" id="rp_urgent">
+                                            <span class="rp-urgent-toggle-text">
+                                                <strong>Mark as Urgent</strong>
+                                                <span>Flags this report as Critical priority for faster review</span>
+                                            </span>
+                                        </label>
+                                    </div>
+
+                                    <div style="text-align:center; margin-top:6px;"><button class="rp-send-btn" type="submit"><i class="fas fa-paper-plane"></i> Send Report</button></div>
+                                </div>
+                            </div>
+                        </form>
+                    </section>
+
+                    <section class="panel">
+                        <div class="panel-head">
+                            <h3>Recent Reports</h3>
                         </div>
-                    <?php endif; ?>
-                </section>
+                        <?php if (empty($reports)): ?>
+                            <div class="rp-empty"><i class="fas fa-inbox"></i>No reports submitted yet.</div>
+                        <?php else: ?>
+                            <div class="table-wrap">
+                                <table class="rp-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Category</th>
+                                            <th>Severity</th>
+                                            <th>Subject</th>
+                                            <th>Status</th>
+                                            <th>Submitted</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <?php foreach ($reports as $report):
+                                            $rpSeverity = strtolower($report['severity'] ?? '');
+                                            $rpBadgeClass = $rpSeverity === 'critical' ? 'rp-badge-critical' : 'rp-badge-medium';
+                                            $rpStatus = $report['status'] ?? 'Pending';
+                                            $rpStatusClass = $rpStatus === 'Resolved' ? 'rp-status-resolved' : ($rpStatus === 'In Progress' ? 'rp-status-progress' : 'rp-status-pending');
+                                        ?>
+                                            <tr onclick="openReportDetailModal(<?= htmlspecialchars(json_encode($report)) ?>)">
+                                                <td><span class="rp-badge rp-badge-category"><?= htmlspecialchars($report['category']) ?></span></td>
+                                                <td><span class="rp-badge <?= $rpBadgeClass ?>"><?= htmlspecialchars($report['severity']) ?></span></td>
+                                                <td><?= htmlspecialchars($report['subject'] ?: '(No subject)') ?></td>
+                                                <td><span class="rp-badge <?= $rpStatusClass ?>"><?= htmlspecialchars($rpStatus) ?></span></td>
+                                                <td><?= htmlspecialchars(date('M d, Y', strtotime($report['created_at']))) ?></td>
+                                            </tr>
+                                        <?php endforeach; ?>
+                                    </tbody>
+                                </table>
+                            </div>
+                        <?php endif; ?>
+                    </section>
+                </div>
+
+                <!-- Report Detail Modal -->
+                <div id="reportDetailModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(15,23,42,0.6); backdrop-filter:blur(8px); z-index:10000; justify-content:center; align-items:center;">
+                    <div style="background:white; border-radius:20px; box-shadow:0 25px 50px rgba(0,0,0,0.25); max-width:600px; width:92%; max-height:88vh; overflow-y:auto; animation:slideIn 0.25s ease;">
+                        <div style="display:flex; align-items:center; gap:16px; padding:24px 28px; border-bottom:1px solid #f1f5f9; background:linear-gradient(to right,#fafafa,#ffffff); border-radius:20px 20px 0 0;">
+                            <div style="width:48px;height:48px;background:linear-gradient(135deg,#0f4c81,#4c9ce8);border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:22px;color:white;"><i class="fas fa-headset"></i></div>
+                            <div style="flex:1;">
+                                <h2 style="margin:0;font-size:1.1rem;font-weight:700;color:#0f172a;" id="rpm_subject">—</h2>
+                                <p style="margin:4px 0 0;font-size:0.8rem;color:#64748b;">Submitted <span id="rpm_date">—</span></p>
+                            </div>
+                            <button type="button" onclick="document.getElementById('reportDetailModal').style.display='none'; document.body.style.overflow='';"
+                                style="width:38px;height:38px;background:none;border:1px solid #e2e8f0;border-radius:10px;font-size:18px;cursor:pointer;color:#64748b;">✕</button>
+                        </div>
+                        <div style="padding:24px 28px;">
+                            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px;" id="rpm_badges"></div>
+
+                            <div style="margin-bottom:20px;">
+                                <strong style="color:#64748b;display:block;font-size:0.8rem;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Description</strong>
+                                <div style="font-size:0.92rem;line-height:1.6;color:#334155;white-space:pre-wrap;background:#f8fafc;padding:14px;border-radius:12px;border:1px solid #e2e8f0;" id="rpm_description">—</div>
+                            </div>
+
+                            <div id="rpm_screenshot_wrap" style="display:none;">
+                                <strong style="color:#64748b;display:block;font-size:0.8rem;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Screenshot</strong>
+                                <div style="text-align:center;" id="rpm_screenshot_content"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <script>
+                    function openReportDetailModal(r) {
+                        document.getElementById('rpm_subject').textContent = r.subject || '(No subject)';
+                        document.getElementById('rpm_date').textContent = new Date(r.created_at.replace(' ', 'T')).toLocaleString();
+                        document.getElementById('rpm_description').textContent = r.description || '—';
+
+                        const severity = (r.severity || '').toLowerCase();
+                        const sevClass = severity === 'critical' ? 'rp-badge-critical' : 'rp-badge-medium';
+                        const status = r.status || 'Pending';
+                        const statusClass = status === 'Resolved' ? 'rp-status-resolved' : (status === 'In Progress' ? 'rp-status-progress' : 'rp-status-pending');
+                        document.getElementById('rpm_badges').innerHTML = `
+                            <span class="rp-badge rp-badge-category">${r.category}</span>
+                            <span class="rp-badge ${sevClass}">${r.severity}</span>
+                            <span class="rp-badge ${statusClass}">${status}</span>
+                        `;
+
+                        const screenshotWrap = document.getElementById('rpm_screenshot_wrap');
+                        if (r.screenshot_path) {
+                            const url = '../../' + r.screenshot_path;
+                            document.getElementById('rpm_screenshot_content').innerHTML =
+                                `<a href="${url}" target="_blank" title="Click to view full size"><img src="${url}" alt="Screenshot" style="max-width:100%;max-height:320px;border-radius:12px;border:1px solid #e2e8f0;box-shadow:0 4px 12px rgba(0,0,0,0.1);cursor:zoom-in;"></a>`;
+                            screenshotWrap.style.display = 'block';
+                        } else {
+                            screenshotWrap.style.display = 'none';
+                        }
+
+                        document.getElementById('reportDetailModal').style.display = 'flex';
+                        document.body.style.overflow = 'hidden';
+                    }
+
+                    document.addEventListener('DOMContentLoaded', function() {
+                        const modal = document.getElementById('reportDetailModal');
+                        if (modal) {
+                            modal.addEventListener('click', function(e) {
+                                if (e.target === this) { this.style.display = 'none'; document.body.style.overflow = ''; }
+                            });
+                        }
+                    });
+
+                    function rpHandleScreenshotChange(input) {
+                        if (!input.files || !input.files[0]) return;
+                        const file = input.files[0];
+                        const extMatch = /\.([a-z0-9]+)$/i.exec(file.name || '');
+                        const ext = extMatch ? extMatch[1].toLowerCase() : '';
+                        if (!['jpg', 'jpeg', 'png'].includes(ext)) {
+                            alert('Screenshot must be a .jpg, .jpeg, or .png file.');
+                            input.value = '';
+                            return;
+                        }
+                        if (file.size > 5 * 1024 * 1024) {
+                            alert('Screenshot must be under 5MB.');
+                            input.value = '';
+                            return;
+                        }
+                        const reader = new FileReader();
+                        reader.onload = function(e) {
+                            document.getElementById('rpDropzonePrompt').style.display = 'none';
+                            const img = document.getElementById('rpPreviewImg');
+                            img.src = e.target.result;
+                            img.style.display = 'block';
+                            document.getElementById('rpDropzoneActions').style.display = 'flex';
+                        };
+                        reader.readAsDataURL(file);
+                    }
+
+                    function rpRemoveScreenshot() {
+                        const input = document.getElementById('rp_screenshot');
+                        input.value = '';
+                        document.getElementById('rpDropzonePrompt').style.display = 'block';
+                        document.getElementById('rpPreviewImg').style.display = 'none';
+                        document.getElementById('rpDropzoneActions').style.display = 'none';
+                    }
+                </script>
             <?php endif; ?>
         </main>
     </div>
