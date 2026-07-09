@@ -21,9 +21,12 @@ try {
         $isNumeric = is_numeric($key);
         $sql = "
             SELECT 
-                *
-            FROM foreign_destinations 
-            WHERE " . ($isNumeric ? "id = ?" : "dest_key = ?") . " AND is_active = 1
+                fd.*, 
+                COALESCE(pr.business_display_name, p.company_name, fd.partner_company) AS partner_company
+            FROM foreign_destinations fd
+            LEFT JOIN partner_applications p ON fd.partner_id = p.id
+            LEFT JOIN partner_profiles pr ON pr.partner_id = fd.partner_id
+            WHERE " . ($isNumeric ? "fd.id = ?" : "fd.dest_key = ?") . " AND fd.is_active = 1
             LIMIT 1
         ";
         $stmt = $pdo->prepare($sql);
@@ -58,16 +61,19 @@ try {
     else {
         $sql = "
             SELECT 
-                dest_key, name, country, city, location,
-                description, short_description,
-                price, currency, duration, badge_text,
-                image_path, image2_path, image3_path,
-                remarks, blocked_dates,
-                promo_start, promo_end, blocked_months, highlight_duration,
-                partner_id, partner_company
-            FROM foreign_destinations 
-            WHERE is_active = 1 
-            ORDER BY display_order, id ASC
+                fd.dest_key, fd.name, fd.country, fd.city, fd.location,
+                fd.description, fd.short_description,
+                fd.price, fd.currency, fd.duration, fd.badge_text,
+                fd.image_path, fd.image2_path, fd.image3_path,
+                fd.remarks, fd.blocked_dates,
+                fd.promo_start, fd.promo_end, fd.blocked_months, fd.highlight_duration,
+                fd.partner_id,
+                COALESCE(pr.business_display_name, p.company_name, fd.partner_company) AS partner_company
+            FROM foreign_destinations fd
+            LEFT JOIN partner_applications p ON fd.partner_id = p.id
+            LEFT JOIN partner_profiles pr ON pr.partner_id = fd.partner_id
+            WHERE fd.is_active = 1 
+            ORDER BY fd.display_order, fd.id ASC
         ";
         
         $params = [];

@@ -88,6 +88,23 @@ function uploadImage($file, $old_image = null)
     return ['success' => true, 'path' => $old_image];
 }
 
+function assetUrl($path)
+{
+    if (!$path) {
+        return '';
+    }
+
+    if (strpos($path, 'http://') === 0 || strpos($path, 'https://') === 0 || strpos($path, '//') === 0) {
+        return $path;
+    }
+
+    if (strpos($path, '../') === 0 || strpos($path, './') === 0) {
+        return $path;
+    }
+
+    return '../../' . ltrim($path, '/');
+}
+
 function ensurePartnerOwnership($pdo, $table, $id, $partnerId)
 {
     if ($id <= 0) {
@@ -3183,7 +3200,7 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
                         <?php foreach ($visas as $visa): ?>
                             <div class="content-card">
                                 <div class="card-preview"
-                                    style="background-image: url('<?= $visa['icon_type'] === 'image' || $visa['icon_type'] === 'upload' ? (!empty($visa['icon_value']) ? (strpos($visa['icon_value'], 'http') === 0 ? $visa['icon_value'] : '../' . $visa['icon_value']) : '../assets/img/placeholder.jpg') : '' ?>'); background-color: #f8f9fa;">
+                                    style="background-image: url('<?= $visa['icon_type'] === 'image' || $visa['icon_type'] === 'upload' ? (!empty($visa['icon_value']) ? (strpos($visa['icon_value'], 'http') === 0 ? $visa['icon_value'] : assetUrl($visa['icon_value'])) : assetUrl('assets/img/placeholder.jpg')) : '' ?>'); background-color: #f8f9fa;">
                                     <?php if ($visa['icon_type'] === 'icon'): ?>
                                         <div
                                             style="display: flex; align-items: center; justify-content: center; height: 100%; font-size: 3rem; color: #003580;">
@@ -3320,7 +3337,7 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
                                         <?php foreach ($cruises as $cruise): ?>
                                             <tr style="border-bottom: 1px solid #f1f5f9;">
                                                 <td style="padding: 15px 20px;">
-                                                    <img src="../<?= $cruise['featured_image'] ?: 'images/placeholder.jpg' ?>"
+                                                    <img src="<?= assetUrl($cruise['featured_image'] ?: 'images/placeholder.jpg') ?>"
                                                         style="width: 60px; height: 60px; border-radius: 8px; object-fit: cover; border: 1px solid #e2e8f0;">
                                                 </td>
                                                 <td style="padding: 15px 20px;">
@@ -3475,7 +3492,7 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
                                             <tr style="border-bottom: 1px solid #f1f5f9;">
                                                 <td style="padding: 15px 20px;">
                                                     <?php if ($service['featured_image']): ?>
-                                                        <img src="../<?= htmlspecialchars($service['featured_image']) ?>"
+                                                        <img src="<?= assetUrl($service['featured_image']) ?>"
                                                             style="width: 50px; height: 50px; border-radius: 8px; object-fit: cover;">
                                                     <?php else: ?>
                                                         <div
@@ -3625,7 +3642,7 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
                                             <tr style="border-bottom: 1px solid #f1f5f9;">
                                                 <td style="padding: 15px 20px;">
                                                     <?php if ($service['featured_image']): ?>
-                                                        <img src="../<?= htmlspecialchars($service['featured_image']) ?>"
+                                                        <img src="<?= assetUrl($service['featured_image']) ?>"
                                                             style="width: 50px; height: 50px; border-radius: 8px; object-fit: cover;">
                                                     <?php else: ?>
                                                         <div
@@ -3777,7 +3794,7 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
                                             <tr style="border-bottom: 1px solid #f1f5f9;">
                                                 <td style="padding: 15px 20px;">
                                                     <?php if ($service['featured_image']): ?>
-                                                        <img src="../<?= htmlspecialchars($service['featured_image']) ?>"
+                                                        <img src="<?= assetUrl($service['featured_image']) ?>"
                                                             style="width: 50px; height: 50px; border-radius: 8px; object-fit: cover;">
                                                     <?php else: ?>
                                                         <div
@@ -4389,7 +4406,7 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
                             <div class="message info">No flash deals yet. Click "Add Flash Deal" to create your first one.</div>
                         <?php else: ?>
                             <?php foreach ($flash_deals as $deal):
-                                $preview_image = !empty($deal['image_path']) ? '../' . $deal['image_path'] : 'https://via.placeholder.com/300x150?text=No+Image';
+                                $preview_image = !empty($deal['image_path']) ? assetUrl($deal['image_path']) : 'https://via.placeholder.com/300x150?text=No+Image';
                                 $discount_text = $deal['discount_percent'] ? "⚡ {$deal['discount_percent']}% off" : ($deal['badge_text'] ?? 'Flash Deal');
                                 $is_expired = !empty($deal['promo_end']) && strtotime($deal['promo_end'] . ' 23:59:59') < time();
                                 ?>
@@ -4766,7 +4783,7 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
                                 your first one.</div>
                         <?php else: ?>
                             <?php foreach ($foreign_destinations as $dest):
-                                $preview_image = !empty($dest['image_path']) ? '../' . $dest['image_path'] : 'https://via.placeholder.com/300x150?text=No+Image';
+                                $preview_image = !empty($dest['image_path']) ? assetUrl($dest['image_path']) : 'https://via.placeholder.com/300x150?text=No+Image';
                                 $badge_text = $dest['badge_text'] ?? ($dest['activities_count'] . ' activities');
                                 ?>
                                 <div class="content-card">
@@ -5128,7 +5145,7 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
                                 first one.</div>
                         <?php else: ?>
                             <?php foreach ($local_destinations as $dest):
-                                $preview_image = !empty($dest['image_path']) ? '../' . $dest['image_path'] : 'https://via.placeholder.com/300x150?text=No+Image';
+                                $preview_image = !empty($dest['image_path']) ? assetUrl($dest['image_path']) : 'https://via.placeholder.com/300x150?text=No+Image';
                                 $badge_text = $dest['badge_text'] ?? ($dest['activities_count'] . ' activities');
                                 ?>
                                 <div class="content-card">
@@ -5851,6 +5868,19 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
                 }
             },
 
+            normalizeAssetPath: function(path) {
+                if (!path || typeof path !== 'string') {
+                    return '';
+                }
+                if (/^(https?:|\/\/)/i.test(path)) {
+                    return path;
+                }
+                if (path.startsWith('../') || path.startsWith('./') || path.startsWith('/')) {
+                    return path;
+                }
+                return '../../' + path.replace(/^\/+/, '');
+            },
+
             saveDraft: function(formId) {
                 try {
                     const form = document.getElementById(formId);
@@ -6050,7 +6080,7 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
                         const preview = document.getElementById(previewId);
                         if (input && preview) {
                             if (input.value) {
-                                preview.style.backgroundImage = `url('../${input.value}')`;
+                                preview.style.backgroundImage = `url('${PersistenceEngine.normalizeAssetPath(input.value)}')`;
                                 preview.style.backgroundSize = 'cover';
                                 preview.style.backgroundPosition = 'center';
                                 if (preview.classList.contains('featured-preview-frame')) {
@@ -6225,7 +6255,7 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
                 const div = document.createElement('div');
                 div.style.height = '100px';
                 div.style.borderRadius = '8px';
-                div.style.backgroundImage = `url('../${img}')`;
+                div.style.backgroundImage = `url('${PersistenceEngine.normalizeAssetPath(img)}')`;
                 div.style.backgroundSize = 'cover';
                 div.style.backgroundPosition = 'center';
                 div.style.position = 'relative';
@@ -6347,15 +6377,15 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
 
             // Set images
             if (dest.image_path) {
-                document.getElementById('foreign_preview_1').style.backgroundImage = `url('../${dest.image_path}')`;
+                document.getElementById('foreign_preview_1').style.backgroundImage = `url('${PersistenceEngine.normalizeAssetPath(dest.image_path)}')`;
                 document.getElementById('foreign_old_image').value = dest.image_path;
             }
             if (dest.image2_path) {
-                document.getElementById('foreign_preview_2').style.backgroundImage = `url('../${dest.image2_path}')`;
+                document.getElementById('foreign_preview_2').style.backgroundImage = `url('${PersistenceEngine.normalizeAssetPath(dest.image2_path)}')`;
                 document.getElementById('foreign_old_image2').value = dest.image2_path;
             }
             if (dest.image3_path) {
-                document.getElementById('foreign_preview_3').style.backgroundImage = `url('../${dest.image3_path}')`;
+                document.getElementById('foreign_preview_3').style.backgroundImage = `url('${PersistenceEngine.normalizeAssetPath(dest.image3_path)}')`;
                 document.getElementById('foreign_old_image3').value = dest.image3_path;
             }
 
@@ -6523,7 +6553,7 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
                 const div = document.createElement('div');
                 div.style.height = '100px';
                 div.style.borderRadius = '8px';
-                div.style.backgroundImage = `url('../${img}')`;
+                div.style.backgroundImage = `url('${PersistenceEngine.normalizeAssetPath(img)}')`;
                 div.style.backgroundSize = 'cover';
                 div.style.backgroundPosition = 'center';
                 div.style.position = 'relative';
@@ -6646,7 +6676,7 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
 
             // Set images
             if (dest.image_path) {
-                document.getElementById('local_preview_1').style.backgroundImage = `url('../${dest.image_path}')`;
+                document.getElementById('local_preview_1').style.backgroundImage = `url('${PersistenceEngine.normalizeAssetPath(dest.image_path)}')`;
                 document.getElementById('local_old_image').value = dest.image_path;
             } else {
                 document.getElementById('local_preview_1').style.backgroundImage = '';
@@ -6654,7 +6684,7 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
             }
 
             if (dest.image2_path) {
-                document.getElementById('local_preview_2').style.backgroundImage = `url('../${dest.image2_path}')`;
+                document.getElementById('local_preview_2').style.backgroundImage = `url('${PersistenceEngine.normalizeAssetPath(dest.image2_path)}')`;
                 document.getElementById('local_old_image_2').value = dest.image2_path;
             } else {
                 document.getElementById('local_preview_2').style.backgroundImage = '';
@@ -6662,7 +6692,7 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
             }
 
             if (dest.image3_path) {
-                document.getElementById('local_preview_3').style.backgroundImage = `url('../${dest.image3_path}')`;
+                document.getElementById('local_preview_3').style.backgroundImage = `url('${PersistenceEngine.normalizeAssetPath(dest.image3_path)}')`;
                 document.getElementById('local_old_image_3').value = dest.image3_path;
             } else {
                 document.getElementById('local_preview_3').style.backgroundImage = '';
@@ -7136,7 +7166,7 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
                 const div = document.createElement('div');
                 div.style.height = '100px';
                 div.style.borderRadius = '8px';
-                div.style.backgroundImage = `url('../${img}')`;
+                div.style.backgroundImage = `url('${PersistenceEngine.normalizeAssetPath(img)}')`;
                 div.style.backgroundSize = 'cover';
                 div.style.backgroundPosition = 'center';
                 div.style.position = 'relative';
@@ -7285,15 +7315,15 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
             }
 
             if (deal.image_path) {
-                document.getElementById('fd_preview_1').style.backgroundImage = `url('../${deal.image_path}')`;
+                document.getElementById('fd_preview_1').style.backgroundImage = `url('${PersistenceEngine.normalizeAssetPath(deal.image_path)}')`;
                 document.getElementById('old_image_1').value = deal.image_path;
             }
             if (deal.image2_path) {
-                document.getElementById('fd_preview_2').style.backgroundImage = `url('../${deal.image2_path}')`;
+                document.getElementById('fd_preview_2').style.backgroundImage = `url('${PersistenceEngine.normalizeAssetPath(deal.image2_path)}')`;
                 document.getElementById('old_image_2').value = deal.image2_path;
             }
             if (deal.image3_path) {
-                document.getElementById('fd_preview_3').style.backgroundImage = `url('../${deal.image3_path}')`;
+                document.getElementById('fd_preview_3').style.backgroundImage = `url('${PersistenceEngine.normalizeAssetPath(deal.image3_path)}')`;
                 document.getElementById('old_image_3').value = deal.image3_path;
             }
 
@@ -7684,7 +7714,7 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
             _cruiseSavedGallery.forEach((img) => {
                 const div = document.createElement('div');
                 div.className = 'grid-preview-item';
-                div.style.backgroundImage = `url('../${img}')`;  // relative to admin/
+                div.style.backgroundImage = `url('${PersistenceEngine.normalizeAssetPath(img)}')`;
                 div.style.backgroundSize = 'cover';
                 div.style.backgroundPosition = 'center';
                 div.innerHTML = `<button type="button" class="remove-img-overlay"
@@ -7801,7 +7831,7 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
             _serviceSavedGallery.forEach((img) => {
                 const div = document.createElement('div');
                 div.className = 'grid-preview-item';
-                div.style.backgroundImage = `url('../${img}')`;  // relative to admin/
+                div.style.backgroundImage = `url('${PersistenceEngine.normalizeAssetPath(img)}')`;
                 div.style.backgroundSize = 'cover';
                 div.style.backgroundPosition = 'center';
                 div.innerHTML = `<button type="button" class="remove-img-overlay"
@@ -7983,7 +8013,7 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
                         document.getElementById('service_old_featured_image').value = s.featured_image || '';
                         const featPreview = document.getElementById('service_featured_preview');
                         if (s.featured_image) {
-                            featPreview.style.backgroundImage = `url('../${s.featured_image}')`;
+                            featPreview.style.backgroundImage = `url('${PersistenceEngine.normalizeAssetPath(s.featured_image)}')`;
                             featPreview.innerHTML = '';
                         } else {
                             featPreview.style.backgroundImage = '';
@@ -8191,7 +8221,7 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
                         document.getElementById('cruise_category').value = d.category || '';
                         document.getElementById('cruise_tags').value = d.tags || '';
                         document.getElementById('old_featured_image').value = d.featured_image || '';
-                        document.getElementById('featured_preview_box').style.backgroundImage = d.featured_image ? `url('../${d.featured_image}')` : '';
+                        document.getElementById('featured_preview_box').style.backgroundImage = d.featured_image ? `url('${PersistenceEngine.normalizeAssetPath(d.featured_image)}')` : '';
                         document.getElementById('cruise_is_published').checked = d.is_published == 1;
                         document.getElementById('cruise_is_featured').checked = d.is_featured == 1;
 

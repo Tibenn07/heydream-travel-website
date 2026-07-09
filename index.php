@@ -44,8 +44,10 @@ $stmt = $pdo->prepare("
         d.highlight_duration,
         d.blocked_dates,
         d.partner_id,
-        d.partner_company
+        COALESCE(pr.business_display_name, p.company_name, d.partner_company) AS partner_company
     FROM destinations d
+    LEFT JOIN partner_applications p ON d.partner_id = p.id
+    LEFT JOIN partner_profiles pr ON pr.partner_id = d.partner_id
     WHERE d.type = 'local' AND d.is_active = 1 
     ORDER BY d.display_order, d.id ASC
 ");

@@ -24,16 +24,22 @@ if (!$id && !$name) {
 try {
     if ($id > 0) {
         $stmt = $pdo->prepare("
-            SELECT * FROM destinations 
-            WHERE id = :id AND type = 'local' AND is_active = 1
+            SELECT d.*, COALESCE(pr.business_display_name, p.company_name, d.partner_company) AS partner_company
+            FROM destinations d
+            LEFT JOIN partner_applications p ON d.partner_id = p.id
+            LEFT JOIN partner_profiles pr ON pr.partner_id = d.partner_id
+            WHERE d.id = :id AND d.type = 'local' AND d.is_active = 1
         ");
         $stmt->execute(['id' => $id]);
     } else {
         // More robust lookup: handle direct name match OR underscore-slug match
         $stmt = $pdo->prepare("
-            SELECT * FROM destinations 
-            WHERE (name = :name OR REPLACE(LOWER(name), ' ', '_') = :name OR name LIKE :name_like) 
-            AND type = 'local' AND is_active = 1
+            SELECT d.*, COALESCE(pr.business_display_name, p.company_name, d.partner_company) AS partner_company
+            FROM destinations d
+            LEFT JOIN partner_applications p ON d.partner_id = p.id
+            LEFT JOIN partner_profiles pr ON pr.partner_id = d.partner_id
+            WHERE (d.name = :name OR REPLACE(LOWER(d.name), ' ', '_') = :name OR d.name LIKE :name_like) 
+            AND d.type = 'local' AND d.is_active = 1
             LIMIT 1
         ");
         $stmt->execute([

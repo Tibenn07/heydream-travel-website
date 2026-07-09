@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 require_once __DIR__ . '/../../config/database.php';
 require_once __DIR__ . '/../../api/partner-booking-tracker.php';
 
@@ -81,6 +81,23 @@ function uploadPartnerPackageAsset($file, $oldPath = null)
     }
 
     return ['success' => false, 'message' => 'Package image upload failed.'];
+}
+
+function assetUrl($path)
+{
+    if (!$path) {
+        return '';
+    }
+
+    if (strpos($path, 'http://') === 0 || strpos($path, 'https://') === 0 || strpos($path, '//') === 0) {
+        return $path;
+    }
+
+    if (strpos($path, '../') === 0 || strpos($path, './') === 0) {
+        return $path;
+    }
+
+    return '../../' . ltrim($path, '/');
 }
 
 try {
@@ -608,19 +625,44 @@ if (($section ?? 'dashboard') === 'bookings') {
         .brand-block {
             border-bottom: 1px solid rgba(255,255,255,0.16);
             padding-bottom: 16px;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .brand-block .brand-logo {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            overflow: hidden;
+            background: #ffffff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .brand-block .brand-logo img {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+            display: block;
         }
 
         .brand-block .eyebrow {
             text-transform: uppercase;
             letter-spacing: 0.16em;
             font-size: 0.75rem;
-            color: #cde6ff;
-            margin-bottom: 6px;
+            color: #ffffff;
+            margin: 0;
         }
 
         .brand-block h2 {
             margin: 0;
             font-size: 1.3rem;
+            color: #ffffff;
+            line-height: 1.2;
         }
 
         .nav-list {
@@ -712,6 +754,291 @@ if (($section ?? 'dashboard') === 'bookings') {
             box-shadow: var(--shadow);
             padding: 22px;
             margin-bottom: 18px;
+        }
+
+        .dashboard-hero {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 24px;
+            padding: 28px;
+            margin-bottom: 18px;
+            border-radius: 24px;
+            background: linear-gradient(180deg, rgba(15,76,129,0.1), rgba(255,255,255,0.95));
+            border: 1px solid rgba(15,76,129,0.12);
+            box-shadow: 0 20px 45px rgba(15,23,42,0.08);
+        }
+
+        .dashboard-hero-copy {
+            flex: 1;
+            min-width: 280px;
+        }
+
+        .dashboard-hero-copy h1 {
+            margin: 12px 0 0;
+            font-size: 2.05rem;
+            line-height: 1.1;
+        }
+
+        .hero-note {
+            margin: 18px 0 0;
+            color: var(--muted);
+            max-width: 640px;
+            line-height: 1.8;
+        }
+
+        .hero-badges {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 18px;
+        }
+
+        .dashboard-hero-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            align-items: center;
+        }
+
+        .dashboard-hero-actions .pill-btn {
+            min-width: 170px;
+        }
+
+        .status-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 14px;
+            border-radius: 999px;
+            background: #e2e8ff;
+            color: #1d4ed8;
+            font-weight: 700;
+            font-size: 0.85rem;
+            letter-spacing: 0.02em;
+        }
+
+        .status-pill.approved {
+            background: #d1fae5;
+            color: #047857;
+        }
+
+        .status-pill.pending {
+            background: #fef3c7;
+            color: #b45309;
+        }
+
+        .status-pill.rejected {
+            background: #fee2e2;
+            color: #b91c1c;
+        }
+
+        .dashboard-primary-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 16px;
+            margin-top: 20px;
+        }
+
+        .dashboard-mini-card {
+            background: #f8fbff;
+            border: 1px solid #dbeafe;
+            border-radius: 20px;
+            padding: 22px;
+            min-height: 140px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            box-shadow: inset 0 0 0 1px rgba(255,255,255,0.8);
+        }
+
+        .dashboard-mini-card:hover {
+            transform: translateY(-2px);
+            transition: transform 0.2s ease;
+        }
+
+        .dashboard-mini-card .card-label {
+            font-size: 0.85rem;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            margin-bottom: 10px;
+        }
+
+        .dashboard-mini-card .card-value {
+            font-size: 1.6rem;
+            font-weight: 800;
+            color: var(--text);
+            margin-bottom: 10px;
+        }
+
+        .dashboard-mini-card .card-note {
+            color: #475569;
+            font-size: 0.92rem;
+            line-height: 1.6;
+        }
+
+        .dashboard-hero-panel {
+            overflow: hidden;
+        }
+
+        .panel-head p {
+            margin: 6px 0 0;
+            color: var(--muted);
+        }
+
+        .panel-head > div {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .panel-head h3 {
+            margin: 0;
+            font-size: 1.15rem;
+        }
+
+        .panel-head span.status-pill {
+            margin-top: 0;
+        }
+
+        .dashboard-hero-panel .status-pill {
+            background: #e0f2fe;
+            color: #0369a1;
+        }
+
+        .dashboard-hero-panel .status-pill.approved {
+            background: #d1fae5;
+            color: #047857;
+        }
+
+        .dashboard-hero-panel .status-pill.pending {
+            background: #fef3c7;
+            color: #b45309;
+        }
+
+        .dashboard-hero-panel .status-pill.rejected {
+            background: #fee2e2;
+            color: #b91c1c;
+        }
+
+        .dashboard-hero-panel .panel-head {
+            align-items: flex-start;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .dashboard-hero-panel .panel-head > div {
+            min-width: 0;
+        }
+
+        .dashboard-hero-panel .status-pill {
+            flex-shrink: 0;
+        }
+
+        .dashboard-hero-panel .dashboard-primary-grid {
+            margin-top: 20px;
+        }
+
+        .dashboard-hero-panel .dashboard-mini-card {
+            padding: 24px;
+        }
+
+        .package-table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0 12px;
+            min-width: 760px;
+        }
+
+        .package-table th {
+            color: var(--muted);
+            font-size: 0.78rem;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            padding: 12px 14px;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .package-table td {
+            padding: 16px 14px;
+            background: #f8fbff;
+            border: none;
+            vertical-align: top;
+        }
+
+        .package-table tbody tr:hover td {
+            background: #eef4ff;
+        }
+
+        .package-name {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .package-name strong {
+            font-size: 0.98rem;
+            color: var(--text);
+        }
+
+        .package-meta {
+            color: var(--muted);
+            font-size: 0.88rem;
+        }
+
+        .package-status {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 7px 12px;
+            border-radius: 999px;
+            font-size: 0.8rem;
+            font-weight: 700;
+            letter-spacing: 0.02em;
+        }
+
+        .package-status.active {
+            background: #ecfdf5;
+            color: #166534;
+        }
+
+        .package-status.inactive,
+        .package-status.pending {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .package-status.rejected,
+        .package-status.cancelled {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .package-source {
+            color: #475569;
+            font-size: 0.82rem;
+            margin-top: 6px;
+        }
+
+        .dashboard-hero {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 24px;
+            padding: 28px;
+            margin-bottom: 18px;
+            border-radius: 24px;
+            background: linear-gradient(180deg, rgba(15,76,129,0.1), rgba(255,255,255,0.95));
+            border: 1px solid rgba(15,76,129,0.12);
+            box-shadow: 0 20px 45px rgba(15,23,42,0.08);
+        }
+
+        @media (max-width: 900px) {
+            .dashboard-hero { flex-direction: column; }
+            .dashboard-hero-actions { justify-content: flex-start; }
+            .dashboard-hero { padding: 22px; }
         }
 
         .panel-head {
@@ -1438,8 +1765,11 @@ if (($section ?? 'dashboard') === 'bookings') {
     <div class="admin-shell">
         <aside class="sidebar">
             <div class="brand-block">
+                <div class="brand-logo">
+                    <img src="../../images/Heydream Logo.png" alt="HeyDream Logo">
+                </div>
                 <div class="eyebrow">Partner Portal</div>
-                <h2>HeyDream Travel</h2>
+                <h2><?= htmlspecialchars($profile['business_display_name'] ?: $partner['company_name'] ?: 'Partner') ?></h2>
             </div>
             <nav class="nav-list">
                 <a href="partner-dashboard.php" class="<?= $section === 'dashboard' ? 'active' : '' ?>"><i class="fas fa-chart-pie"></i> Dashboard</a>
@@ -1449,20 +1779,33 @@ if (($section ?? 'dashboard') === 'bookings') {
                 <a href="partner-dashboard.php?section=report-problems" class="<?= $section === 'report-problems' ? 'active' : '' ?>"><i class="fas fa-headset"></i> Report problems</a>
             </nav>
             <div class="sidebar-card">
-                <strong><?= htmlspecialchars($partner['company_name']) ?></strong><br>
-                <span><?= htmlspecialchars($partner['contact_person']) ?></span>
+                <strong><?= htmlspecialchars($profile['business_display_name'] ?: $partner['company_name']) ?></strong><br>
+                <span><?= htmlspecialchars($partner['contact_person'] ?: 'Partner contact') ?></span>
             </div>
         </aside>
 
         <main class="main-area">
-            <div class="topbar">
-                <div>
-                    <h1><?= $section === 'partner-content-manager' ? 'Content Manager' : ($section === 'bookings' ? 'Bookings' : ($section === 'profile' ? 'My Profile' : ($section === 'report-problems' ? 'Report problems' : 'Dashboard'))) ?></h1>
-                    <p>Manage your partnership activity in a content-manager style workspace.</p>
-                </div>
-                <div class="top-actions">
+            <div class="dashboard-hero">
+                <div class="dashboard-hero-copy">
+                    <div class="eyebrow"><?= $section === 'partner-content-manager' ? 'Content Manager' : ($section === 'bookings' ? 'Bookings' : ($section === 'profile' ? 'My Profile' : ($section === 'report-problems' ? 'Report problems' : 'Dashboard'))) ?></div>
+                    <h1>Good to see you, <?= htmlspecialchars($partner['contact_person'] ?: $profile['business_display_name'] ?: $partner['company_name']) ?>.</h1>
+                    <p class="hero-note">
+                        <?= $section === 'dashboard' ? 'Your partner portal hub for high-value bookings, package growth, and revenue monitoring.' : 'Manage your partnership activity in a smooth, modern workspace.' ?>
+                    </p>
                     <?php if ($section === 'dashboard'): ?>
+                        <div class="hero-badges">
+                            <span class="status-pill <?= htmlspecialchars($partner['status']) ?>"><?= strtoupper(htmlspecialchars($partner['status'])) ?></span>
+                            <span class="status-pill">Packages <?= count($uploads) ?></span>
+                            <span class="status-pill">Bookings <?= (int)($partnerBookingStats['total_bookings'] ?? 0) ?></span>
+                            <span class="status-pill">Reports <?= count($reports) ?></span>
+                        </div>
+                    <?php endif; ?>
+                </div>
+                <div class="dashboard-hero-actions">
+                    <?php if ($section === 'dashboard'): ?>
+                        <a class="pill-btn primary" href="partner-content-manager.php"><i class="fas fa-upload"></i> Upload Package</a>
                         <a class="pill-btn" href="partner-dashboard.php?section=bookings"><i class="fas fa-book-open"></i> View Bookings</a>
+                        <a class="pill-btn" href="partner-dashboard.php?section=profile"><i class="fas fa-user-tie"></i> Profile</a>
                     <?php endif; ?>
                     <a class="pill-btn" href="partner-logout.php"><i class="fas fa-sign-out-alt"></i> Logout</a>
                 </div>
@@ -1472,35 +1815,34 @@ if (($section ?? 'dashboard') === 'bookings') {
             <?php if ($errorMessage !== ''): ?><div class="alert alert-error"><i class="fas fa-exclamation-circle"></i> <?= htmlspecialchars($errorMessage) ?></div><?php endif; ?>
 
             <?php if ($section === 'dashboard'): ?>
-                <section class="panel">
+                <section class="panel dashboard-hero-panel">
                     <div class="panel-head">
-                        <h3>Partnership Overview</h3>
-                        <span class="status-badge <?= htmlspecialchars($partner['status']) ?>"><?= strtoupper(htmlspecialchars($partner['status'])) ?></span>
+                        <div>
+                            <h3>Partner Performance</h3>
+                            <p class="muted">A polished snapshot of your revenue, bookings, and package health.</p>
+                        </div>
+                        <span class="status-pill <?= htmlspecialchars($partner['status']) ?>"><?= strtoupper(htmlspecialchars($partner['status'])) ?></span>
                     </div>
-                    <div class="stats-grid">
-                        <div class="stat-card">
-                            <strong>Company</strong>
-                            <span><?= htmlspecialchars($partner['company_name']) ?></span>
+                    <div class="dashboard-primary-grid">
+                        <div class="dashboard-mini-card">
+                            <div class="card-label">Total Bookings</div>
+                            <div class="card-value"><?= (int)($partnerBookingStats['total_bookings'] ?? 0) ?></div>
+                            <div class="card-note">Bookings from all partner listings</div>
                         </div>
-                        <div class="stat-card">
-                            <strong>Contact Person</strong>
-                            <span><?= htmlspecialchars($partner['contact_person']) ?></span>
+                        <div class="dashboard-mini-card">
+                            <div class="card-label">Paid Revenue</div>
+                            <div class="card-value">₱<?= number_format((float)($partnerBookingStats['paid_revenue'] ?? 0), 2) ?></div>
+                            <div class="card-note">Collected from confirmed orders</div>
                         </div>
-                        <div class="stat-card">
-                            <strong>Packages Uploaded</strong>
-                            <span><?= count($uploads) ?></span>
+                        <div class="dashboard-mini-card">
+                            <div class="card-label">Pending Revenue</div>
+                            <div class="card-value">₱<?= number_format((float)($partnerBookingStats['pending_revenue'] ?? 0), 2) ?></div>
+                            <div class="card-note">Awaiting payment or confirmation</div>
                         </div>
-                        <div class="stat-card">
-                            <strong>Customer Bookings</strong>
-                            <span><?= (int)($partnerBookingStats['total_bookings'] ?? 0) ?></span>
-                        </div>
-                        <div class="stat-card">
-                            <strong>Revenue</strong>
-                            <span>₱<?= number_format((float)($partnerBookingStats['paid_revenue'] ?? 0), 2) ?></span>
-                        </div>
-                        <div class="stat-card">
-                            <strong>Reports Submitted</strong>
-                            <span><?= count($reports) ?></span>
+                        <div class="dashboard-mini-card">
+                            <div class="card-label">Packages Listed</div>
+                            <div class="card-value"><?= count($uploads) ?></div>
+                            <div class="card-note">Latest listings and active offers</div>
                         </div>
                     </div>
                 </section>
@@ -1942,7 +2284,7 @@ if (($section ?? 'dashboard') === 'bookings') {
                             }
                             const proofWrap = document.getElementById('bm_payment_proof_wrap');
                             if (b.payment_proof) {
-                                const proofUrl = '../../' + b.payment_proof;
+                                const proofUrl = normalizeAssetPath(b.payment_proof);
                                 const isImage = /\.(jpg|jpeg|png|gif|webp)$/i.test(b.payment_proof);
                                 document.getElementById('bm_payment_proof_content').innerHTML = isImage
                                     ? `<a href="${proofUrl}" target="_blank" title="Click to view full image"><img src="${proofUrl}" alt="Payment Proof" style="max-width:100%;max-height:220px;border-radius:10px;border:2px solid #bbf7d0;box-shadow:0 4px 12px rgba(0,0,0,0.1);cursor:pointer;object-fit:cover;display:block;"></a><p style="font-size:0.78rem;color:#64748b;margin-top:6px;text-align:center;"><i class="fas fa-search-plus" style="margin-right:4px;"></i>Click image to view full size</p>`
@@ -2034,7 +2376,7 @@ if (($section ?? 'dashboard') === 'bookings') {
                             } else { refRow.style.display = 'none'; }
                             const proofContent = document.getElementById('edit_payment_proof_content');
                             if (b.payment_proof) {
-                                const proofUrl = '../../' + b.payment_proof;
+                                const proofUrl = normalizeAssetPath(b.payment_proof);
                                 const isImage = /\.(jpg|jpeg|png|gif|webp)$/i.test(b.payment_proof);
                                 proofContent.innerHTML = isImage
                                     ? `<a href="${proofUrl}" target="_blank" title="Click to view full image"><img src="${proofUrl}" alt="Payment Proof" style="max-width:100%;max-height:220px;border-radius:12px;border:2px solid #bbf7d0;box-shadow:0 4px 12px rgba(0,0,0,0.1);cursor:zoom-in;object-fit:contain;display:block;background:#f8fafc;"></a>`
@@ -2314,7 +2656,7 @@ if (($section ?? 'dashboard') === 'bookings') {
                         <div class="mp-hero-left">
                             <div class="mp-hero-logo">
                                 <?php if (!empty($profile['logo_path'])): ?>
-                                    <img src="../<?= htmlspecialchars($profile['logo_path']) ?>" alt="Logo">
+                                    <img src="<?= assetUrl($profile['logo_path']) ?>" alt="Logo">
                                 <?php else: ?>
                                     <span><?= htmlspecialchars(strtoupper(substr($mpBusinessName, 0, 1))) ?></span>
                                 <?php endif; ?>
@@ -2538,7 +2880,7 @@ if (($section ?? 'dashboard') === 'bookings') {
                                         <div class="mp-media-label">Profile Logo</div>
                                         <div class="mp-logo-preview">
                                             <?php if (!empty($profile['logo_path'])): ?>
-                                                <img src="../<?= htmlspecialchars($profile['logo_path']) ?>" alt="Logo">
+                                                <img src="<?= assetUrl($profile['logo_path']) ?>" alt="Logo">
                                             <?php else: ?>
                                                 <i class="fas fa-image"></i>
                                             <?php endif; ?>
@@ -2551,7 +2893,7 @@ if (($section ?? 'dashboard') === 'bookings') {
                                         <div class="mp-media-label">Cover Photo</div>
                                         <div class="mp-cover-preview">
                                             <?php if (!empty($profile['banner_image_path'])): ?>
-                                                <img src="../<?= htmlspecialchars($profile['banner_image_path']) ?>" alt="Cover photo">
+                                                <img src="<?= assetUrl($profile['banner_image_path']) ?>" alt="Cover photo">
                                             <?php else: ?>
                                                 <i class="fas fa-panorama"></i>
                                             <?php endif; ?>
