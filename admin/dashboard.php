@@ -4899,7 +4899,7 @@ $unreadMessagesCount = $stmtMessagesCount ? $stmtMessagesCount->fetchColumn() : 
                                         <div style="min-width:0;"><strong style="color:#64748b;display:block;font-size:0.78rem;text-transform:uppercase;letter-spacing:0.5px;">Email</strong> <span style="color:#0f172a;font-weight:600;word-break:break-all;">${escapeHtml(booking.partner_email || 'N/A')}</span></div>
                                         <div><strong style="color:#64748b;display:block;font-size:0.78rem;text-transform:uppercase;letter-spacing:0.5px;">Number</strong> <span style="color:#0f172a;font-weight:600;">${escapeHtml(booking.partner_profile_phone || booking.partner_phone || 'N/A')}</span></div>
                                     </div>
-                                    <a href="Partnership/partner-profile.php?id=${booking.partner_id}" target="_blank" class="view-btn" style="text-decoration:none;display:inline-flex;align-items:center;gap:6px;">
+                                    <a href="view-partner-profile.php?id=${booking.partner_id}&from=bookings" target="_blank" class="view-btn" style="text-decoration:none;display:inline-flex;align-items:center;gap:6px;">
                                         <i class="fas fa-arrow-up-right-from-square"></i> View Partner Profile
                                     </a>
                                     ` : `
