@@ -86,6 +86,25 @@ try {
     debugLog("Migration Error (payment_proof): " . $e->getMessage());
 }
 
+// Migration for deleted_at soft delete retention
+try {
+    $stmtMigrate3 = $pdo->query("SHOW COLUMNS FROM bookings LIKE 'deleted_at'");
+    if (!$stmtMigrate3->fetch()) {
+        $pdo->exec("ALTER TABLE bookings ADD COLUMN deleted_at TIMESTAMP NULL DEFAULT NULL AFTER updated_at");
+        debugLog("Migration: Added deleted_at column to bookings table");
+    }
+} catch (Exception $e) {
+    debugLog("Migration Error (deleted_at): " . $e->getMessage());
+}
+
+// Auto-cleanup trashed bookings older than 30 days
+try {
+    $pdo->exec("DELETE FROM bookings WHERE deleted_at IS NOT NULL AND deleted_at < DATE_SUB(NOW(), INTERVAL 30 DAY)");
+    debugLog("Cleaned up old trashed bookings older than 30 days");
+} catch (Exception $e) {
+    debugLog("Trash cleanup error: " . $e->getMessage());
+}
+
 // Ensure package table exists for package add/edit/delete flows.
 try {
     $pdo->exec("CREATE TABLE IF NOT EXISTS packages (
@@ -1007,9 +1026,69 @@ EOF;
             $bookingNumberInput = trim($_POST['booking_number'] ?? $_GET['booking_number'] ?? '');
             debugLog("Processing delete_booking for ID: " . (is_scalar($idInput) ? $idInput : 'null') . " / booking number: " . $bookingNumberInput);
 
-            // Only Super Admin can delete bookings
-            if (!hasPermission(['super_admin'], $admin_role)) {
+            // Allow all admin roles to delete bookings from the dashboard
+            if (!hasPermission(['super_admin', 'admin', 'editor', 'sales'], $admin_role)) {
                 debugLog("Permission denied for delete_booking - role: " . $admin_role);
+                echo json_encode(['success' => false, 'message' => 'Permission denied']);
+                break;
+            }
+
+            $id = intval($idInput);
+            if ($id > 0) {
+                $stmt = $pdo->prepare("UPDATE bookings SET deleted_at = NOW() WHERE id = ? AND deleted_at IS NULL");
+                $success = $stmt->execute([$id]);
+                $deleted = $success && $stmt->rowCount() > 0;
+                debugLog("Booking soft-delete " . ($deleted ? "successful" : "failed") . " for ID: " . $id);
+                echo json_encode(['success' => $deleted, 'message' => $deleted ? 'Booking moved to Trash successfully' : 'Booking not found or already trashed']);
+            } elseif ($bookingNumberInput !== '') {
+                $stmt = $pdo->prepare("UPDATE bookings SET deleted_at = NOW() WHERE booking_number = ? AND deleted_at IS NULL");
+                $success = $stmt->execute([$bookingNumberInput]);
+                $deleted = $success && $stmt->rowCount() > 0;
+                debugLog("Booking soft-delete " . ($deleted ? "successful" : "failed") . " for booking number: " . $bookingNumberInput);
+                echo json_encode(['success' => $deleted, 'message' => $deleted ? 'Booking moved to Trash successfully' : 'Booking not found or already trashed']);
+            } else {
+                debugLog("Invalid booking ID for delete: " . ($id ?? 'null'));
+                echo json_encode(['success' => false, 'message' => 'Invalid booking ID']);
+            }
+            break;
+
+        case 'restore_booking':
+            $idInput = $_POST['id'] ?? $_GET['id'] ?? 0;
+            $bookingNumberInput = trim($_POST['booking_number'] ?? $_GET['booking_number'] ?? '');
+            debugLog("Processing restore_booking for ID: " . (is_scalar($idInput) ? $idInput : 'null') . " / booking number: " . $bookingNumberInput);
+
+            if (!hasPermission(['super_admin', 'admin', 'editor', 'sales'], $admin_role)) {
+                debugLog("Permission denied for restore_booking - role: " . $admin_role);
+                echo json_encode(['success' => false, 'message' => 'Permission denied']);
+                break;
+            }
+
+            $id = intval($idInput);
+            if ($id > 0) {
+                $stmt = $pdo->prepare("UPDATE bookings SET deleted_at = NULL WHERE id = ? AND deleted_at IS NOT NULL");
+                $success = $stmt->execute([$id]);
+                $restored = $success && $stmt->rowCount() > 0;
+                debugLog("Booking restore " . ($restored ? "successful" : "failed") . " for ID: " . $id);
+                echo json_encode(['success' => $restored, 'message' => $restored ? 'Booking restored successfully' : 'Booking not found or already active']);
+            } elseif ($bookingNumberInput !== '') {
+                $stmt = $pdo->prepare("UPDATE bookings SET deleted_at = NULL WHERE booking_number = ? AND deleted_at IS NOT NULL");
+                $success = $stmt->execute([$bookingNumberInput]);
+                $restored = $success && $stmt->rowCount() > 0;
+                debugLog("Booking restore " . ($restored ? "successful" : "failed") . " for booking number: " . $bookingNumberInput);
+                echo json_encode(['success' => $restored, 'message' => $restored ? 'Booking restored successfully' : 'Booking not found or already active']);
+            } else {
+                debugLog("Invalid booking ID for restore: " . ($id ?? 'null'));
+                echo json_encode(['success' => false, 'message' => 'Invalid booking ID']);
+            }
+            break;
+
+        case 'purge_booking':
+            $idInput = $_POST['id'] ?? $_GET['id'] ?? 0;
+            $bookingNumberInput = trim($_POST['booking_number'] ?? $_GET['booking_number'] ?? '');
+            debugLog("Processing purge_booking for ID: " . (is_scalar($idInput) ? $idInput : 'null') . " / booking number: " . $bookingNumberInput);
+
+            if (!hasPermission(['super_admin', 'admin', 'editor', 'sales'], $admin_role)) {
+                debugLog("Permission denied for purge_booking - role: " . $admin_role);
                 echo json_encode(['success' => false, 'message' => 'Permission denied']);
                 break;
             }
@@ -1018,17 +1097,17 @@ EOF;
             if ($id > 0) {
                 $stmt = $pdo->prepare("DELETE FROM bookings WHERE id = ?");
                 $success = $stmt->execute([$id]);
-                $deleted = $success && $stmt->rowCount() > 0;
-                debugLog("Booking delete " . ($deleted ? "successful" : "failed") . " for ID: " . $id);
-                echo json_encode(['success' => $deleted, 'message' => $deleted ? 'Booking deleted successfully' : 'Booking not found']);
+                $purged = $success && $stmt->rowCount() > 0;
+                debugLog("Booking purge " . ($purged ? "successful" : "failed") . " for ID: " . $id);
+                echo json_encode(['success' => $purged, 'message' => $purged ? 'Booking permanently deleted' : 'Booking not found']);
             } elseif ($bookingNumberInput !== '') {
                 $stmt = $pdo->prepare("DELETE FROM bookings WHERE booking_number = ?");
                 $success = $stmt->execute([$bookingNumberInput]);
-                $deleted = $success && $stmt->rowCount() > 0;
-                debugLog("Booking delete " . ($deleted ? "successful" : "failed") . " for booking number: " . $bookingNumberInput);
-                echo json_encode(['success' => $deleted, 'message' => $deleted ? 'Booking deleted successfully' : 'Booking not found']);
+                $purged = $success && $stmt->rowCount() > 0;
+                debugLog("Booking purge " . ($purged ? "successful" : "failed") . " for booking number: " . $bookingNumberInput);
+                echo json_encode(['success' => $purged, 'message' => $purged ? 'Booking permanently deleted' : 'Booking not found']);
             } else {
-                debugLog("Invalid booking ID for delete: " . ($id ?? 'null'));
+                debugLog("Invalid booking ID for purge: " . ($id ?? 'null'));
                 echo json_encode(['success' => false, 'message' => 'Invalid booking ID']);
             }
             break;

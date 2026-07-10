@@ -2309,6 +2309,10 @@ $unreadMessagesCount = $stmtMessagesCount ? $stmtMessagesCount->fetchColumn() : 
                     COMPLETED <i class="fas fa-chevron-down" style="font-size: 0.7rem;"></i>
                 </button>
 
+                <button class="filter-btn" onclick="setFilter('trashed', 'ALL')" id="trashFilterBtn">
+                    <i class="fas fa-trash"></i> TRASH <span class="badge-count floating-badge">0</span>
+                </button>
+
                 <button class="filter-btn" onclick="setFilter('type', 'upcoming')" id="upcomingFilterBtn">
                     <i class="fas fa-clock"></i> UPCOMING <span class="badge-count floating-badge">0</span>
                 </button>
@@ -2371,9 +2375,12 @@ $unreadMessagesCount = $stmtMessagesCount ? $stmtMessagesCount->fetchColumn() : 
                             class="fas fa-times"></i></button>
                 </div>
                 <div class="table-header">
-                    <h2 id="bookingsTableTitle"><i id="tableTitleIcon" class="fas fa-list-ul"
+                        <h2 id="bookingsTableTitle"><i id="tableTitleIcon" class="fas fa-list-ul"
                             style="color: var(--accent);"></i> <span id="tableTitleText">All Bookings</span> <span
                             id="bookingCountDisplay">(0)</span></h2>
+                        <p id="trashNotice" class="trash-note" style="display:none;margin-top:8px;color:#6b7280;font-size:0.95rem;">
+                        Note: Bookings in Trash will be permanently deleted after 30 days.
+                        </p>
                     <?php if ($_SESSION['admin_role'] === 'super_admin' || $_SESSION['admin_role'] === 'admin'): ?>
                         <button class="edit-btn" onclick="exportBookings()"
                             style="background: var(--primary); color: white; border: none; padding: 10px 20px; border-radius: 10px; font-weight: 600; display: flex; align-items: center; gap: 8px; cursor: pointer;">
@@ -5172,7 +5179,10 @@ $unreadMessagesCount = $stmtMessagesCount ? $stmtMessagesCount->fetchColumn() : 
             }
         }
 
-        function deleteBooking(id, bookingNumber = '') {
+        function deleteBooking(event, id, bookingNumber = '') {
+            if (event && typeof event.stopPropagation === 'function') {
+                event.stopPropagation();
+            }
             const bookingId = parseInt(id, 10);
             const bookingNumberValue = String(bookingNumber || '').trim();
 
@@ -5182,13 +5192,13 @@ $unreadMessagesCount = $stmtMessagesCount ? $stmtMessagesCount->fetchColumn() : 
             }
 
             Swal.fire({
-                title: 'Delete Booking',
-                html: `You are about to permanently delete this booking record.<br><br>This action cannot be undone.`,
+                title: 'Move Booking to Trash',
+                html: `This booking will be moved to Trash. It can be restored later and will be permanently removed automatically after 30 days.`,
                 iconHtml: '<div class="custom-declined-icon"></div>',
                 showCancelButton: true,
                 confirmButtonColor: '#d33',
                 cancelButtonColor: '#e2e8f0',
-                confirmButtonText: 'Yes, Delete Booking',
+                confirmButtonText: 'Yes, Move to Trash',
                 reverseButtons: true,
                 customClass: {
                     icon: 'no-border-icon',
@@ -5213,15 +5223,162 @@ $unreadMessagesCount = $stmtMessagesCount ? $stmtMessagesCount->fetchColumn() : 
                         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
                         body: formData.toString()
                     })
-                        .then(response => response.json())
-                        .then(data => {
-                            if (data.success) {
-                                Swal.fire('Deleted!', 'Booking deleted successfully', 'success').then(() => location.reload());
+                        .then(async response => {
+                            const text = await response.text();
+                            let data = null;
+
+                            if (text) {
+                                try {
+                                    data = JSON.parse(text);
+                                } catch (e) {
+                                    data = null;
+                                }
+                            }
+
+                            console.debug('delete_booking raw response:', text, data);
+                            if (response.ok && (!data || data.success !== false)) {
+                                Swal.fire('Trashed!', (data && data.message) || 'Booking moved to Trash', 'success').then(() => location.reload());
                             } else {
-                                Swal.fire('Error', data.message, 'error');
+                                const message = data && data.message ? data.message : (text || 'Unable to delete booking. Please try again.');
+                                Swal.fire('Error', message, 'error');
                             }
                         })
-                        .catch(() => {
+                        .catch(error => {
+                            console.error('Delete booking error:', error);
+                            Swal.fire('Error', 'Unable to delete booking. Please try again.', 'error');
+                        });
+                }
+            });
+        }
+
+        function restoreBooking(event, id, bookingNumber = '') {
+            if (event && typeof event.stopPropagation === 'function') {
+                event.stopPropagation();
+            }
+            const bookingId = parseInt(id, 10);
+            const bookingNumberValue = String(bookingNumber || '').trim();
+            if ((isNaN(bookingId) || bookingId < 0) && !bookingNumberValue) {
+                Swal.fire('Error', 'Invalid booking ID. Please refresh the page and try again.', 'error');
+                return;
+            }
+
+            Swal.fire({
+                title: 'Restore Booking',
+                html: 'This booking will be restored from Trash back into the active bookings list.',
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonColor: '#16a34a',
+                cancelButtonColor: '#e2e8f0',
+                confirmButtonText: 'Yes, Restore Booking',
+                reverseButtons: true,
+                customClass: {
+                    cancelButton: 'swal-custom-cancel',
+                    confirmButton: 'swal2-confirm'
+                }
+            }).then(result => {
+                if (result.isConfirmed) {
+                    Swal.fire({ title: 'Processing...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+                    const formData = new URLSearchParams();
+                    formData.append('action', 'restore_booking');
+                    if (bookingId > 0) {
+                        formData.append('id', bookingId);
+                    }
+                    if (bookingNumberValue) {
+                        formData.append('booking_number', bookingNumberValue);
+                    }
+
+                    fetch('admin-api.php', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                        body: formData.toString()
+                    })
+                        .then(async response => {
+                            const text = await response.text();
+                            let data = null;
+                            if (text) {
+                                try {
+                                    data = JSON.parse(text);
+                                } catch (e) {
+                                    data = null;
+                                }
+                            }
+                            console.debug('restore_booking raw response:', text, data);
+                            if (response.ok && (!data || data.success !== false)) {
+                                Swal.fire('Restored!', (data && data.message) || 'Booking restored successfully', 'success').then(() => location.reload());
+                            } else {
+                                const message = data && data.message ? data.message : (text || 'Unable to restore booking. Please try again.');
+                                Swal.fire('Error', message, 'error');
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Restore booking error:', error);
+                            Swal.fire('Error', 'Unable to restore booking. Please try again.', 'error');
+                        });
+                }
+            });
+        }
+
+        function purgeBooking(event, id, bookingNumber = '') {
+            if (event && typeof event.stopPropagation === 'function') {
+                event.stopPropagation();
+            }
+            const bookingId = parseInt(id, 10);
+            const bookingNumberValue = String(bookingNumber || '').trim();
+            if ((isNaN(bookingId) || bookingId < 0) && !bookingNumberValue) {
+                Swal.fire('Error', 'Invalid booking ID. Please refresh the page and try again.', 'error');
+                return;
+            }
+
+            Swal.fire({
+                title: 'Permanently Delete Booking',
+                html: 'This booking will be permanently deleted and cannot be restored.',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#d33',
+                cancelButtonColor: '#e2e8f0',
+                confirmButtonText: 'Yes, Delete Permanently',
+                reverseButtons: true,
+                customClass: {
+                    cancelButton: 'swal-custom-cancel',
+                    confirmButton: 'swal2-confirm'
+                }
+            }).then(result => {
+                if (result.isConfirmed) {
+                    Swal.fire({ title: 'Processing...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+                    const formData = new URLSearchParams();
+                    formData.append('action', 'purge_booking');
+                    if (bookingId > 0) {
+                        formData.append('id', bookingId);
+                    }
+                    if (bookingNumberValue) {
+                        formData.append('booking_number', bookingNumberValue);
+                    }
+
+                    fetch('admin-api.php', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                        body: formData.toString()
+                    })
+                        .then(async response => {
+                            const text = await response.text();
+                            let data = null;
+                            if (text) {
+                                try {
+                                    data = JSON.parse(text);
+                                } catch (e) {
+                                    data = null;
+                                }
+                            }
+                            console.debug('purge_booking raw response:', text, data);
+                            if (response.ok && (!data || data.success !== false)) {
+                                Swal.fire('Deleted!', (data && data.message) || 'Booking permanently deleted', 'success').then(() => location.reload());
+                            } else {
+                                const message = data && data.message ? data.message : (text || 'Unable to delete booking. Please try again.');
+                                Swal.fire('Error', message, 'error');
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Purge booking error:', error);
                             Swal.fire('Error', 'Unable to delete booking. Please try again.', 'error');
                         });
                 }
@@ -5417,6 +5574,14 @@ $unreadMessagesCount = $stmtMessagesCount ? $stmtMessagesCount->fetchColumn() : 
             resetModal();
         }
 
+        function escapeForJsString(text) {
+            return String(text ?? '')
+                .replace(/\\/g, '\\\\')
+                .replace(/'/g, "\\'")
+                .replace(/\r/g, '\\r')
+                .replace(/\n/g, '\\n');
+        }
+
         function escapeHtml(text) {
             if (!text) return '';
             const div = document.createElement('div');
@@ -5545,6 +5710,8 @@ $unreadMessagesCount = $stmtMessagesCount ? $stmtMessagesCount->fetchColumn() : 
         $stmt->execute();
         $rawBookings = $stmt->fetchAll(PDO::FETCH_ASSOC);
         foreach ($rawBookings as &$b) {
+            $b['is_trashed'] = !empty($b['deleted_at']) && $b['deleted_at'] !== '0000-00-00 00:00:00';
+
             // Identify if it's explicitly a Visa Service
             $b['is_visa_service'] = ($b['destination_name'] === 'Visa Assistance' || stripos($b['package_name'] ?? '', 'Visa') !== false);
 
@@ -5642,13 +5809,22 @@ $unreadMessagesCount = $stmtMessagesCount ? $stmtMessagesCount->fetchColumn() : 
                         <button class="view-btn" onclick="viewBookingConfirmation(${booking.id}, '${booking.booking_number}')" title="Details">
                             <i class="fas fa-eye"></i>
                         </button>
-                        ${!isInquiryView ? `<button class="edit-btn" onclick="editBooking(${booking.id}, '${booking.booking_number}')" title="Edit">
-                            <i class="fas fa-edit"></i>
-                        </button>
-                        <button type="button" class="delete-btn" onclick="event.stopPropagation(); deleteBooking(${booking.id}, ${JSON.stringify(booking.booking_number || '')})" title="Delete">
-                            <i class="fas fa-trash"></i>
-                        </button>` : ''}
-                        ${isFullyCompleted(booking) ? `
+                        ${booking.is_trashed ? `
+                            <button class="edit-btn" onclick="restoreBooking(event, ${booking.id}, '${escapeForJsString(booking.booking_number || '')}')" title="Restore">
+                                <i class="fas fa-undo"></i>
+                            </button>
+                            <button type="button" class="delete-btn" style="background:#c92a2a;" onclick="purgeBooking(event, ${booking.id}, '${escapeForJsString(booking.booking_number || '')}')" title="Delete Permanently">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        ` : (!isInquiryView ? `
+                            <button class="edit-btn" onclick="editBooking(${booking.id}, '${booking.booking_number}')" title="Edit">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button type="button" class="delete-btn" onclick="deleteBooking(event, ${booking.id}, '${escapeForJsString(booking.booking_number || '')}')" title="Delete">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        ` : '')}
+                        ${!booking.is_trashed && isFullyCompleted(booking) ? `
                             <div class="status-badge status-completed" style="background:#f0fdf4; color:#16a34a; border: 1px solid #bbf7d0; margin-top: 5px; font-size: 0.65rem; padding: 2px 6px;"><i class="fas fa-check-circle"></i> FINISHED</div>
                         ` : ''}
                     </td>
@@ -5896,6 +6072,16 @@ $unreadMessagesCount = $stmtMessagesCount ? $stmtMessagesCount->fetchColumn() : 
                 if (value === 'INQUIRIES') document.getElementById('serviceInquiriesBtn').classList.add('active');
             }
 
+            if (key === 'trashed') {
+                const trashBtn = document.getElementById('trashFilterBtn');
+                if (trashBtn) {
+                    trashBtn.classList.add('active');
+                }
+                document.getElementById('sub-filter-row').style.display = 'none';
+                document.getElementById('service-sub-options').style.display = 'none';
+                document.getElementById('completed-sub-options').style.display = 'none';
+            }
+
             if (key === 'completed_type') {
                 const groupBtn = document.getElementById('completedGroupBtn');
                 if (groupBtn) {
@@ -5979,22 +6165,29 @@ $unreadMessagesCount = $stmtMessagesCount ? $stmtMessagesCount->fetchColumn() : 
             // 1. Initial Data Source
             filteredBookings = [...bookings];
 
-            // 2. Determine Context (Completed Archive vs Active Work)
-            const isCompletedContext =
-                (currentFilter.key === 'completed_type') ||
-                (currentFilter.key === 'booking_status' && currentFilter.value === 'COMPLETED');
-
-            // 3. Apply the "Single Source of Truth" Filter
-            if (isCompletedContext) {
-                // ARCHIVE: Strictly show only truly finished bookings
-                filteredBookings = filteredBookings.filter(b => isFullyCompleted(b));
+            // Handle trashed booking view first
+            if (currentFilter.key === 'trashed') {
+                filteredBookings = filteredBookings.filter(b => b.is_trashed);
             } else {
-                // ACTIVE QUEUES: Hide everything that is truly finished
-                filteredBookings = filteredBookings.filter(b => !isFullyCompleted(b));
+                filteredBookings = filteredBookings.filter(b => !b.is_trashed);
 
-                // In the default ALL active view, keep inquiries out of the displayed list
-                if (!currentFilter.key || (currentFilter.key === 'service_type' && currentFilter.value === 'ALL')) {
-                    filteredBookings = filteredBookings.filter(b => b.payment_method !== 'Inquiry Only');
+                // 2. Determine Context (Completed Archive vs Active Work)
+                const isCompletedContext =
+                    (currentFilter.key === 'completed_type') ||
+                    (currentFilter.key === 'booking_status' && currentFilter.value === 'COMPLETED');
+
+                // 3. Apply the "Single Source of Truth" Filter
+                if (isCompletedContext) {
+                    // ARCHIVE: Strictly show only truly finished bookings
+                    filteredBookings = filteredBookings.filter(b => isFullyCompleted(b));
+                } else {
+                    // ACTIVE QUEUES: Hide everything that is truly finished
+                    filteredBookings = filteredBookings.filter(b => !isFullyCompleted(b));
+
+                    // In the default ALL active view, keep inquiries out of the displayed list
+                    if (!currentFilter.key || (currentFilter.key === 'service_type' && currentFilter.value === 'ALL')) {
+                        filteredBookings = filteredBookings.filter(b => b.payment_method !== 'Inquiry Only');
+                    }
                 }
 
                 // Apply secondary filters for active views
@@ -6057,8 +6250,15 @@ $unreadMessagesCount = $stmtMessagesCount ? $stmtMessagesCount->fetchColumn() : 
             // 4. UI Updates: Title, Icon, and Column Headers
             const tableTitleText = document.getElementById('tableTitleText');
             const tableTitleIcon = document.getElementById('tableTitleIcon');
+            const trashNotice = document.getElementById('trashNotice');
             if (tableTitleText && tableTitleIcon) {
-                if (currentFilter.key === 'service_type') {
+                // hide notice by default; show only when viewing trashed bookings
+                if (trashNotice) trashNotice.style.display = 'none';
+                if (currentFilter.key === 'trashed') {
+                    tableTitleText.innerText = 'Trash: Deleted Bookings';
+                    tableTitleIcon.className = 'fas fa-trash';
+                    if (trashNotice) trashNotice.style.display = 'block';
+                } else if (currentFilter.key === 'service_type') {
                     if (currentFilter.value === 'VISA') {
                         tableTitleText.innerText = 'Service Availed: Visa Assistance';
                         tableTitleIcon.className = 'fas fa-passport';
@@ -6180,7 +6380,8 @@ $unreadMessagesCount = $stmtMessagesCount ? $stmtMessagesCount->fetchColumn() : 
                 tourCompleted: 0,
                 visaCompleted: 0,
                 inquiriesCompleted: 0,
-                upcoming: 0
+                upcoming: 0,
+                trashed: 0
             };
 
             const now = new Date();
@@ -6202,6 +6403,12 @@ $unreadMessagesCount = $stmtMessagesCount ? $stmtMessagesCount->fetchColumn() : 
                 const isVisa = b.is_visa_service;
                 const isInquiry = b.payment_method === 'Inquiry Only';
                 const isViewed = viewedList.includes(String(b.booking_number));
+                const isTrashed = b.is_trashed;
+
+                if (isTrashed) {
+                    counts.trashed++;
+                    return;
+                }
 
                 if (isCompleted) {
                     counts.allCompleted++;
@@ -6247,6 +6454,7 @@ $unreadMessagesCount = $stmtMessagesCount ? $stmtMessagesCount->fetchColumn() : 
             updateCount('completedTourBtn', counts.tourCompleted);
             updateCount('completedVisaBtn', counts.visaCompleted);
             updateCount('completedInquiriesBtn', counts.inquiriesCompleted);
+            updateCount('trashFilterBtn', counts.trashed);
             updateCount('upcomingFilterBtn', counts.upcoming);
 
             // Update the main sidebar Bookings badge dynamically
@@ -6275,6 +6483,8 @@ $unreadMessagesCount = $stmtMessagesCount ? $stmtMessagesCount->fetchColumn() : 
                     else activeCount = counts.allCompleted; // ALL completed
                 } else if (currentFilter.type === 'upcoming') {
                     activeCount = counts.upcoming;
+                } else if (currentFilter.key === 'trashed') {
+                    activeCount = counts.trashed;
                 } else {
                     activeCount = counts.allActive; // default: all active
                 }
