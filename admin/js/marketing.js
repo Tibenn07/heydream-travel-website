@@ -212,6 +212,47 @@ let activeChatSessionId = null;
 let activeChatCustomerName = 'Customer';
 let chatPollingInterval = null;
 let selectedChatSessions = new Set();
+let adminTypingTimeout = null;
+let customerIsTypingShown = false;
+
+function setAdminTyping(sessionId, isTyping) {
+    fetch('ai_chat_admin.php?action=set_typing', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ session_id: sessionId, typing: isTyping })
+    }).catch(() => {});
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    const adminChatInput = document.getElementById('admin-chat-input');
+    if (adminChatInput) {
+        adminChatInput.addEventListener('input', () => {
+            if (!activeChatSessionId) return;
+            setAdminTyping(activeChatSessionId, true);
+            clearTimeout(adminTypingTimeout);
+            adminTypingTimeout = setTimeout(() => setAdminTyping(activeChatSessionId, false), 2000);
+        });
+    }
+});
+
+function showCustomerTypingIndicator() {
+    if (customerIsTypingShown) return;
+    customerIsTypingShown = true;
+    const container = document.getElementById('admin-chat-messages');
+    if (!container) return;
+    const t = document.createElement('div');
+    t.id = 'customer-typing-indicator';
+    t.className = 'chat-bubble typing-indicator';
+    t.innerHTML = `<span class="typing-dot"></span><span class="typing-dot"></span><span class="typing-dot"></span>`;
+    container.appendChild(t);
+    container.scrollTop = container.scrollHeight;
+}
+
+function hideCustomerTypingIndicator() {
+    customerIsTypingShown = false;
+    const t = document.getElementById('customer-typing-indicator');
+    if (t) t.remove();
+}
 
 function parseMySQLDate(dateStr) {
     if (!dateStr) return new Date();
@@ -430,15 +471,23 @@ async function loadChatMessages(sessionId) {
 
         if (data.success) {
             document.getElementById('active-chat-status').textContent = 'Active Conversation';
-            
+
             // Only update if message count changed to avoid flickering
             if (!window.activeChatMsgCounts) {
                 window.activeChatMsgCounts = {};
             }
             if (window.activeChatMsgCounts[sessionId] === data.messages.length) {
+                // Message list unchanged; typing indicator is still a live child of the container
+                customerIsTypingShown = !!document.getElementById('customer-typing-indicator');
+                if (data.customer_is_typing) {
+                    showCustomerTypingIndicator();
+                } else {
+                    hideCustomerTypingIndicator();
+                }
                 return;
             }
             window.activeChatMsgCounts[sessionId] = data.messages.length;
+            customerIsTypingShown = false; // container is about to be fully replaced
 
             container.innerHTML = data.messages.map(m => {
                 // Render system notifications as a centered separator
@@ -476,6 +525,9 @@ async function loadChatMessages(sessionId) {
                     </div>
                 `;
             }).join('');
+            if (data.customer_is_typing) {
+                showCustomerTypingIndicator();
+            }
             container.scrollTop = container.scrollHeight;
         }
     } catch (e) {
@@ -490,6 +542,8 @@ async function sendAdminReply() {
 
     input.value = '';
     input.disabled = true;
+    clearTimeout(adminTypingTimeout);
+    setAdminTyping(activeChatSessionId, false);
 
     try {
         const res = await fetch('ai_chat_admin.php?action=send_message', {

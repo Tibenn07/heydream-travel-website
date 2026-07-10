@@ -17,7 +17,28 @@ if (!$pdo) {
     exit;
 }
 
+// Handle customer typing status update
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $input = json_decode(file_get_contents('php://input'), true);
+    if (isset($input['typing'])) {
+        $val = $input['typing'] ? 'NOW()' : 'NULL';
+        $stmt = $pdo->prepare("UPDATE ai_chat_sessions SET customer_last_typing = $val WHERE session_id = ?");
+        $stmt->execute([$sessionId]);
+        echo json_encode(['success' => true]);
+        exit;
+    }
+}
+
 try {
+    // Check if the admin is currently typing (within the last 5 seconds)
+    $adminIsTyping = false;
+    $stmt = $pdo->prepare("SELECT admin_last_typing FROM ai_chat_sessions WHERE session_id = ?");
+    $stmt->execute([$sessionId]);
+    $typingRow = $stmt->fetch(PDO::FETCH_ASSOC);
+    if ($typingRow && $typingRow['admin_last_typing']) {
+        $adminIsTyping = (time() - strtotime($typingRow['admin_last_typing'])) < 5;
+    }
+
     if ($init === 1) {
         $stmt = $pdo->prepare("SELECT id, sender, message, timestamp AS created_at FROM ai_chat_messages WHERE session_id = ? ORDER BY id ASC");
         $stmt->execute([$sessionId]);
@@ -29,7 +50,7 @@ try {
                 $maxId = intval($msg['id']);
             }
         }
-        echo json_encode(['success' => true, 'messages' => $messages, 'max_id' => $maxId]);
+        echo json_encode(['success' => true, 'messages' => $messages, 'max_id' => $maxId, 'admin_is_typing' => $adminIsTyping]);
         exit;
     }
 
@@ -38,7 +59,7 @@ try {
     $stmt->execute([$sessionId, $lastId]);
     $messages = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-    echo json_encode(['success' => true, 'messages' => $messages]);
+    echo json_encode(['success' => true, 'messages' => $messages, 'admin_is_typing' => $adminIsTyping]);
 } catch (PDOException $e) {
     echo json_encode(['success' => false, 'error' => $e->getMessage()]);
 }

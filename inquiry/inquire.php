@@ -1246,6 +1246,22 @@
         if (t) t.remove();
     }
 
+    function hdShowAgentTyping() {
+        if (document.getElementById('hd-agent-typing')) return;
+        const container = document.getElementById('hd-messages');
+        const t = document.createElement('div');
+        t.className = 'hd-msg admin hd-typing';
+        t.id = 'hd-agent-typing';
+        t.innerHTML = `<div class="hd-msg-avatar"><img src="../images/Heydream Logo.png" alt="Agent"></div><div class="hd-msg-bubble"><div class="hd-typing-dots"><span></span><span></span><span></span></div></div>`;
+        container.appendChild(t);
+        container.scrollTop = container.scrollHeight;
+    }
+
+    function hdRemoveAgentTyping() {
+        const t = document.getElementById('hd-agent-typing');
+        if (t) t.remove();
+    }
+
     function hdShowQuickReplies(replies) {
         const area = document.getElementById('hd-quick-replies');
         area.innerHTML = '';
@@ -1453,6 +1469,15 @@
         hdShowTyping();
         sendBtn.disabled = true;
 
+        clearTimeout(hdTypingTimeout);
+        if (hdSessionId) {
+            fetch('get_chat_updates.php?session_id=' + hdSessionId, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ typing: false })
+            }).catch(() => {});
+        }
+
         if (isSuggestion) {
             hdAdminJoined = false;
         }
@@ -1596,7 +1621,13 @@
         try {
             const res = await fetch(`get_chat_updates.php?session_id=${hdSessionId}&last_id=${hdLastMsgId}`);
             const data = await res.json();
-            
+
+            if (data.admin_is_typing) {
+                hdShowAgentTyping();
+            } else {
+                hdRemoveAgentTyping();
+            }
+
             if (data.success && data.messages.length > 0) {
                 data.messages.forEach(m => {
                     // System: [AGENT_JOINED] → show banner
@@ -1609,6 +1640,9 @@
                     // If we receive any admin message, show banner if not shown yet
                     if (m.sender === 'admin' && !hdAdminJoined) {
                         hdShowAgentJoinedBanner();
+                    }
+                    if (m.sender === 'admin') {
+                        hdRemoveAgentTyping();
                     }
 
                     // Map DB sender values to hdAddMsg roles correctly
@@ -1715,6 +1749,26 @@
 
     document.getElementById('hd-chat-input').addEventListener('keydown', e => {
         if (e.key === 'Enter') hdSendMessage();
+    });
+
+    // Notify the admin panel when the customer is typing
+    let hdTypingTimeout;
+    document.getElementById('hd-chat-input').addEventListener('input', () => {
+        if (!hdSessionId) return;
+        fetch('get_chat_updates.php?session_id=' + hdSessionId, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ typing: true })
+        }).catch(() => {});
+
+        clearTimeout(hdTypingTimeout);
+        hdTypingTimeout = setTimeout(() => {
+            fetch('get_chat_updates.php?session_id=' + hdSessionId, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ typing: false })
+            }).catch(() => {});
+        }, 2000);
     });
     </script>
 

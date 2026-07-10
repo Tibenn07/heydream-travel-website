@@ -8,9 +8,9 @@ header("Referrer-Policy: strict-origin-when-cross-origin");
 header("X-XSS-Protection: 1; mode=block");
 
 // Ensure app-wide date/time uses local Philippine time for vouchers and bookings
-if (!ini_get('date.timezone')) {
-    date_default_timezone_set('Asia/Manila');
-}
+// (forced unconditionally: the hosting environment's php.ini may set its own
+// default timezone, e.g. Europe/Berlin, which must not override this)
+date_default_timezone_set('Asia/Manila');
 
 // Start session if not already started
 if (session_status() === PHP_SESSION_NONE) {
