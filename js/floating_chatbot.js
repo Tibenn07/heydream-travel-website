@@ -465,6 +465,22 @@
         if (t) t.remove();
     }
 
+    function hdShowAgentTyping() {
+        if (document.getElementById('hd-agent-typing')) return;
+        const container = document.getElementById('hd-messages');
+        const t = document.createElement('div');
+        t.className = 'hd-msg admin hd-typing';
+        t.id = 'hd-agent-typing';
+        t.innerHTML = `<div class="hd-msg-avatar"><img src="images/Heydream Logo.png" alt="Agent"></div><div class="hd-msg-bubble"><div class="hd-typing-dots"><span></span><span></span><span></span></div></div>`;
+        container.appendChild(t);
+        container.scrollTop = container.scrollHeight;
+    }
+
+    function hdRemoveAgentTyping() {
+        const t = document.getElementById('hd-agent-typing');
+        if (t) t.remove();
+    }
+
     function hdShowQuickReplies(replies) {
         const area = document.getElementById('hd-quick-replies');
         area.innerHTML = '';
@@ -671,6 +687,15 @@
         hdShowTyping();
         sendBtn.disabled = true;
 
+        clearTimeout(hdTypingTimeout);
+        if (hdSessionId) {
+            fetch(`inquiry/get_chat_updates.php?session_id=${hdSessionId}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ typing: false })
+            }).catch(() => {});
+        }
+
         if (isSuggestion) hdAdminJoined = false;
 
         try {
@@ -759,10 +784,18 @@
         try {
             const res = await fetch(`inquiry/get_chat_updates.php?session_id=${hdSessionId}&last_id=${hdLastMsgId}`);
             const data = await res.json();
+
+            if (data.admin_is_typing) {
+                hdShowAgentTyping();
+            } else {
+                hdRemoveAgentTyping();
+            }
+
             if (data.success && data.messages.length > 0) {
                 data.messages.forEach(m => {
                     if (m.sender === 'system' && m.message === '[AGENT_JOINED]') { hdShowAgentJoinedBanner(); hdLastMsgId = m.id; return; }
                     if (m.sender === 'admin' && !hdAdminJoined) hdShowAgentJoinedBanner();
+                    if (m.sender === 'admin') hdRemoveAgentTyping();
                     const role = m.sender === 'customer' ? 'user' : (m.sender === 'admin' ? 'admin' : 'bot');
                     hdAddMsg(role, m.message, true, m.id);
                     hdLastMsgId = m.id;
@@ -836,6 +869,26 @@
     };
 
     document.getElementById('hd-chat-input').addEventListener('keydown', e => { if (e.key === 'Enter') hdSendMessage(); });
+
+    // Notify the admin panel when the customer is typing
+    let hdTypingTimeout;
+    document.getElementById('hd-chat-input').addEventListener('input', () => {
+        if (!hdSessionId) return;
+        fetch(`inquiry/get_chat_updates.php?session_id=${hdSessionId}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ typing: true })
+        }).catch(() => {});
+
+        clearTimeout(hdTypingTimeout);
+        hdTypingTimeout = setTimeout(() => {
+            fetch(`inquiry/get_chat_updates.php?session_id=${hdSessionId}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ typing: false })
+            }).catch(() => {});
+        }, 2000);
+    });
     document.getElementById('hd-send-btn').onclick = () => hdSendMessage();
 
     // Global helper for outside triggering

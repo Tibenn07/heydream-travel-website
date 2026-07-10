@@ -46,11 +46,38 @@ switch ($action) {
                 $updateSeen = $pdo->prepare("UPDATE ai_chat_messages SET admin_seen = 1 WHERE session_id = ? AND sender = 'customer' AND admin_seen = 0");
                 $updateSeen->execute([$sessionId]);
             }
-            
+
             $stmt = $pdo->prepare("SELECT * FROM ai_chat_messages WHERE session_id = ? ORDER BY id ASC");
             $stmt->execute([$sessionId]);
             $messages = $stmt->fetchAll();
-            echo json_encode(['success' => true, 'messages' => $messages]);
+
+            // Check if the customer is currently typing (within the last 5 seconds)
+            $customerIsTyping = false;
+            $typingStmt = $pdo->prepare("SELECT customer_last_typing FROM ai_chat_sessions WHERE session_id = ?");
+            $typingStmt->execute([$sessionId]);
+            $typingRow = $typingStmt->fetch();
+            if ($typingRow && $typingRow['customer_last_typing']) {
+                $customerIsTyping = (time() - strtotime($typingRow['customer_last_typing'])) < 5;
+            }
+
+            echo json_encode(['success' => true, 'messages' => $messages, 'customer_is_typing' => $customerIsTyping]);
+        } catch (PDOException $e) {
+            echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+        }
+        break;
+
+    case 'set_typing':
+        $input = json_decode(file_get_contents('php://input'), true);
+        $sessionId = $input['session_id'] ?? '';
+        if (empty($sessionId)) {
+            echo json_encode(['success' => false, 'message' => 'Invalid data']);
+            exit;
+        }
+        try {
+            $val = !empty($input['typing']) ? 'NOW()' : 'NULL';
+            $stmt = $pdo->prepare("UPDATE ai_chat_sessions SET admin_last_typing = $val WHERE session_id = ?");
+            $stmt->execute([$sessionId]);
+            echo json_encode(['success' => true]);
         } catch (PDOException $e) {
             echo json_encode(['success' => false, 'message' => $e->getMessage()]);
         }

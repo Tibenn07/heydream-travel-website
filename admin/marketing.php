@@ -675,6 +675,33 @@ function getStatusInfo($status)
             border-bottom-right-radius: 4px;
         }
 
+        .chat-bubble.typing-indicator {
+            align-self: flex-start;
+            background: #fff;
+            border-bottom-left-radius: 4px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+            padding: 14px 18px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .chat-bubble.typing-indicator .typing-dot {
+            width: 7px;
+            height: 7px;
+            background: #94a3b8;
+            border-radius: 50%;
+            animation: chatTypingDot 1.2s infinite;
+        }
+
+        .chat-bubble.typing-indicator .typing-dot:nth-child(2) { animation-delay: 0.2s; }
+        .chat-bubble.typing-indicator .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+
+        @keyframes chatTypingDot {
+            0%, 80%, 100% { transform: scale(0.7); opacity: 0.5; }
+            40% { transform: scale(1); opacity: 1; }
+        }
+
         .bubble-time {
             font-size: 0.65rem;
             opacity: 0.7;
