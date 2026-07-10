@@ -51,7 +51,11 @@ $logoPath = $profile['logo_path'] ?? '';
 $bannerPath = $profile['banner_image_path'] ?? '';
 $locationParts = array_filter([$address, $city, $country]);
 $locationText = implode(', ', $locationParts);
-$mailtoLink = 'mailto:' . rawurlencode($partner['email']) . '?subject=' . rawurlencode('HeyDream Partnership Inquiry');
+// A plain mailto: link only opens whatever desktop mail app is set as the
+// OS default -- often nothing, if the machine has no desktop client
+// configured. Use Gmail's own web compose URL instead so it reliably opens
+// Gmail in the browser, pre-addressed to the partner.
+$mailtoLink = 'https://mail.google.com/mail/?view=cm&fs=1&to=' . rawurlencode($partner['email']) . '&su=' . rawurlencode('HeyDream Partnership Inquiry');
 
 $hasMapQuery = $locationText !== '';
 if ($hasMapQuery && GOOGLE_MAPS_API_KEY !== '') {
@@ -322,7 +326,7 @@ if ($hasMapQuery && GOOGLE_MAPS_API_KEY !== '') {
                     </div>
                     <div class="info-row">
                         <div class="info-icon"><i class="fas fa-envelope"></i></div>
-                        <div><div class="info-label">Email</div><div class="info-value"><a href="<?= $mailtoLink ?>"><?= $email ?></a></div></div>
+                        <div><div class="info-label">Email</div><div class="info-value"><a href="<?= $mailtoLink ?>" target="_blank" rel="noopener"><?= $email ?></a></div></div>
                     </div>
                     <div class="info-row">
                         <div class="info-icon"><i class="fas fa-phone"></i></div>
@@ -353,7 +357,7 @@ if ($hasMapQuery && GOOGLE_MAPS_API_KEY !== '') {
         </div>
 
         <div class="action-row">
-            <a href="<?= $mailtoLink ?>" class="pill-btn primary"><i class="fas fa-envelope"></i> Contact Partner</a>
+            <a href="<?= $mailtoLink ?>" target="_blank" rel="noopener" class="pill-btn primary"><i class="fas fa-envelope"></i> Contact Partner</a>
         </div>
     </div>
 </body>

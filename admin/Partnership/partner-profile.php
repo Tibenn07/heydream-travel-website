@@ -67,7 +67,11 @@ $socialLinks = parseSocialLinks($profile['social_media_links'] ?? '');
 $logoPath = $profile['logo_path'] ?? '';
 $bannerPath = $profile['banner_image_path'] ?? '';
 $locationParts = array_filter([$address, $city, $country]);
-$mailtoLink = 'mailto:' . rawurlencode($partner['email']) . '?subject=' . rawurlencode('HeyDream Partnership Inquiry');
+// A plain mailto: link only opens whatever desktop mail app is set as the
+// OS default -- often nothing, if the machine has no desktop client
+// configured. Use Gmail's own web compose URL instead so it reliably opens
+// Gmail in the browser, pre-addressed to the partner.
+$mailtoLink = 'https://mail.google.com/mail/?view=cm&fs=1&to=' . rawurlencode($partner['email']) . '&su=' . rawurlencode('HeyDream Partnership Inquiry');
 
 $rawLocationText = implode(', ', array_filter([$profile['address'] ?? '', $profile['city'] ?? '', $profile['country'] ?? '']));
 if ($rawLocationText !== '' && GOOGLE_MAPS_API_KEY !== '') {
@@ -404,7 +408,7 @@ if ($rawLocationText !== '' && GOOGLE_MAPS_API_KEY !== '') {
                     </div>
                     <div class="info-row">
                         <div class="info-icon"><i class="fas fa-envelope"></i></div>
-                        <div><div class="info-label">Email</div><div class="info-value"><a href="<?= $mailtoLink ?>"><?= $email ?></a></div></div>
+                        <div><div class="info-label">Email</div><div class="info-value"><a href="<?= $mailtoLink ?>" target="_blank" rel="noopener"><?= $email ?></a></div></div>
                     </div>
                     <div class="info-row">
                         <div class="info-icon"><i class="fas fa-phone"></i></div>
@@ -466,7 +470,7 @@ if ($rawLocationText !== '' && GOOGLE_MAPS_API_KEY !== '') {
         </div>
 
         <div class="action-row">
-            <a href="<?= $mailtoLink ?>" class="pill-btn primary"><i class="fas fa-envelope"></i> Send Email</a>
+            <a href="<?= $mailtoLink ?>" target="_blank" rel="noopener" class="pill-btn primary"><i class="fas fa-envelope"></i> Send Email</a>
         </div>
     </div>
 </body>
