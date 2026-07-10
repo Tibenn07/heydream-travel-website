@@ -110,6 +110,239 @@ if ($pdo !== null) {
     }
 }
 
+// Parse a partner_profiles.social_media_links value into its structured form.
+// Stored as JSON: {"facebook":"","tiktok":"","x":"","youtube":"","instagram":"","other":["url", ...]}
+// Falls back to treating older, pre-JSON values (one raw link per line) as "other" links.
+function parseSocialLinks($raw)
+{
+    $defaults = ['facebook' => '', 'tiktok' => '', 'x' => '', 'youtube' => '', 'instagram' => '', 'other' => []];
+    $raw = trim($raw ?? '');
+    if ($raw === '') {
+        return $defaults;
+    }
+
+    $decoded = json_decode($raw, true);
+    if (is_array($decoded) && (array_key_exists('facebook', $decoded) || array_key_exists('other', $decoded))) {
+        $decoded['other'] = is_array($decoded['other'] ?? null) ? array_values(array_filter($decoded['other'])) : [];
+        return array_merge($defaults, $decoded);
+    }
+
+    // Legacy plain-text value: some old rows even stored a literal backslash-n instead of a real newline.
+    $raw = str_replace('\\n', "\n", $raw);
+    $links = array_values(array_filter(array_map('trim', preg_split('/\r\n|\n|\r/', $raw))));
+    $defaults['other'] = $links;
+    return $defaults;
+}
+
+// Identify a social platform from a URL for display purposes (name + FontAwesome brand icon).
+// Used for the free-form "Other Links" bucket, where the platform isn't already known.
+function detectSocialPlatform($url)
+{
+    $host = strtolower((string) parse_url($url, PHP_URL_HOST));
+    $host = preg_replace('/^www\./', '', $host);
+
+    $known = [
+        'discord.gg' => ['Discord', 'fa-brands fa-discord'],
+        'discord.com' => ['Discord', 'fa-brands fa-discord'],
+        'linkedin.com' => ['LinkedIn', 'fa-brands fa-linkedin'],
+        'pinterest.com' => ['Pinterest', 'fa-brands fa-pinterest'],
+        'threads.net' => ['Threads', 'fa-brands fa-threads'],
+        'snapchat.com' => ['Snapchat', 'fa-brands fa-snapchat'],
+        'wa.me' => ['WhatsApp', 'fa-brands fa-whatsapp'],
+        'whatsapp.com' => ['WhatsApp', 'fa-brands fa-whatsapp'],
+        't.me' => ['Telegram', 'fa-brands fa-telegram'],
+        'telegram.me' => ['Telegram', 'fa-brands fa-telegram'],
+        'telegram.org' => ['Telegram', 'fa-brands fa-telegram'],
+        'reddit.com' => ['Reddit', 'fa-brands fa-reddit'],
+        'twitch.tv' => ['Twitch', 'fa-brands fa-twitch'],
+        'viber.com' => ['Viber', 'fa-brands fa-viber'],
+        'line.me' => ['Line', 'fa-brands fa-line'],
+        'vimeo.com' => ['Vimeo', 'fa-brands fa-vimeo'],
+        'medium.com' => ['Medium', 'fa-brands fa-medium'],
+        'github.com' => ['GitHub', 'fa-brands fa-github'],
+        'wechat.com' => ['WeChat', 'fa-brands fa-weixin'],
+        'weibo.com' => ['Weibo', 'fa-brands fa-weibo'],
+    ];
+
+    foreach ($known as $domain => $info) {
+        if ($host === $domain || (strlen($host) > strlen($domain) && substr($host, -strlen($domain) - 1) === '.' . $domain)) {
+            return $info;
+        }
+    }
+
+    $parts = explode('.', $host);
+    $label = !empty($parts[0]) ? ucfirst($parts[0]) : 'Link';
+    return [$label, 'fa-solid fa-link'];
+}
+
+// Check whether an email address's domain can actually receive mail, catching typo'd
+// or made-up domains (e.g. "gmial.com") at registration time. Checks real DNS records
+// (MX, falling back to A/AAAA for domains that receive mail without a dedicated MX
+// record) rather than an SMTP handshake -- many hosts (including shared hosting like
+// Hostinger) block outbound port 25, so an SMTP probe would be unreliable in production.
+// This can't confirm the specific mailbox exists, only that the domain is real and
+// mail-capable; combined with the verification email link, that's enough to catch the
+// vast majority of fake/typo'd addresses without needing a paid verification API.
+function emailDomainAcceptsMail($email)
+{
+    $atPos = strrpos($email, '@');
+    if ($atPos === false) {
+        return false;
+    }
+    $domain = substr($email, $atPos + 1);
+    if ($domain === '') {
+        return false;
+    }
+
+    // Convert internationalized domains to ASCII so checkdnsrr() can resolve them.
+    if (function_exists('idn_to_ascii') && preg_match('/[^\x20-\x7E]/', $domain)) {
+        $ascii = idn_to_ascii($domain, 0, INTL_IDNA_VARIANT_UTS46);
+        if ($ascii !== false) {
+            $domain = $ascii;
+        }
+    }
+
+    if (checkdnsrr($domain, 'MX')) {
+        return true;
+    }
+    // Some domains accept mail directly on their A/AAAA record with no MX entry.
+    return checkdnsrr($domain, 'A') || checkdnsrr($domain, 'AAAA');
+}
+
+// Reject addresses that are the wrong shape for their own provider, e.g. a 37-character
+// Gmail local part -- Gmail usernames are always 6-30 characters, letters/numbers/dots
+// only, no leading/trailing/double dots. This runs before any network check, so it
+// catches obviously-fake addresses even when a live mailbox probe isn't possible.
+function emailLooksValidForProvider($email)
+{
+    $atPos = strrpos($email, '@');
+    if ($atPos === false) {
+        return false;
+    }
+    $local = substr($email, 0, $atPos);
+    $domain = strtolower(substr($email, $atPos + 1));
+
+    if (in_array($domain, ['gmail.com', 'googlemail.com'], true)) {
+        $len = strlen($local);
+        if ($len < 6 || $len > 30) {
+            return false;
+        }
+        if (!preg_match('/^[A-Za-z0-9.]+$/', $local)) {
+            return false;
+        }
+        if ($local[0] === '.' || substr($local, -1) === '.' || strpos($local, '..') !== false) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+// Attempt a real-time SMTP mailbox check: connect to the domain's mail server and ask
+// it (via RCPT TO, without actually sending anything) whether the specific mailbox
+// exists. Returns true (exists), false (server explicitly rejected it -- e.g. "550 no
+// such user"), or null when the answer is inconclusive (connection blocked/refused,
+// timed out, or the server gave an ambiguous response). Many hosts, including some
+// shared hosting, block outbound port 25, so this fails open: null is treated as
+// "couldn't verify" rather than "invalid" by the caller, and only a definitive
+// rejection blocks registration.
+function emailMailboxLikelyExists($email)
+{
+    $atPos = strrpos($email, '@');
+    if ($atPos === false) {
+        return null;
+    }
+    $domain = substr($email, $atPos + 1);
+
+    $mxHosts = [];
+    if (getmxrr($domain, $mxHosts, $mxWeights)) {
+        array_multisort($mxWeights, $mxHosts);
+    } else {
+        $mxHosts = [$domain];
+    }
+    // Only the top-priority host, and a short timeout below -- this runs synchronously
+    // during registration, so a blocked/slow network must fail open quickly rather than
+    // stall the form for several seconds.
+    $mxHosts = array_slice($mxHosts, 0, 1);
+
+    foreach ($mxHosts as $host) {
+        $result = probeSmtpMailbox($host, $email);
+        if ($result !== null) {
+            return $result;
+        }
+    }
+
+    return null;
+}
+
+// Single SMTP conversation against one mail server. Kept short-timeout and
+// best-effort: any hiccup (blocked port, slow server, protocol surprise) returns null
+// rather than risking a false rejection.
+function probeSmtpMailbox($host, $email)
+{
+    $errno = 0;
+    $errstr = '';
+    $socket = @fsockopen($host, 25, $errno, $errstr, 2.5);
+    if (!$socket) {
+        return null;
+    }
+    stream_set_timeout($socket, 2.5);
+
+    $read = function () use ($socket) {
+        $data = '';
+        while (($line = fgets($socket, 512)) !== false) {
+            $data .= $line;
+            if (strlen($line) < 4 || $line[3] !== '-') {
+                break;
+            }
+        }
+        $meta = stream_get_meta_data($socket);
+        if ($meta['timed_out']) {
+            return null;
+        }
+        return $data;
+    };
+    $expect = function ($response, $code) {
+        return $response !== null && strpos($response, $code) === 0;
+    };
+
+    $banner = $read();
+    if (!$expect($banner, '220')) {
+        fclose($socket);
+        return null;
+    }
+
+    fwrite($socket, "HELO heydreamtravel.com\r\n");
+    if (!$expect($read(), '250')) {
+        fclose($socket);
+        return null;
+    }
+
+    fwrite($socket, "MAIL FROM:<verify@heydreamtravel.com>\r\n");
+    if (!$expect($read(), '250')) {
+        fclose($socket);
+        return null;
+    }
+
+    fwrite($socket, "RCPT TO:<$email>\r\n");
+    $rcptResponse = $read();
+
+    fwrite($socket, "QUIT\r\n");
+    fclose($socket);
+
+    if ($rcptResponse === null) {
+        return null;
+    }
+    if (strpos($rcptResponse, '250') === 0 || strpos($rcptResponse, '251') === 0) {
+        return true;
+    }
+    if (strpos($rcptResponse, '550') === 0 || strpos($rcptResponse, '551') === 0 || strpos($rcptResponse, '553') === 0) {
+        return false;
+    }
+
+    return null; // 4xx / greylisted / anything else -- inconclusive
+}
+
 // Check if admin is logged in (for admin pages)
 function isAdminLoggedIn()
 {
@@ -360,9 +593,63 @@ class Auth
         return ['success' => false, 'message' => 'Invalid or expired verification link.'];
     }
 
+    // One-time, self-running migration: an account that already logged in successfully
+    // in the past (before this login page started requiring email verification) must
+    // not suddenly get locked out on deploy. Grandfathering is scoped to accounts with
+    // real prior login history (a row in user_sessions) -- NOT "whatever happens to be
+    // unverified when this first runs" -- so a brand-new signup that registers around
+    // the same time and genuinely hasn't clicked their verification link is never swept
+    // in; register() never creates a session until verifyEmail() succeeds, so an
+    // unverified account can only have session history if it logged in under the old,
+    // no-verification-required flow. Not date-based, so this also works for anyone else
+    // deploying this codebase with their own pre-existing users. Runs once (tracked via
+    // app_settings) then never touches email_verified again.
+    private function ensureEmailVerificationGrandfathered()
+    {
+        try {
+            $this->pdo->exec("CREATE TABLE IF NOT EXISTS app_settings (
+                setting_key VARCHAR(100) PRIMARY KEY,
+                setting_value VARCHAR(255) DEFAULT NULL,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+            )");
+
+            $stmt = $this->pdo->prepare("SELECT 1 FROM app_settings WHERE setting_key = 'email_verification_grandfathered' LIMIT 1");
+            $stmt->execute();
+            if ($stmt->fetch()) {
+                return; // already ran on this database
+            }
+
+            $cols = [];
+            foreach ($this->pdo->query("SHOW COLUMNS FROM users") as $row) {
+                $cols[$row['Field']] = true;
+            }
+            if (!isset($cols['email_verified'])) {
+                $this->pdo->exec("ALTER TABLE users ADD COLUMN email_verified BOOLEAN DEFAULT FALSE");
+            }
+            if (!isset($cols['verification_token'])) {
+                $this->pdo->exec("ALTER TABLE users ADD COLUMN verification_token VARCHAR(255) DEFAULT NULL");
+            }
+
+            // Only grandfather accounts with proof of a real prior login (a user_sessions
+            // row). Unverified accounts with no session history are genuinely new and
+            // must still verify -- they are left untouched.
+            $this->pdo->exec("
+                UPDATE users
+                SET email_verified = 1
+                WHERE (email_verified = 0 OR email_verified IS NULL)
+                AND id IN (SELECT DISTINCT user_id FROM user_sessions)
+            ");
+
+            $this->pdo->prepare("INSERT INTO app_settings (setting_key, setting_value) VALUES ('email_verification_grandfathered', '1')")->execute();
+        } catch (PDOException $e) {
+            error_log('email_verification grandfather migration failed: ' . $e->getMessage());
+        }
+    }
+
     // Login user
     public function login($email, $password)
     {
+        $this->ensureEmailVerificationGrandfathered();
         $user = $this->getUserByEmail($email);
 
         if (!$user) {
@@ -379,6 +666,10 @@ class Auth
 
         if (!password_verify($password, $user['password'])) {
             return ['success' => false, 'message' => 'Incorrect password'];
+        }
+
+        if (empty($user['email_verified'])) {
+            return ['success' => false, 'needs_verification' => true, 'email' => $user['email'], 'message' => 'Please verify your email address before signing in. Check your inbox for the verification link.'];
         }
 
         $this->createSession($user['id']);

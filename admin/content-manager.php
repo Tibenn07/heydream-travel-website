@@ -74,6 +74,91 @@ function uploadImage($file, $old_image = null)
     return ['success' => true, 'path' => $old_image];
 }
 
+// Shared validation for raw upload blocks (gallery loops, etc.) that don't go through uploadImage()
+function isAllowedUploadImage($fileType, $fileSize)
+{
+    $allowed_types = ['image/jpeg', 'image/png', 'image/jpg', 'image/gif', 'image/webp'];
+    $max_size = 5 * 1024 * 1024; // 5MB
+    return in_array($fileType, $allowed_types) && $fileSize <= $max_size;
+}
+
+// Self-healing schema check for the `cruises` table: save_advanced_cruise writes to
+// every column below, so any environment whose `cruises` table predates one of these
+// fields (e.g. a production database only ever seeded from an older version of this
+// codebase) would throw an uncaught "Unknown column" PDOException -- which, with
+// display_errors forced off in this file, comes back to the browser as a completely
+// empty response ("Unexpected end of JSON input") instead of a real error message.
+function ensureCruiseColumns($pdo)
+{
+    static $checked = false;
+    if ($checked) {
+        return;
+    }
+
+    $columns = [
+        'partner_id' => 'INT DEFAULT NULL',
+        'partner_company' => 'VARCHAR(255) DEFAULT NULL',
+        'cruise_code' => 'VARCHAR(100) DEFAULT NULL',
+        'title' => 'VARCHAR(255) DEFAULT NULL',
+        'short_description' => 'TEXT',
+        'full_description' => 'TEXT',
+        'duration' => 'VARCHAR(100) DEFAULT NULL',
+        'departure_port' => 'VARCHAR(255) DEFAULT NULL',
+        'destinations' => 'TEXT',
+        'route' => 'TEXT',
+        'ship_name' => 'VARCHAR(255) DEFAULT NULL',
+        'cruise_line' => 'VARCHAR(255) DEFAULT NULL',
+        'room_types' => 'TEXT',
+        'amenities' => 'TEXT',
+        'ship_description' => 'TEXT',
+        'base_price' => 'DECIMAL(10,2) DEFAULT 0',
+        'price_per_person' => 'DECIMAL(10,2) DEFAULT 0',
+        'promo_price' => 'DECIMAL(10,2) DEFAULT 0',
+        'inclusions' => 'TEXT',
+        'exclusions' => 'TEXT',
+        'departure_date' => 'DATE DEFAULT NULL',
+        'return_date' => 'DATE DEFAULT NULL',
+        'booking_deadline' => 'DATE DEFAULT NULL',
+        'available_slots' => 'INT DEFAULT 0',
+        'status' => "VARCHAR(50) DEFAULT 'Available'",
+        'required_documents' => 'TEXT',
+        'travel_requirements' => 'TEXT',
+        'health_requirements' => 'TEXT',
+        'cancellation_policy' => 'TEXT',
+        'refund_policy' => 'TEXT',
+        'terms_conditions' => 'TEXT',
+        'category' => 'VARCHAR(100) DEFAULT NULL',
+        'destination_type' => 'VARCHAR(100) DEFAULT NULL',
+        'tags' => 'VARCHAR(255) DEFAULT NULL',
+        'highlights' => 'TEXT',
+        'promo_text' => 'VARCHAR(255) DEFAULT NULL',
+        'is_published' => 'TINYINT(1) DEFAULT 0',
+        'is_featured' => 'TINYINT(1) DEFAULT 0',
+        'featured_image' => 'VARCHAR(500) DEFAULT NULL',
+        'gallery' => 'TEXT',
+        'rating' => "DECIMAL(2,1) DEFAULT 0.0",
+        'feedback_count' => 'INT DEFAULT 0',
+    ];
+
+    try {
+        $existing = [];
+        foreach ($pdo->query("SHOW COLUMNS FROM cruises") as $row) {
+            $existing[$row['Field']] = true;
+        }
+        foreach ($columns as $column => $definition) {
+            if (!isset($existing[$column])) {
+                try {
+                    $pdo->exec("ALTER TABLE cruises ADD COLUMN `$column` $definition");
+                } catch (PDOException $e) {
+                }
+            }
+        }
+        $checked = true;
+    } catch (PDOException $e) {
+        // cruises table itself doesn't exist yet; nothing to heal.
+    }
+}
+
 try {
     foreach ([
         'flash_deals' => "ALTER TABLE flash_deals ADD COLUMN partner_id INT DEFAULT NULL",
@@ -83,13 +168,13 @@ try {
         'visas' => "ALTER TABLE visas ADD COLUMN partner_id INT DEFAULT NULL",
         'flight_booking_settings' => "ALTER TABLE flight_booking_settings ADD COLUMN partner_id INT DEFAULT NULL",
         'hotel_booking_settings' => "ALTER TABLE hotel_booking_settings ADD COLUMN partner_id INT DEFAULT NULL",
-        'cruises' => "ALTER TABLE cruises ADD COLUMN partner_id INT DEFAULT NULL"
     ] as $table => $sql) {
         try {
             $pdo->exec($sql);
         } catch (PDOException $e) {
         }
     }
+    ensureCruiseColumns($pdo);
 } catch (Throwable $e) {
 }
 
@@ -531,7 +616,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         if (isset($_FILES['gallery']) && !empty($_FILES['gallery']['name'][0])) {
             foreach ($_FILES['gallery']['tmp_name'] as $key => $tmp_name) {
-                if ($_FILES['gallery']['error'][$key] === 0) {
+                if ($_FILES['gallery']['error'][$key] === 0 && isAllowedUploadImage($_FILES['gallery']['type'][$key], $_FILES['gallery']['size'][$key])) {
                     $ext = pathinfo($_FILES['gallery']['name'][$key], PATHINFO_EXTENSION);
                     $filename = 'flash_g_' . time() . '_' . $key . '.' . $ext;
                     if (move_uploaded_file($tmp_name, __DIR__ . '/../uploads/' . $filename)) {
@@ -719,7 +804,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         if (isset($_FILES['gallery']) && !empty($_FILES['gallery']['name'][0])) {
             foreach ($_FILES['gallery']['tmp_name'] as $key => $tmp_name) {
-                if ($_FILES['gallery']['error'][$key] === 0) {
+                if ($_FILES['gallery']['error'][$key] === 0 && isAllowedUploadImage($_FILES['gallery']['type'][$key], $_FILES['gallery']['size'][$key])) {
                     $ext = pathinfo($_FILES['gallery']['name'][$key], PATHINFO_EXTENSION);
                     $filename = 'local_g_' . time() . '_' . $key . '.' . $ext;
                     if (move_uploaded_file($tmp_name, __DIR__ . '/../uploads/' . $filename)) {
@@ -912,7 +997,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         if (isset($_FILES['gallery']) && !empty($_FILES['gallery']['name'][0])) {
             foreach ($_FILES['gallery']['tmp_name'] as $key => $tmp_name) {
-                if ($_FILES['gallery']['error'][$key] === 0) {
+                if ($_FILES['gallery']['error'][$key] === 0 && isAllowedUploadImage($_FILES['gallery']['type'][$key], $_FILES['gallery']['size'][$key])) {
                     $ext = pathinfo($_FILES['gallery']['name'][$key], PATHINFO_EXTENSION);
                     $filename = 'foreign_g_' . time() . '_' . $key . '.' . $ext;
                     if (move_uploaded_file($tmp_name, __DIR__ . '/../uploads/' . $filename)) {
@@ -1036,7 +1121,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         $stmt = $pdo->prepare("DELETE FROM destinations WHERE id = ?");
         $stmt->execute([$id]);
-        $message = "Destination deleted successfully!";
+        echo json_encode(['success' => true, 'message' => 'Destination deleted successfully!']);
+        exit;
     }
 
     // Delete Foreign Destination
@@ -1054,7 +1140,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         $stmt = $pdo->prepare("DELETE FROM foreign_destinations WHERE id = ?");
         $stmt->execute([$id]);
-        $message = "Foreign destination deleted successfully!";
+        echo json_encode(['success' => true, 'message' => 'Foreign destination deleted successfully!']);
+        exit;
     }
 
     // Delete Flash Deal
@@ -1072,7 +1159,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         $stmt = $pdo->prepare("DELETE FROM flash_deals WHERE id = ?");
         $stmt->execute([$id]);
-        $message = "Flash deal deleted successfully!";
+        echo json_encode(['success' => true, 'message' => 'Flash deal deleted successfully!']);
+        exit;
     }
 
     // Save Visa
@@ -1112,14 +1200,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
 
-        if ($id > 0) {
-            $stmt = $pdo->prepare("UPDATE visas SET title=?, category=?, description=?, price=?, currency=?, processing_time=?, visa_status=?, requirements=?, disclaimer=?, important_notes=?, icon_type=?, icon_value=?, is_active=?, display_order=? WHERE id=?");
-            $stmt->execute([$title, $category, $description, $price, $currency, $processing_time, $visa_status, $requirements_json, $disclaimer, $important_notes, $icon_type, $icon_value, $is_active, $display_order, $id]);
-            $message = "Visa updated successfully!";
-        } else {
-            $stmt = $pdo->prepare("INSERT INTO visas (title, category, description, price, currency, processing_time, visa_status, requirements, disclaimer, important_notes, icon_type, icon_value, is_active, display_order) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
-            $stmt->execute([$title, $category, $description, $price, $currency, $processing_time, $visa_status, $requirements_json, $disclaimer, $important_notes, $icon_type, $icon_value, $is_active, $display_order]);
-            $message = "Visa added successfully!";
+        try {
+            if ($id > 0) {
+                $stmt = $pdo->prepare("UPDATE visas SET title=?, category=?, description=?, price=?, currency=?, processing_time=?, visa_status=?, requirements=?, disclaimer=?, important_notes=?, icon_type=?, icon_value=?, is_active=?, display_order=? WHERE id=?");
+                $stmt->execute([$title, $category, $description, $price, $currency, $processing_time, $visa_status, $requirements_json, $disclaimer, $important_notes, $icon_type, $icon_value, $is_active, $display_order, $id]);
+                echo json_encode(['success' => true, 'message' => 'Visa updated successfully!']);
+                exit;
+            } else {
+                $stmt = $pdo->prepare("INSERT INTO visas (title, category, description, price, currency, processing_time, visa_status, requirements, disclaimer, important_notes, icon_type, icon_value, is_active, display_order) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+                $stmt->execute([$title, $category, $description, $price, $currency, $processing_time, $visa_status, $requirements_json, $disclaimer, $important_notes, $icon_type, $icon_value, $is_active, $display_order]);
+                echo json_encode(['success' => true, 'message' => 'Visa added successfully!']);
+                exit;
+            }
+        } catch (PDOException $e) {
+            echo json_encode(['success' => false, 'message' => 'Database error: ' . $e->getMessage()]);
+            exit;
         }
     }
 
@@ -1134,7 +1229,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         $stmt = $pdo->prepare("DELETE FROM visas WHERE id = ?");
         $stmt->execute([$id]);
-        $message = "Visa deleted successfully!";
+        echo json_encode(['success' => true, 'message' => 'Visa deleted successfully!']);
+        exit;
     }
 
     // Save Visa Settings
@@ -1151,7 +1247,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $stmt = $pdo->prepare("UPDATE global_settings SET setting_value = ? WHERE setting_key = 'visa_checklist'");
         $stmt->execute([$checklist_json]);
 
-        $message = "Visa settings updated successfully!";
+        echo json_encode(['success' => true, 'message' => 'Visa settings updated successfully!']);
+        exit;
     }
 
     // Save Flight Data
@@ -1339,6 +1436,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 
+    // Delete Flight Data
+    elseif ($action === 'delete_flight_data') {
+        $id = intval($_POST['id']);
+        $stmt = $pdo->prepare("DELETE FROM flight_booking_settings WHERE id = ?");
+        $stmt->execute([$id]);
+        echo json_encode(['success' => true, 'message' => 'Flight data deleted successfully!']);
+        exit;
+    }
+
+    // Delete Hotel Data
+    elseif ($action === 'delete_hotel_data') {
+        $id = intval($_POST['id']);
+        $stmt = $pdo->prepare("DELETE FROM hotel_booking_settings WHERE id = ?");
+        $stmt->execute([$id]);
+        echo json_encode(['success' => true, 'message' => 'Hotel data deleted successfully!']);
+        exit;
+    }
+
     // Save Site Service (Flights, Premium, Experiences)
     elseif ($action === 'save_site_service') {
         try {
@@ -1374,7 +1489,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             // Handle Featured Image
             $featured_image = $_POST['old_featured_image'] ?? '';
-            if (isset($_FILES['featured_image']) && $_FILES['featured_image']['error'] === 0) {
+            if (isset($_FILES['featured_image']) && $_FILES['featured_image']['error'] === 0 && isAllowedUploadImage($_FILES['featured_image']['type'], $_FILES['featured_image']['size'])) {
                 $ext = pathinfo($_FILES['featured_image']['name'], PATHINFO_EXTENSION);
                 $filename = 'service_f_' . time() . '.' . $ext;
                 if (move_uploaded_file($_FILES['featured_image']['tmp_name'], __DIR__ . '/../uploads/' . $filename)) {
@@ -1403,6 +1518,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     // Skip empty or errored entries (e.g. empty file input slot)
                     if ($_FILES['gallery']['error'][$key] !== UPLOAD_ERR_OK) continue;
                     if (empty($_FILES['gallery']['name'][$key])) continue;
+                    if (!isAllowedUploadImage($_FILES['gallery']['type'][$key], $_FILES['gallery']['size'][$key])) continue;
                     $ext = pathinfo($_FILES['gallery']['name'][$key], PATHINFO_EXTENSION);
                     $filename = 'service_g_' . time() . '_' . $key . '.' . $ext;
                     if (move_uploaded_file($tmp_name, __DIR__ . '/../uploads/' . $filename)) {
@@ -1543,9 +1659,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'promo_price' => floatval($_POST['promo_price'] ?? 0),
             'inclusions' => trim($_POST['inclusions'] ?? ''),
             'exclusions' => trim($_POST['exclusions'] ?? ''),
-            'departure_date' => $_POST['departure_date'] ?: null,
-            'return_date' => $_POST['return_date'] ?: null,
-            'booking_deadline' => $_POST['booking_deadline'] ?: null,
+            'departure_date' => ($_POST['departure_date'] ?? '') ?: null,
+            'return_date' => ($_POST['return_date'] ?? '') ?: null,
+            'booking_deadline' => ($_POST['booking_deadline'] ?? '') ?: null,
             'available_slots' => intval($_POST['available_slots'] ?? 0),
             'status' => $_POST['status'] ?? 'Available',
             'required_documents' => trim($_POST['required_documents'] ?? ''),
@@ -1563,7 +1679,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'is_featured' => isset($_POST['is_featured']) ? 1 : 0
         ];
 
-        if (isset($_FILES['featured_image']) && $_FILES['featured_image']['error'] === 0) {
+        if (isset($_FILES['featured_image']) && $_FILES['featured_image']['error'] === 0 && isAllowedUploadImage($_FILES['featured_image']['type'], $_FILES['featured_image']['size'])) {
             $ext = pathinfo($_FILES['featured_image']['name'], PATHINFO_EXTENSION);
             $filename = 'cruise_' . time() . '.' . $ext;
             if (move_uploaded_file($_FILES['featured_image']['tmp_name'], __DIR__ . '/../uploads/' . $filename)) {
@@ -1600,6 +1716,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             foreach ($_FILES['gallery']['tmp_name'] as $key => $tmp_name) {
                 if ($_FILES['gallery']['error'][$key] !== UPLOAD_ERR_OK) continue;
                 if (empty($_FILES['gallery']['name'][$key])) continue;
+                if (!isAllowedUploadImage($_FILES['gallery']['type'][$key], $_FILES['gallery']['size'][$key])) continue;
                 $ext = pathinfo($_FILES['gallery']['name'][$key], PATHINFO_EXTENSION);
                 $filename = 'cruise_gallery_' . time() . '_' . $key . '.' . $ext;
                 if (move_uploaded_file($tmp_name, __DIR__ . '/../uploads/' . $filename)) {
@@ -1609,33 +1726,39 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         $data['gallery'] = json_encode($gallery);
 
-        if ($id > 0) {
-            $sql = "UPDATE cruises SET ";
-            $updates = [];
-            foreach ($data as $key => $val) {
-                $updates[] = "$key = :$key";
+        try {
+            if ($id > 0) {
+                $sql = "UPDATE cruises SET ";
+                $updates = [];
+                foreach ($data as $key => $val) {
+                    $updates[] = "$key = :$key";
+                }
+                $sql .= implode(', ', $updates) . " WHERE id = :id";
+                $data['id'] = $id;
+                $pdo->prepare($sql)->execute($data);
+                $cruise_id = $id;
+            } else {
+                $fields = array_keys($data);
+                $placeholders = array_map(function ($f) {
+                    return ":$f";
+                }, $fields);
+                $sql = "INSERT INTO cruises (" . implode(', ', $fields) . ") VALUES (" . implode(', ', $placeholders) . ")";
+                $pdo->prepare($sql)->execute($data);
+                $cruise_id = $pdo->lastInsertId();
             }
-            $sql .= implode(', ', $updates) . " WHERE id = :id";
-            $data['id'] = $id;
-            $pdo->prepare($sql)->execute($data);
-            $cruise_id = $id;
-        } else {
-            $fields = array_keys($data);
-            $placeholders = array_map(function ($f) {
-                return ":$f";
-            }, $fields);
-            $sql = "INSERT INTO cruises (" . implode(', ', $fields) . ") VALUES (" . implode(', ', $placeholders) . ")";
-            $pdo->prepare($sql)->execute($data);
-            $cruise_id = $pdo->lastInsertId();
-        }
 
-        // Itinerary
-        $pdo->prepare("DELETE FROM cruise_itinerary WHERE cruise_id = ?")->execute([$cruise_id]);
-        if (isset($_POST['itinerary']) && is_array($_POST['itinerary'])) {
-            $it_stmt = $pdo->prepare("INSERT INTO cruise_itinerary (cruise_id, day_number, title, description) VALUES (?, ?, ?, ?)");
-            foreach ($_POST['itinerary'] as $day) {
-                $it_stmt->execute([$cruise_id, $day['day_number'], $day['title'], $day['description']]);
+            // Itinerary
+            $pdo->prepare("DELETE FROM cruise_itinerary WHERE cruise_id = ?")->execute([$cruise_id]);
+            if (isset($_POST['itinerary']) && is_array($_POST['itinerary'])) {
+                $it_stmt = $pdo->prepare("INSERT INTO cruise_itinerary (cruise_id, day_number, title, description) VALUES (?, ?, ?, ?)");
+                foreach ($_POST['itinerary'] as $day) {
+                    $it_stmt->execute([$cruise_id, $day['day_number'], $day['title'], $day['description']]);
+                }
             }
+        } catch (PDOException $e) {
+            error_log('save_advanced_cruise failed: ' . $e->getMessage());
+            echo json_encode(['success' => false, 'message' => 'Failed to save cruise: ' . $e->getMessage()]);
+            exit;
         }
         echo json_encode(['success' => true, 'message' => 'Cruise saved successfully!']);
         exit;
@@ -1810,7 +1933,7 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
 
         .admin-sidebar {
             width: 280px;
-            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            background: #0f172a;
             color: white;
             position: fixed;
             height: 100vh;
@@ -1826,7 +1949,7 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
 
         .sidebar-header i {
             font-size: 2.5rem;
-            color: #ffd700;
+            color: #4da3ff;
         }
 
         .sidebar-header h2 {
@@ -1855,9 +1978,9 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
 
         .nav-item:hover,
         .nav-item.active {
-            background: rgba(255, 152, 0, 0.2);
-            color: #ffd700;
-            border-left: 3px solid #ffd700;
+            background: rgba(255, 255, 255, 0.1);
+            color: #fff;
+            border-left: 3px solid #4da3ff;
         }
 
         .nav-item i {
@@ -2213,9 +2336,8 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
             display: flex;
             justify-content: space-between;
             align-items: center;
-            position: sticky;
-            top: 0;
             background: white;
+            border-radius: 24px 24px 0 0;
         }
 
         .modal-header h3 {
@@ -2497,6 +2619,104 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
         .status-inactive {
             background: #f8d7da;
             color: #721c24;
+        }
+
+        .toggle-switch-group {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .toggle-switch {
+            position: relative;
+            display: inline-block;
+            width: 46px;
+            height: 26px;
+            flex-shrink: 0;
+        }
+
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .toggle-switch-slider {
+            position: absolute;
+            cursor: pointer;
+            inset: 0;
+            background-color: #cbd5e1;
+            border-radius: 999px;
+            transition: 0.2s;
+        }
+
+        .toggle-switch-slider::before {
+            content: "";
+            position: absolute;
+            height: 20px;
+            width: 20px;
+            left: 3px;
+            top: 3px;
+            background-color: #fff;
+            border-radius: 50%;
+            transition: 0.2s;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+        }
+
+        .toggle-switch input:checked+.toggle-switch-slider {
+            background-color: #10b981;
+        }
+
+        .toggle-switch input:checked+.toggle-switch-slider::before {
+            transform: translateX(20px);
+        }
+
+        .toggle-switch input:focus-visible+.toggle-switch-slider {
+            outline: 2px solid #003580;
+            outline-offset: 2px;
+        }
+
+        .toggle-switch-label {
+            font-weight: 600;
+            color: #0f172a;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        input[type="file"] {
+            display: block;
+            width: 100%;
+            box-sizing: border-box;
+            padding: 9px 12px;
+            border: 1.5px dashed #cbd5e1;
+            border-radius: 10px;
+            background: #f8fafc;
+            font-size: 0.82rem;
+            color: #64748b;
+            cursor: pointer;
+            transition: border-color 0.2s, background 0.2s;
+        }
+
+        input[type="file"]:hover {
+            border-color: #003580;
+            background: #eff6ff;
+        }
+
+        input[type="file"]::file-selector-button {
+            padding: 8px 16px;
+            margin-right: 12px;
+            border: none;
+            border-radius: 8px;
+            background: linear-gradient(135deg, #003580, #0057d9);
+            color: #fff;
+            font-weight: 600;
+            font-size: 0.78rem;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+
+        input[type="file"]::file-selector-button:hover {
+            opacity: 0.88;
         }
 
         .itinerary-builder {
@@ -3032,6 +3252,9 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
                     </div>
 
                     <div class="cards-grid">
+                        <?php if (empty($visas)): ?>
+                            <div class="message info">No visa assistance services yet. Click "Add New Visa Service" to create your first one.</div>
+                        <?php else: ?>
                         <?php foreach ($visas as $visa): ?>
                             <div class="content-card">
                                 <div class="card-preview"
@@ -3075,6 +3298,7 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
                                 </div>
                             </div>
                         <?php endforeach; ?>
+                        <?php endif; ?>
                     </div>
                 </div>
             <?php endif; ?>
@@ -3172,8 +3396,14 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
                                         <?php foreach ($cruises as $cruise): ?>
                                             <tr style="border-bottom: 1px solid #f1f5f9;">
                                                 <td style="padding: 15px 20px;">
-                                                    <img src="../<?= $cruise['featured_image'] ?: 'images/placeholder.jpg' ?>"
-                                                        style="width: 60px; height: 60px; border-radius: 8px; object-fit: cover; border: 1px solid #e2e8f0;">
+                                                    <?php if (!empty($cruise['featured_image'])): ?>
+                                                        <img src="../<?= $cruise['featured_image'] ?>"
+                                                            style="width: 60px; height: 60px; border-radius: 8px; object-fit: cover; border: 1px solid #e2e8f0;">
+                                                    <?php else: ?>
+                                                        <div style="width: 60px; height: 60px; border-radius: 8px; background: #e0f2fe; display: flex; align-items: center; justify-content: center; color: #0369a1;">
+                                                            <i class="fas fa-ship"></i>
+                                                        </div>
+                                                    <?php endif; ?>
                                                 </td>
                                                 <td style="padding: 15px 20px;">
                                                     <div style="font-weight: 700; color: #0f172a;">
@@ -3710,7 +3940,7 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
                             <button class="tab-btn" onclick="switchServiceTab(event, 's-tab-gallery')">Gallery</button>
                         </div>
 
-                        <form method="POST" id="serviceForm" enctype="multipart/form-data">
+                        <form method="POST" id="serviceForm" enctype="multipart/form-data" novalidate>
                             <input type="hidden" name="action" value="save_site_service">
                             <input type="hidden" name="id" id="service_id" value="0">
                             <input type="hidden" name="service_type" id="service_type">
@@ -3728,7 +3958,7 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
                                     </div>
                                     <div class="form-group">
                                         <label>Service Code / ID *</label>
-                                        <input type="text" name="service_code" id="service_service_code"
+                                        <input type="text" name="service_code" id="service_service_code" required
                                             placeholder="e.g. JP-LX-001">
                                     </div>
                                 </div>
@@ -3770,17 +4000,21 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
                                     style="background: #f8fbff; padding: 15px; border-radius: 10px; margin-top: 10px; border: 1px solid #eef2f7;">
                                     <div class="form-group">
                                         <label style="font-weight: 600; color: #003580;">Status Controls</label>
-                                        <div style="display: flex; gap: 20px; margin-top: 5px;">
-                                            <label
-                                                style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                                                <input type="checkbox" name="is_active" id="service_is_active" checked>
-                                                Published
-                                            </label>
-                                            <label
-                                                style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                                                <input type="checkbox" name="is_featured" id="service_is_featured">
-                                                Featured
-                                            </label>
+                                        <div style="display: flex; gap: 24px; margin-top: 8px;">
+                                            <div class="toggle-switch-group">
+                                                <label class="toggle-switch">
+                                                    <input type="checkbox" name="is_active" id="service_is_active" checked>
+                                                    <span class="toggle-switch-slider"></span>
+                                                </label>
+                                                <label for="service_is_active" class="toggle-switch-label">Published</label>
+                                            </div>
+                                            <div class="toggle-switch-group">
+                                                <label class="toggle-switch">
+                                                    <input type="checkbox" name="is_featured" id="service_is_featured">
+                                                    <span class="toggle-switch-slider"></span>
+                                                </label>
+                                                <label for="service_is_featured" class="toggle-switch-label">Featured</label>
+                                            </div>
                                         </div>
                                     </div>
                                     <div class="form-group">
@@ -3929,7 +4163,7 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
                                             </div>
                                         </div>
                                         <input type="file" name="featured_image" id="service_featured_input"
-                                            style="display: none;" accept="image/*"
+                                            style="display: none;" accept=".jpg,.jpeg,.png,.gif,.webp,image/jpeg,image/png,image/gif,image/webp"
                                             onchange="previewImage(this, 'service_featured_preview')">
                                     </div>
 
@@ -3952,7 +4186,7 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
                                             </div>
                                         </div>
                                         <input type="file" name="gallery[]" id="service_gallery_input" multiple
-                                            style="display: none;" accept="image/*"
+                                            style="display: none;" accept=".jpg,.jpeg,.png,.gif,.webp,image/jpeg,image/png,image/gif,image/webp"
                                             onchange="previewServiceGallery(this)">
                                     </div>
                                 </div>
@@ -3989,7 +4223,7 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
                             <button class="tab-btn" onclick="switchTab(event, 'tab-gallery')">Gallery</button>
                         </div>
 
-                        <form id="advancedCruiseForm" enctype="multipart/form-data">
+                        <form id="advancedCruiseForm" enctype="multipart/form-data" novalidate>
                             <input type="hidden" name="action" value="save_advanced_cruise">
                             <input type="hidden" name="id" id="advanced_cruise_id" value="0">
                             <input type="hidden" name="old_featured_image" id="old_featured_image">
@@ -4025,17 +4259,21 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
 
                                     <div class="form-group">
                                         <label>Status Controls</label>
-                                        <div style="display: flex; gap: 20px; align-items: center; margin-top: 10px;">
-                                            <label
-                                                style="display: flex; align-items: center; gap: 10px; margin: 0; font-weight:normal;">
-                                                <input type="checkbox" name="is_published" id="cruise_is_published"
-                                                    value="1" checked> Published
-                                            </label>
-                                            <label
-                                                style="display: flex; align-items: center; gap: 10px; margin: 0; font-weight:normal;">
-                                                <input type="checkbox" name="is_featured" id="cruise_is_featured"
-                                                    value="1"> Featured
-                                            </label>
+                                        <div style="display: flex; gap: 24px; align-items: center; margin-top: 10px;">
+                                            <div class="toggle-switch-group">
+                                                <label class="toggle-switch">
+                                                    <input type="checkbox" name="is_published" id="cruise_is_published" value="1" checked>
+                                                    <span class="toggle-switch-slider"></span>
+                                                </label>
+                                                <label for="cruise_is_published" class="toggle-switch-label">Published</label>
+                                            </div>
+                                            <div class="toggle-switch-group">
+                                                <label class="toggle-switch">
+                                                    <input type="checkbox" name="is_featured" id="cruise_is_featured" value="1">
+                                                    <span class="toggle-switch-slider"></span>
+                                                </label>
+                                                <label for="cruise_is_featured" class="toggle-switch-label">Featured</label>
+                                            </div>
                                         </div>
                                     </div>
 
@@ -4186,7 +4424,7 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
                                     <div class="form-group" style="margin-bottom: 25px;">
                                         <label style="font-weight: 700; color: #003580; margin-bottom: 5px; display: block; font-size: 1.1rem;">Featured Photo / Cover Image</label>
                                         <span style="font-size: 0.85rem; color: #64748b; display: block; margin-bottom: 10px;">This is the main image that will be shown on cards, search results, and at the top of detail pages.</span>
-                                        <input type="file" name="featured_image"
+                                        <input type="file" name="featured_image" accept=".jpg,.jpeg,.png,.gif,.webp,image/jpeg,image/png,image/gif,image/webp"
                                             onchange="previewImage(this, 'featured_preview_box')">
                                         <div id="featured_preview_box" class="image-preview"
                                             style="height: 180px; margin-top:10px; border-radius: 12px; border: 1px solid #cbd5e1; background-size: cover; background-position: center;"></div>
@@ -4211,7 +4449,7 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
                                             </div>
                                         </div>
                                         <input type="file" name="gallery[]" id="cruise_gallery_input" multiple
-                                            style="display: none;" accept="image/*"
+                                            style="display: none;" accept=".jpg,.jpeg,.png,.gif,.webp,image/jpeg,image/png,image/gif,image/webp"
                                             onchange="previewCruiseGallery(this)">
                                         <input type="hidden" name="remove_gallery_images" id="cruise_remove_gallery_images" value="">
                                     </div>
@@ -4329,7 +4567,7 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
                                     onclick="switchFlashDealTab(event, 'fd-tab-gallery')">Gallery</button>
                             </div>
 
-                            <form method="POST" enctype="multipart/form-data" id="flashDealForm">
+                            <form method="POST" enctype="multipart/form-data" id="flashDealForm" novalidate>
                                 <input type="hidden" name="action" value="save_flash_deal">
                                 <input type="hidden" name="id" id="deal_id" value="0">
                                 <input type="hidden" name="old_image_1" id="old_image_1">
@@ -4529,11 +4767,13 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
                                         </div>
                                         <div class="form-group">
                                             <label>&nbsp;</label>
-                                            <label>
-                                                <input type="checkbox" name="is_active" id="deal_is_active" value="1"
-                                                    checked>
-                                                Active (show on website)
-                                            </label>
+                                            <div class="toggle-switch-group">
+                                                <label class="toggle-switch">
+                                                    <input type="checkbox" name="is_active" id="deal_is_active" value="1" checked>
+                                                    <span class="toggle-switch-slider"></span>
+                                                </label>
+                                                <label for="deal_is_active" class="toggle-switch-label">Active (show on website)</label>
+                                            </div>
                                         </div>
                                     </div>
 
@@ -4552,7 +4792,7 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
                                         <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px;">
                                             <div>
                                                 <label style="font-size: 0.8rem;">Image 1 (Main)</label>
-                                                <input type="file" name="image_1"
+                                                <input type="file" name="image_1" accept=".jpg,.jpeg,.png,.gif,.webp,image/jpeg,image/png,image/gif,image/webp"
                                                     onchange="previewImage(this, 'fd_preview_1')">
                                                 <div id="fd_preview_1" class="image-preview"
                                                     style="height: 120px; margin-top: 5px; border: 2px dashed #ddd; border-radius: 8px; background-size: cover; background-position: center;">
@@ -4560,7 +4800,7 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
                                             </div>
                                             <div>
                                                 <label style="font-size: 0.8rem;">Image 2 (Optional)</label>
-                                                <input type="file" name="image_2"
+                                                <input type="file" name="image_2" accept=".jpg,.jpeg,.png,.gif,.webp,image/jpeg,image/png,image/gif,image/webp"
                                                     onchange="previewImage(this, 'fd_preview_2')">
                                                 <div id="fd_preview_2" class="image-preview"
                                                     style="height: 120px; margin-top: 5px; border: 2px dashed #ddd; border-radius: 8px; background-size: cover; background-position: center;">
@@ -4568,7 +4808,7 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
                                             </div>
                                             <div>
                                                 <label style="font-size: 0.8rem;">Image 3 (Optional)</label>
-                                                <input type="file" name="image_3"
+                                                <input type="file" name="image_3" accept=".jpg,.jpeg,.png,.gif,.webp,image/jpeg,image/png,image/gif,image/webp"
                                                     onchange="previewImage(this, 'fd_preview_3')">
                                                 <div id="fd_preview_3" class="image-preview"
                                                     style="height: 120px; margin-top: 5px; border: 2px dashed #ddd; border-radius: 8px; background-size: cover; background-position: center;">
@@ -4579,7 +4819,7 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
 
                                     <div class="form-group" style="margin-top: 25px;">
                                         <label>Full Photo Gallery (Multi-upload)</label>
-                                        <input type="file" name="gallery[]" id="flash_gallery_input" multiple accept="image/*"
+                                        <input type="file" name="gallery[]" id="flash_gallery_input" multiple accept=".jpg,.jpeg,.png,.gif,.webp,image/jpeg,image/png,image/gif,image/webp"
                                             onchange="previewFlashGallery(this)">
                                         <div id="flash_gallery_preview"
                                             style="display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 10px; margin-top: 15px;">
@@ -4691,7 +4931,7 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
                                 <button class="tab-btn" onclick="switchForeignTab(event, 'fr-tab-gallery')">Gallery</button>
                             </div>
 
-                            <form method="POST" enctype="multipart/form-data" id="foreignDestinationForm">
+                            <form method="POST" enctype="multipart/form-data" id="foreignDestinationForm" novalidate>
                                 <input type="hidden" name="action" value="save_foreign_destination">
                                 <input type="hidden" name="id" id="foreign_dest_id" value="0">
                                 <input type="hidden" name="old_image" id="foreign_old_image">
@@ -4850,11 +5090,13 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
                                         </div>
                                         <div class="form-group">
                                             <label>&nbsp;</label>
-                                            <label>
-                                                <input type="checkbox" name="is_active" id="foreign_dest_is_active"
-                                                    value="1" checked>
-                                                Active (show on website)
-                                            </label>
+                                            <div class="toggle-switch-group">
+                                                <label class="toggle-switch">
+                                                    <input type="checkbox" name="is_active" id="foreign_dest_is_active" value="1" checked>
+                                                    <span class="toggle-switch-slider"></span>
+                                                </label>
+                                                <label for="foreign_dest_is_active" class="toggle-switch-label">Active (show on website)</label>
+                                            </div>
                                         </div>
                                     </div>
 
@@ -4913,7 +5155,7 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
                                         <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px;">
                                             <div>
                                                 <label style="font-size: 0.8rem;">Image 1 (Main)</label>
-                                                <input type="file" name="image"
+                                                <input type="file" name="image" accept=".jpg,.jpeg,.png,.gif,.webp,image/jpeg,image/png,image/gif,image/webp"
                                                     onchange="previewImage(this, 'foreign_preview_1')">
                                                 <div id="foreign_preview_1" class="image-preview"
                                                     style="height: 120px; margin-top: 5px; border: 2px dashed #ddd; border-radius: 8px; background-size: cover; background-position: center;">
@@ -4921,7 +5163,7 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
                                             </div>
                                             <div>
                                                 <label style="font-size: 0.8rem;">Image 2 (Optional)</label>
-                                                <input type="file" name="image2"
+                                                <input type="file" name="image2" accept=".jpg,.jpeg,.png,.gif,.webp,image/jpeg,image/png,image/gif,image/webp"
                                                     onchange="previewImage(this, 'foreign_preview_2')">
                                                 <div id="foreign_preview_2" class="image-preview"
                                                     style="height: 120px; margin-top: 5px; border: 2px dashed #ddd; border-radius: 8px; background-size: cover; background-position: center;">
@@ -4929,7 +5171,7 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
                                             </div>
                                             <div>
                                                 <label style="font-size: 0.8rem;">Image 3 (Optional)</label>
-                                                <input type="file" name="image3"
+                                                <input type="file" name="image3" accept=".jpg,.jpeg,.png,.gif,.webp,image/jpeg,image/png,image/gif,image/webp"
                                                     onchange="previewImage(this, 'foreign_preview_3')">
                                                 <div id="foreign_preview_3" class="image-preview"
                                                     style="height: 120px; margin-top: 5px; border: 2px dashed #ddd; border-radius: 8px; background-size: cover; background-position: center;">
@@ -4940,7 +5182,7 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
 
                                     <div class="form-group" style="margin-top: 25px;">
                                         <label>Full Photo Gallery (Multi-upload)</label>
-                                        <input type="file" name="gallery[]" id="foreign_gallery_input" multiple accept="image/*"
+                                        <input type="file" name="gallery[]" id="foreign_gallery_input" multiple accept=".jpg,.jpeg,.png,.gif,.webp,image/jpeg,image/png,image/gif,image/webp"
                                             onchange="previewForeignGallery(this)">
                                         <div id="foreign_gallery_preview"
                                             style="display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 10px; margin-top: 15px;">
@@ -5052,7 +5294,7 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
                                 <button class="tab-btn" onclick="switchLocalTab(event, 'lc-tab-gallery')">Gallery</button>
                             </div>
 
-                            <form method="POST" enctype="multipart/form-data" id="localDestinationForm">
+                            <form method="POST" enctype="multipart/form-data" id="localDestinationForm" novalidate>
                                 <input type="hidden" name="action" value="save_destination">
                                 <input type="hidden" name="id" id="local_dest_id" value="0">
                                 <input type="hidden" name="type" value="local">
@@ -5237,11 +5479,13 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
                                         </div>
                                         <div class="form-group">
                                             <label>&nbsp;</label>
-                                            <label>
-                                                <input type="checkbox" name="is_active" id="local_dest_is_active" value="1"
-                                                    checked>
-                                                Active (show on website)
-                                            </label>
+                                            <div class="toggle-switch-group">
+                                                <label class="toggle-switch">
+                                                    <input type="checkbox" name="is_active" id="local_dest_is_active" value="1" checked>
+                                                    <span class="toggle-switch-slider"></span>
+                                                </label>
+                                                <label for="local_dest_is_active" class="toggle-switch-label">Active (show on website)</label>
+                                            </div>
                                         </div>
                                     </div>
 
@@ -5260,7 +5504,7 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
                                         <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px;">
                                             <div>
                                                 <label style="font-size: 0.8rem;">Image 1 (Main)</label>
-                                                <input type="file" name="image"
+                                                <input type="file" name="image" accept=".jpg,.jpeg,.png,.gif,.webp,image/jpeg,image/png,image/gif,image/webp"
                                                     onchange="previewImage(this, 'local_preview_1')">
                                                 <div id="local_preview_1" class="image-preview"
                                                     style="height: 120px; margin-top: 5px; border: 2px dashed #ddd; border-radius: 8px; background-size: cover; background-position: center;">
@@ -5268,7 +5512,7 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
                                             </div>
                                             <div>
                                                 <label style="font-size: 0.8rem;">Image 2 (Optional)</label>
-                                                <input type="file" name="image_2"
+                                                <input type="file" name="image_2" accept=".jpg,.jpeg,.png,.gif,.webp,image/jpeg,image/png,image/gif,image/webp"
                                                     onchange="previewImage(this, 'local_preview_2')">
                                                 <div id="local_preview_2" class="image-preview"
                                                     style="height: 120px; margin-top: 5px; border: 2px dashed #ddd; border-radius: 8px; background-size: cover; background-position: center;">
@@ -5276,7 +5520,7 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
                                             </div>
                                             <div>
                                                 <label style="font-size: 0.8rem;">Image 3 (Optional)</label>
-                                                <input type="file" name="image_3"
+                                                <input type="file" name="image_3" accept=".jpg,.jpeg,.png,.gif,.webp,image/jpeg,image/png,image/gif,image/webp"
                                                     onchange="previewImage(this, 'local_preview_3')">
                                                 <div id="local_preview_3" class="image-preview"
                                                     style="height: 120px; margin-top: 5px; border: 2px dashed #ddd; border-radius: 8px; background-size: cover; background-position: center;">
@@ -5287,7 +5531,7 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
 
                                     <div class="form-group" style="margin-top: 25px;">
                                         <label>Full Photo Gallery (Multi-upload)</label>
-                                        <input type="file" name="gallery[]" id="local_gallery_input" multiple accept="image/*"
+                                        <input type="file" name="gallery[]" id="local_gallery_input" multiple accept=".jpg,.jpeg,.png,.gif,.webp,image/jpeg,image/png,image/gif,image/webp"
                                             onchange="previewLocalGallery(this)">
                                         <div id="local_gallery_preview"
                                             style="display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 10px; margin-top: 15px;">
@@ -5525,7 +5769,7 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
                                 <!-- Results will be populated by JS -->
                             </div>
                         </div>
-                        <form method="POST" enctype="multipart/form-data" id="visaForm">
+                        <form method="POST" enctype="multipart/form-data" id="visaForm" novalidate>
                             <input type="hidden" name="action" value="save_visa">
                             <input type="hidden" name="id" id="visa_id" value="0">
                             <input type="hidden" name="old_icon_value" id="visa_old_icon_value">
@@ -5582,7 +5826,10 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
                             <div class="form-row">
                                 <div class="form-group">
                                     <label>Currency</label>
-                                    <input type="text" name="currency" id="visa_currency" value="₱">
+                                    <select name="currency" id="visa_currency">
+                                        <option value="₱">₱ PHP</option>
+                                        <option value="$">$ USD</option>
+                                    </select>
                                 </div>
                                 <div class="form-group">
                                     <label>Price *</label>
@@ -5631,7 +5878,7 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
                                 </div>
                                 <div class="form-group" id="visa_icon_upload_group" style="display:none;">
                                     <label>Upload Icon</label>
-                                    <input type="file" name="icon_upload" id="visa_icon_upload" accept="image/*">
+                                    <input type="file" name="icon_upload" id="visa_icon_upload" accept=".jpg,.jpeg,.png,.gif,.webp,image/jpeg,image/png,image/gif,image/webp">
                                 </div>
                             </div>
 
@@ -5640,11 +5887,14 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
                                     <label>Display Order</label>
                                     <input type="number" name="display_order" id="visa_display_order" value="0">
                                 </div>
-                                <div class="form-group" style="padding-top: 35px;">
-                                    <label>
-                                        <input type="checkbox" name="is_active" id="visa_is_active" value="1" checked>
-                                        Active (Show on website)
-                                    </label>
+                                <div class="form-group" style="padding-top: 25px;">
+                                    <div class="toggle-switch-group">
+                                        <label class="toggle-switch">
+                                            <input type="checkbox" name="is_active" id="visa_is_active" value="1" checked>
+                                            <span class="toggle-switch-slider"></span>
+                                        </label>
+                                        <label for="visa_is_active" class="toggle-switch-label">Active (Show on website)</label>
+                                    </div>
                                 </div>
                             </div>
 
@@ -6615,6 +6865,7 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
         // Form submit handlers
         document.getElementById('foreignDestinationForm')?.addEventListener('submit', function (e) {
             e.preventDefault();
+            if (!validateRequiredFields(this)) return;
 
             // Set itinerary and hotels fields before constructing FormData
             document.getElementById('foreign_itinerary_data').value = JSON.stringify(foreignItineraryDays);
@@ -6653,6 +6904,7 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
 
         document.getElementById('localDestinationForm')?.addEventListener('submit', function (e) {
             e.preventDefault();
+            if (!validateRequiredFields(this)) return;
 
             // Set itinerary and hotels fields before constructing FormData
             document.getElementById('local_itinerary_data').value = JSON.stringify(localItineraryDays);
@@ -6691,6 +6943,7 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
 
         document.getElementById('flashDealForm')?.addEventListener('submit', function (e) {
             e.preventDefault();
+            if (!validateRequiredFields(this)) return;
 
             // Set itinerary and hotels fields
             document.getElementById('flash_deal_itinerary_data').value = JSON.stringify(flashDealItineraryDays);
@@ -7396,7 +7649,99 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
             PersistenceEngine.checkDraft('visaForm');
         }
 
+        document.getElementById('visaForm')?.addEventListener('submit', function (e) {
+            e.preventDefault();
+            if (!validateRequiredFields(this)) return;
+
+            const form = this;
+            const formData = new FormData(form);
+
+            Swal.fire({ title: 'Saving...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
+
+            fetch('content-manager.php', { method: 'POST', body: formData })
+                .then(r => r.json())
+                .then(json => {
+                    Swal.close();
+                    if (json.success) {
+                        PersistenceEngine.clearDraft('visaForm');
+                        Swal.fire('Saved!', json.message || 'Visa service saved successfully.', 'success')
+                            .then(() => location.reload());
+                    } else {
+                        Swal.fire('Error', json.message || 'Something went wrong.', 'error');
+                    }
+                })
+                .catch(err => {
+                    Swal.close();
+                    Swal.fire('Error', 'Network error: ' + err.message, 'error');
+                });
+        });
+
+        // flightForm and hotelForm still submit as normal (non-AJAX) forms; just gate
+        // them on the same required-field check so missing info is never silent.
+        document.getElementById('flightForm')?.addEventListener('submit', function (e) {
+            if (!validateRequiredFields(this)) e.preventDefault();
+        });
+        document.getElementById('hotelForm')?.addEventListener('submit', function (e) {
+            if (!validateRequiredFields(this)) e.preventDefault();
+        });
+
         // ========== COMMON FUNCTIONS ==========
+
+        // Checks every [required] field in a form and reports back what's missing,
+        // including fields hidden inside an inactive tab (which the browser's native
+        // validation cannot report on, since it refuses to focus a hidden control).
+        function getFieldLabel(field) {
+            if (field.dataset.label) return field.dataset.label;
+            const group = field.closest('.form-group') || field.closest('div');
+            if (group) {
+                const label = group.querySelector('label');
+                if (label) return label.textContent.replace('*', '').trim();
+            }
+            return field.name || 'This field';
+        }
+
+        function validateRequiredFields(form) {
+            const requiredFields = form.querySelectorAll('[required]');
+            const missing = [];
+            let firstInvalid = null;
+
+            requiredFields.forEach(field => {
+                if (field.type === 'radio') {
+                    const group = form.querySelectorAll(`input[name="${field.name}"]`);
+                    const anyChecked = Array.from(group).some(r => r.checked);
+                    if (!anyChecked && !missing.includes(getFieldLabel(field))) {
+                        missing.push(getFieldLabel(field));
+                        if (!firstInvalid) firstInvalid = field;
+                    }
+                    return;
+                }
+                const val = (field.value || '').trim();
+                if (!val) {
+                    missing.push(getFieldLabel(field));
+                    if (!firstInvalid) firstInvalid = field;
+                }
+            });
+
+            if (missing.length > 0) {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Missing Required Information',
+                    html: 'Please fill in the following before saving:<br><br><strong>' + missing.join('<br>') + '</strong>'
+                });
+
+                if (firstInvalid) {
+                    const tabContent = firstInvalid.closest('.tab-content');
+                    if (tabContent && !tabContent.classList.contains('active')) {
+                        const tabBtn = document.querySelector(`[onclick*="'${tabContent.id}'"]`);
+                        if (tabBtn) tabBtn.click();
+                    }
+                    setTimeout(() => firstInvalid.focus(), 100);
+                }
+                return false;
+            }
+            return true;
+        }
+
         function deleteItem(type, id, name) {
             Swal.fire({
                 title: 'Delete Item?',
@@ -7408,8 +7753,6 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
                 confirmButtonText: 'Yes, delete it!'
             }).then((result) => {
                 if (result.isConfirmed) {
-                    let form = document.createElement('form');
-                    form.method = 'POST';
                     let action = '';
                     if (type === 'flash_deal') action = 'delete_flash_deal';
                     else if (type === 'foreign_destination') action = 'delete_foreign_destination';
@@ -7418,12 +7761,28 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
                     else if (type === 'hotel_data') action = 'delete_hotel_data';
                     else if (type === 'site_service') action = 'delete_site_service';
                     else if (type === 'visa') action = 'delete_visa';
-                    form.innerHTML = `
-                        <input type="hidden" name="action" value="${action}">
-                        <input type="hidden" name="id" value="${id}">
-                    `;
-                    document.body.appendChild(form);
-                    form.submit();
+
+                    Swal.fire({ title: 'Deleting...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
+
+                    const formData = new FormData();
+                    formData.append('action', action);
+                    formData.append('id', id);
+
+                    fetch('content-manager.php', { method: 'POST', body: formData })
+                        .then(r => r.json())
+                        .then(json => {
+                            Swal.close();
+                            if (json.success) {
+                                Swal.fire('Deleted!', json.message || 'Item deleted successfully.', 'success')
+                                    .then(() => location.reload());
+                            } else {
+                                Swal.fire('Error', json.message || 'Something went wrong.', 'error');
+                            }
+                        })
+                        .catch(err => {
+                            Swal.close();
+                            Swal.fire('Error', 'Network error: ' + err.message, 'error');
+                        });
                 }
             });
         }
@@ -8121,6 +8480,7 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
 
         document.getElementById('advancedCruiseForm').addEventListener('submit', function (e) {
             e.preventDefault();
+            if (!validateRequiredFields(this)) return;
 
             const form = this;
             const formData = new FormData(form);
@@ -8136,9 +8496,17 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
             Swal.fire({ title: 'Saving...', didOpen: () => { Swal.showLoading(); } });
 
             fetch('content-manager.php', { method: 'POST', body: formData })
-                .then(r => r.json())
-                .then(res => {
+                .then(r => r.text().then(text => ({ status: r.status, text })))
+                .then(({ status, text }) => {
                     Swal.close();
+                    let res;
+                    try {
+                        res = JSON.parse(text);
+                    } catch (parseErr) {
+                        Swal.fire('Error', 'The server returned an unexpected response (HTTP ' + status + '). ' +
+                            (text ? text.slice(0, 300) : 'Empty response -- check the server error log for a PHP error.'), 'error');
+                        return;
+                    }
                     if (res.success) {
                         PersistenceEngine.clearDraft('advancedCruiseForm');
                         Swal.fire('Success!', res.message, 'success').then(() => location.reload());
@@ -8155,6 +8523,7 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
         // ========== SERVICE FORM AJAX SUBMIT ==========
         document.getElementById('serviceForm')?.addEventListener('submit', function (e) {
             e.preventDefault();
+            if (!validateRequiredFields(this)) return;
 
             const form = this;
             const formData = new FormData(form);

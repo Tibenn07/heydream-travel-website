@@ -423,7 +423,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     $yearsInBusiness = (int)($_POST['years_in_business'] ?? 0);
     $teamSize = (int)($_POST['team_size'] ?? 0);
     $certifications = trim($_POST['certifications'] ?? '');
-    $socialLinks = trim($_POST['social_links'] ?? '');
+    $otherSocialLinks = array_values(array_filter(array_map('trim', preg_split('/\r\n|\n|\r/', $_POST['social_links_other'] ?? ''))));
+    $socialLinks = json_encode([
+        'facebook' => trim($_POST['social_link_facebook'] ?? ''),
+        'tiktok' => trim($_POST['social_link_tiktok'] ?? ''),
+        'x' => trim($_POST['social_link_x'] ?? ''),
+        'youtube' => trim($_POST['social_link_youtube'] ?? ''),
+        'instagram' => trim($_POST['social_link_instagram'] ?? ''),
+        'other' => $otherSocialLinks,
+    ]);
 
     $existingProfile = $pdo->prepare("SELECT logo_path, banner_image_path FROM partner_profiles WHERE partner_id = ? LIMIT 1");
     $existingProfile->execute([$partnerId]);
@@ -451,6 +459,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
             $businessDisplayName, $bio, $description, $phone, $address, $city, $country, $website, $operatingHours, $specialties, $yearsInBusiness, $teamSize, $certifications, $logoPath, $bannerPath, $socialLinks
         ]);
         $successMessage = 'Profile updated successfully!';
+    }
+}
+
+$pwModalShouldOpen = false;
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'change_password') {
+    $currentPassword = $_POST['current_password'] ?? '';
+    $newPassword = $_POST['new_password'] ?? '';
+    $confirmPassword = $_POST['confirm_password'] ?? '';
+
+    if (empty($currentPassword) || empty($newPassword) || empty($confirmPassword)) {
+        $errorMessage = 'Please fill in all password fields.';
+        $pwModalShouldOpen = true;
+    } elseif (!password_verify($currentPassword, $partner['password'])) {
+        $errorMessage = 'Your current password is incorrect.';
+        $pwModalShouldOpen = true;
+    } elseif (strlen($newPassword) < 8) {
+        $errorMessage = 'New password must be at least 8 characters long.';
+        $pwModalShouldOpen = true;
+    } elseif ($newPassword !== $confirmPassword) {
+        $errorMessage = 'New password and confirmation do not match.';
+        $pwModalShouldOpen = true;
+    } else {
+        $newHash = password_hash($newPassword, PASSWORD_DEFAULT);
+        $stmt = $pdo->prepare("UPDATE partner_applications SET password = ? WHERE id = ?");
+        $stmt->execute([$newHash, $partnerId]);
+        $partner['password'] = $newHash;
+        $successMessage = 'Password changed successfully!';
     }
 }
 
@@ -552,7 +587,25 @@ $reports = $reportStmt->fetchAll(PDO::FETCH_ASSOC);
 
 $profileStmt = $pdo->prepare("SELECT * FROM partner_profiles WHERE partner_id = ? LIMIT 1");
 $profileStmt->execute([$partnerId]);
-$profile = $profileStmt->fetch();
+$profile = array_merge([
+    'business_display_name' => '',
+    'phone' => '',
+    'address' => '',
+    'city' => '',
+    'country' => '',
+    'website' => '',
+    'operating_hours' => '',
+    'specialties' => '',
+    'years_in_business' => '',
+    'team_size' => '',
+    'certifications' => '',
+    'social_media_links' => '',
+    'bio' => '',
+    'description' => '',
+    'logo_path' => '',
+    'banner_image_path' => '',
+    'created_at' => null,
+], $profileStmt->fetch() ?: []);
 
 $partnerBookingStatsStmt = $pdo->prepare(
     "SELECT COUNT(*) AS total_bookings,
@@ -663,6 +716,100 @@ if (($section ?? 'dashboard') === 'bookings') {
             min-height: 100vh;
         }
 
+        .mobile-topbar {
+            display: none;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+            margin-bottom: 14px;
+            background: #fff;
+            border-radius: 14px;
+            box-shadow: 0 4px 12px rgba(15,23,42,0.06);
+        }
+
+        .mobile-topbar .page-title {
+            font-weight: 700;
+            color: #0f4c81;
+            font-size: 1rem;
+            flex: 1;
+        }
+
+        .mobile-logout-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            background: #fef2f2;
+            color: #ef4444;
+            font-size: 1rem;
+            flex-shrink: 0;
+            transition: background 0.2s;
+        }
+
+        .mobile-logout-btn:hover {
+            background: #fee2e2;
+        }
+
+        .menu-toggle {
+            display: none;
+            background: #eff6ff;
+            border: 1px solid rgba(15,76,129,0.15);
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            cursor: pointer;
+            color: #0f4c81;
+            font-size: 1.05rem;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.2s;
+            flex-shrink: 0;
+        }
+
+        .menu-toggle:hover {
+            background: #dbeafe;
+        }
+
+        .sidebar-close-btn {
+            display: none;
+            position: absolute;
+            top: 18px;
+            right: 18px;
+            width: 34px;
+            height: 34px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.12);
+            border: none;
+            color: #fff;
+            font-size: 0.95rem;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .sidebar-close-btn:hover {
+            background: rgba(255,255,255,0.22);
+        }
+
+        .sidebar-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(3px);
+            z-index: 1900;
+            display: none;
+        }
+
+        .sidebar-overlay.active {
+            display: block;
+        }
+
         .sidebar {
             width: 280px;
             background: linear-gradient(180deg, #07233f 0%, #0f4c81 100%);
@@ -671,6 +818,7 @@ if (($section ?? 'dashboard') === 'bookings') {
             display: flex;
             flex-direction: column;
             gap: 22px;
+            position: relative;
         }
 
         .brand-block {
@@ -1384,9 +1532,21 @@ if (($section ?? 'dashboard') === 'bookings') {
         }
 
         @media (max-width: 900px) {
-            .admin-shell { flex-direction: column; }
-            .sidebar { width: 100%; }
-            .main-area { padding: 16px; }
+            .mobile-topbar { display: flex; }
+            .menu-toggle { display: flex; }
+            .sidebar-close-btn { display: flex; }
+            .dashboard-hero-actions .logout-btn { display: none; }
+            .sidebar {
+                position: fixed;
+                top: 0;
+                left: -280px;
+                height: 100vh;
+                z-index: 2000;
+                transition: left 0.3s ease;
+                box-shadow: 5px 0 25px rgba(0, 0, 0, 0.15);
+            }
+            .sidebar.active { left: 0; }
+            .main-area { padding: 16px; width: 100%; }
         }
 
         /* ===================== My Profile redesign (scoped to .mp-*) ===================== */
@@ -1454,7 +1614,7 @@ if (($section ?? 'dashboard') === 'bookings') {
         }
         .mp-hero-logo img { width: 100%; height: 100%; object-fit: cover; }
         .mp-hero-name { font-size: 1.5rem; font-weight: 700; margin: 0 0 4px; }
-        .mp-hero-email { margin: 0 0 10px; color: rgba(255,255,255,0.85); font-size: 0.92rem; }
+        .mp-hero-email { margin: 0 0 10px; color: rgba(255,255,255,0.85); font-size: 0.92rem; overflow-wrap: anywhere; }
         .mp-verified-badge {
             display: inline-flex;
             align-items: center;
@@ -1601,6 +1761,22 @@ if (($section ?? 'dashboard') === 'bookings') {
             background: #fff;
         }
         .mp-field textarea { min-height: 90px; resize: vertical; }
+        .mp-field label small { font-weight: 400; text-transform: none; color: var(--muted); letter-spacing: 0; }
+
+        .mp-social-input-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; }
+        .mp-social-input { display: flex; flex-direction: column; align-items: stretch; gap: 0; border: 1px solid var(--border); border-radius: 12px; background: #f8fafc; overflow: hidden; transition: border-color 0.2s ease, background 0.2s ease; }
+        .mp-social-input:focus-within { border-color: var(--primary); background: #fff; box-shadow: 0 0 0 3px rgba(15, 76, 129, 0.08); }
+        .mp-social-input-icon { width: 100%; height: 34px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 0.95rem; }
+        .mp-social-input-icon.fb { background: #1877f2; }
+        .mp-social-input-icon.tiktok { background: #010101; }
+        .mp-social-input-icon.x { background: #000000; }
+        .mp-social-input-icon.yt { background: #ff0000; }
+        .mp-social-input-icon.ig { background: radial-gradient(circle at 30% 110%, #fdf497, #fd5949 45%, #d6249f 60%, #285AEB 90%); }
+        .mp-social-input input { width: 100%; border: none; background: transparent; padding: 8px 10px; font-family: inherit; font-size: 0.8rem; min-width: 0; text-align: center; }
+        .mp-social-input input:focus { outline: none; }
+        .mp-social-input input::placeholder { color: #94a3b8; }
+        @media (max-width: 900px) { .mp-social-input-grid { grid-template-columns: repeat(3, 1fr); } }
+        @media (max-width: 480px) { .mp-social-input-grid { grid-template-columns: repeat(2, 1fr); } }
 
         .mp-form-actions { display: flex; gap: 10px; margin-top: 6px; }
         .mp-btn-primary,
@@ -1625,53 +1801,68 @@ if (($section ?? 'dashboard') === 'bookings') {
         .mp-btn-secondary:hover { background: #e2e8f0; }
 
         /* Right column cards */
-        .mp-media-block { margin-bottom: 20px; }
-        .mp-media-block:last-child { margin-bottom: 0; }
-        .mp-media-label { font-size: 0.8rem; font-weight: 600; color: var(--muted); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.04em; }
+        .mp-media-preview-wrap {
+            position: relative;
+            margin-bottom: 52px;
+        }
+        .mp-cover-preview {
+            width: 100%;
+            height: 150px;
+            border-radius: 18px;
+            overflow: hidden;
+            background: linear-gradient(135deg, #0f4c81 0%, #1d6fc7 55%, #4c9ce8 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: rgba(255,255,255,0.75);
+            font-size: 1.6rem;
+        }
+        .mp-cover-preview img { width: 100%; height: 100%; object-fit: cover; }
+        .mp-cover-camera-btn {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+        }
         .mp-logo-preview {
+            position: absolute;
+            left: 20px;
+            bottom: -34px;
             width: 84px;
             height: 84px;
-            border-radius: 20px;
+            border-radius: 50%;
             overflow: hidden;
             background: var(--primary-soft);
+            border: 4px solid #fff;
+            box-shadow: 0 8px 20px rgba(15,23,42,0.15);
             display: flex;
             align-items: center;
             justify-content: center;
             color: var(--primary);
             font-weight: 700;
-            font-size: 1.6rem;
-            margin-bottom: 10px;
-            border: 1px solid var(--border);
+            font-size: 1.3rem;
         }
         .mp-logo-preview img { width: 100%; height: 100%; object-fit: cover; }
-        .mp-cover-preview {
-            width: 100%;
-            height: 110px;
-            border-radius: 16px;
-            overflow: hidden;
-            background: linear-gradient(135deg, #dbeafe, #eff6ff);
-            border: 1px solid var(--border);
-            margin-bottom: 10px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: #94a3b8;
+        .mp-logo-camera-btn {
+            position: absolute;
+            left: 84px;
+            bottom: -30px;
         }
-        .mp-cover-preview img { width: 100%; height: 100%; object-fit: cover; }
-        .mp-media-btn {
+        .mp-camera-btn {
             display: inline-flex;
             align-items: center;
-            gap: 7px;
-            background: #f1f5f9;
-            color: var(--text);
-            border: 1px solid var(--border);
-            padding: 8px 14px;
-            border-radius: 10px;
-            font-size: 0.84rem;
-            font-weight: 600;
+            justify-content: center;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: var(--primary);
+            color: #fff;
+            border: 2px solid #fff;
             cursor: pointer;
+            font-size: 0.8rem;
+            box-shadow: 0 4px 10px rgba(15,23,42,0.2);
+            transition: background 0.2s ease, transform 0.2s ease;
         }
-        .mp-media-btn:hover { background: #e2e8f0; }
+        .mp-camera-btn:hover { background: #0d3f6b; transform: scale(1.08); }
         .mp-media-file-input { display: none; }
 
         .mp-security-icon {
@@ -1685,6 +1876,75 @@ if (($section ?? 'dashboard') === 'bookings') {
             justify-content: center;
             font-size: 1.1rem;
             margin-bottom: 12px;
+        }
+
+        .pw-modal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.5);
+            backdrop-filter: blur(2px);
+            z-index: 3000;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .pw-modal-overlay.active {
+            display: flex;
+        }
+
+        .pw-modal {
+            background: #fff;
+            border-radius: 20px;
+            width: 100%;
+            max-width: 420px;
+            padding: 28px;
+            box-shadow: 0 25px 60px rgba(15, 23, 42, 0.25);
+        }
+
+        .pw-modal-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 18px;
+        }
+
+        .pw-modal-head h3 {
+            margin: 0;
+            font-size: 1.15rem;
+            color: var(--text);
+        }
+
+        .pw-modal-close {
+            background: #f1f5f9;
+            border: none;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            cursor: pointer;
+            color: #64748b;
+            font-size: 0.9rem;
+        }
+
+        .pw-modal-close:hover {
+            background: #e2e8f0;
+        }
+
+        .pw-modal .mp-field {
+            margin-bottom: 14px;
+        }
+
+        .pw-modal-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .pw-modal-actions .mp-btn-primary,
+        .pw-modal-actions .mp-btn-secondary {
+            flex: 1;
+            justify-content: center;
         }
 
         .mp-progress-track {
@@ -1992,7 +2252,11 @@ if (($section ?? 'dashboard') === 'bookings') {
 </head>
 <body>
     <div class="admin-shell">
-        <aside class="sidebar">
+        <div class="sidebar-overlay" id="sidebarOverlay"></div>
+        <aside class="sidebar" id="mainSidebar">
+            <button class="sidebar-close-btn" id="sidebarClose" aria-label="Close menu">
+                <i class="fas fa-arrow-left"></i>
+            </button>
             <div class="brand-block">
                 <div class="brand-logo">
                     <img src="../../images/Heydream Logo.png" alt="HeyDream Logo">
@@ -2014,6 +2278,15 @@ if (($section ?? 'dashboard') === 'bookings') {
         </aside>
 
         <main class="main-area">
+            <div class="mobile-topbar">
+                <button class="menu-toggle" id="sidebarToggle">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <span class="page-title"><?= $section === 'bookings' ? 'Bookings' : ($section === 'profile' ? 'My Profile' : ($section === 'report-problems' ? 'Report problems' : 'Dashboard')) ?></span>
+                <a href="partner-logout.php" class="mobile-logout-btn" aria-label="Logout">
+                    <i class="fas fa-sign-out-alt"></i>
+                </a>
+            </div>
             <div class="dashboard-hero">
                 <div class="dashboard-hero-copy">
                     <div class="eyebrow"><?= $section === 'partner-content-manager' ? 'Content Manager' : ($section === 'bookings' ? 'Bookings' : ($section === 'profile' ? 'My Profile' : ($section === 'report-problems' ? 'Report problems' : 'Dashboard'))) ?></div>
@@ -2036,7 +2309,7 @@ if (($section ?? 'dashboard') === 'bookings') {
                         <a class="pill-btn" href="partner-dashboard.php?section=bookings"><i class="fas fa-book-open"></i> View Bookings</a>
                         <a class="pill-btn" href="partner-dashboard.php?section=profile"><i class="fas fa-user-tie"></i> Profile</a>
                     <?php endif; ?>
-                    <a class="pill-btn" href="partner-logout.php"><i class="fas fa-sign-out-alt"></i> Logout</a>
+                    <a class="pill-btn logout-btn" href="partner-logout.php"><i class="fas fa-sign-out-alt"></i> Logout</a>
                 </div>
             </div>
 
@@ -2877,6 +3150,7 @@ if (($section ?? 'dashboard') === 'bookings') {
                     $mpCompletedCount = count(array_filter($mpCompletionChecks));
                     $mpCompletionPercent = (int) round(($mpCompletedCount / count($mpCompletionChecks)) * 100);
                     $mpAddressParts = array_filter([$profile['address'] ?? '', $profile['city'] ?? '', $profile['country'] ?? '']);
+                    $mpSocialLinks = parseSocialLinks($profile['social_media_links'] ?? '');
                 ?>
 
                 <div class="mp-wrap">
@@ -3067,8 +3341,33 @@ if (($section ?? 'dashboard') === 'bookings') {
                                         <textarea id="certifications" name="certifications" placeholder="List certifications or accreditations..."><?= htmlspecialchars($profile['certifications'] ?? '') ?></textarea>
                                     </div>
                                     <div class="mp-field">
-                                        <label for="social_links">Social Links</label>
-                                        <textarea id="social_links" name="social_links" placeholder="Paste one social link per line"><?= htmlspecialchars($profile['social_media_links'] ?? '') ?></textarea>
+                                        <label>Social Links</label>
+                                        <div class="mp-social-input-grid">
+                                            <div class="mp-social-input">
+                                                <span class="mp-social-input-icon fb" title="Facebook"><i class="fa-brands fa-facebook-f"></i></span>
+                                                <input type="url" name="social_link_facebook" placeholder="Facebook" title="Facebook page URL" value="<?= htmlspecialchars($mpSocialLinks['facebook']) ?>">
+                                            </div>
+                                            <div class="mp-social-input">
+                                                <span class="mp-social-input-icon tiktok" title="TikTok"><i class="fa-brands fa-tiktok"></i></span>
+                                                <input type="url" name="social_link_tiktok" placeholder="TikTok" title="TikTok profile URL" value="<?= htmlspecialchars($mpSocialLinks['tiktok']) ?>">
+                                            </div>
+                                            <div class="mp-social-input">
+                                                <span class="mp-social-input-icon x" title="X (Twitter)"><i class="fa-brands fa-x-twitter"></i></span>
+                                                <input type="url" name="social_link_x" placeholder="X / Twitter" title="X (Twitter) profile URL" value="<?= htmlspecialchars($mpSocialLinks['x']) ?>">
+                                            </div>
+                                            <div class="mp-social-input">
+                                                <span class="mp-social-input-icon yt" title="YouTube"><i class="fa-brands fa-youtube"></i></span>
+                                                <input type="url" name="social_link_youtube" placeholder="YouTube" title="YouTube channel URL" value="<?= htmlspecialchars($mpSocialLinks['youtube']) ?>">
+                                            </div>
+                                            <div class="mp-social-input">
+                                                <span class="mp-social-input-icon ig" title="Instagram"><i class="fa-brands fa-instagram"></i></span>
+                                                <input type="url" name="social_link_instagram" placeholder="Instagram" title="Instagram profile URL" value="<?= htmlspecialchars($mpSocialLinks['instagram']) ?>">
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="mp-field">
+                                        <label for="social_links_other">Other Links <small>(one per line &mdash; Discord, LinkedIn, Pinterest, etc.)</small></label>
+                                        <textarea id="social_links_other" name="social_links_other" placeholder="https://discord.gg/yourinvite&#10;https://linkedin.com/company/yourbusiness"><?= htmlspecialchars(implode("\n", $mpSocialLinks['other'])) ?></textarea>
                                     </div>
 
                                     <div class="mp-form-actions">
@@ -3103,23 +3402,14 @@ if (($section ?? 'dashboard') === 'bookings') {
                                     <input type="hidden" name="years_in_business" value="<?= htmlspecialchars($profile['years_in_business'] ?? '') ?>">
                                     <input type="hidden" name="team_size" value="<?= htmlspecialchars($profile['team_size'] ?? '') ?>">
                                     <input type="hidden" name="certifications" value="<?= htmlspecialchars($profile['certifications'] ?? '') ?>">
-                                    <input type="hidden" name="social_links" value="<?= htmlspecialchars($profile['social_media_links'] ?? '') ?>">
+                                    <input type="hidden" name="social_link_facebook" value="<?= htmlspecialchars($mpSocialLinks['facebook']) ?>">
+                                    <input type="hidden" name="social_link_tiktok" value="<?= htmlspecialchars($mpSocialLinks['tiktok']) ?>">
+                                    <input type="hidden" name="social_link_x" value="<?= htmlspecialchars($mpSocialLinks['x']) ?>">
+                                    <input type="hidden" name="social_link_youtube" value="<?= htmlspecialchars($mpSocialLinks['youtube']) ?>">
+                                    <input type="hidden" name="social_link_instagram" value="<?= htmlspecialchars($mpSocialLinks['instagram']) ?>">
+                                    <input type="hidden" name="social_links_other" value="<?= htmlspecialchars(implode("\n", $mpSocialLinks['other'])) ?>">
 
-                                    <div class="mp-media-block">
-                                        <div class="mp-media-label">Profile Logo</div>
-                                        <div class="mp-logo-preview">
-                                            <?php if (!empty($profile['logo_path'])): ?>
-                                                <img src="<?= assetUrl($profile['logo_path']) ?>" alt="Logo">
-                                            <?php else: ?>
-                                                <i class="fas fa-image"></i>
-                                            <?php endif; ?>
-                                        </div>
-                                        <label class="mp-media-btn" for="mp_logo_image"><i class="fas fa-camera"></i> Change Logo</label>
-                                        <input type="file" id="mp_logo_image" name="logo_image" accept="image/*" class="mp-media-file-input" onchange="this.form.submit()">
-                                    </div>
-
-                                    <div class="mp-media-block">
-                                        <div class="mp-media-label">Cover Photo</div>
+                                    <div class="mp-media-preview-wrap">
                                         <div class="mp-cover-preview">
                                             <?php if (!empty($profile['banner_image_path'])): ?>
                                                 <img src="<?= assetUrl($profile['banner_image_path']) ?>" alt="Cover photo">
@@ -3127,9 +3417,19 @@ if (($section ?? 'dashboard') === 'bookings') {
                                                 <i class="fas fa-panorama"></i>
                                             <?php endif; ?>
                                         </div>
-                                        <label class="mp-media-btn" for="mp_banner_image"><i class="fas fa-camera"></i> Change Cover</label>
-                                        <input type="file" id="mp_banner_image" name="banner_image" accept="image/*" class="mp-media-file-input" onchange="this.form.submit()">
+                                        <label class="mp-camera-btn mp-cover-camera-btn" for="mp_banner_image" title="Change cover photo"><i class="fas fa-camera"></i></label>
+
+                                        <div class="mp-logo-preview">
+                                            <?php if (!empty($profile['logo_path'])): ?>
+                                                <img src="<?= assetUrl($profile['logo_path']) ?>" alt="Logo">
+                                            <?php else: ?>
+                                                <i class="fas fa-image"></i>
+                                            <?php endif; ?>
+                                        </div>
+                                        <label class="mp-camera-btn mp-logo-camera-btn" for="mp_logo_image" title="Change logo"><i class="fas fa-camera"></i></label>
                                     </div>
+                                    <input type="file" id="mp_logo_image" name="logo_image" accept="image/*" class="mp-media-file-input" onchange="this.form.submit()">
+                                    <input type="file" id="mp_banner_image" name="banner_image" accept="image/*" class="mp-media-file-input" onchange="this.form.submit()">
                                 </form>
                             </div>
 
@@ -3137,7 +3437,7 @@ if (($section ?? 'dashboard') === 'bookings') {
                                 <div class="mp-security-icon"><i class="fas fa-shield-halved"></i></div>
                                 <h3 style="margin: 0 0 4px;">Account Security</h3>
                                 <p style="margin: 0 0 16px; color: var(--muted); font-size: 0.88rem;">Keep your account safe and secure.</p>
-                                <button type="button" class="mp-btn-secondary"><i class="fas fa-key"></i> Change Password</button>
+                                <button type="button" class="mp-btn-secondary" onclick="pwOpenModal()"><i class="fas fa-key"></i> Change Password</button>
                             </div>
 
                             <div class="mp-card">
@@ -3163,6 +3463,34 @@ if (($section ?? 'dashboard') === 'bookings') {
                     </div>
                 </div>
 
+                <div class="pw-modal-overlay<?= $pwModalShouldOpen ? ' active' : '' ?>" id="pwModalOverlay">
+                    <div class="pw-modal">
+                        <div class="pw-modal-head">
+                            <h3><i class="fas fa-key"></i> Change Password</h3>
+                            <button type="button" class="pw-modal-close" onclick="pwCloseModal()"><i class="fas fa-xmark"></i></button>
+                        </div>
+                        <form method="post">
+                            <input type="hidden" name="action" value="change_password">
+                            <div class="mp-field">
+                                <label for="current_password">Current Password</label>
+                                <input type="password" id="current_password" name="current_password" required autocomplete="current-password">
+                            </div>
+                            <div class="mp-field">
+                                <label for="new_password">New Password</label>
+                                <input type="password" id="new_password" name="new_password" required minlength="8" autocomplete="new-password">
+                            </div>
+                            <div class="mp-field">
+                                <label for="confirm_password">Confirm New Password</label>
+                                <input type="password" id="confirm_password" name="confirm_password" required minlength="8" autocomplete="new-password">
+                            </div>
+                            <div class="pw-modal-actions">
+                                <button class="mp-btn-primary" type="submit"><i class="fas fa-check"></i> Update Password</button>
+                                <button class="mp-btn-secondary" type="button" onclick="pwCloseModal()">Cancel</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
                 <script>
                     function mpToggleEdit() {
                         var viewMode = document.getElementById('mpViewMode');
@@ -3176,6 +3504,18 @@ if (($section ?? 'dashboard') === 'bookings') {
                             viewMode.classList.add('mp-hidden');
                         }
                     }
+
+                    function pwOpenModal() {
+                        document.getElementById('pwModalOverlay').classList.add('active');
+                    }
+
+                    function pwCloseModal() {
+                        document.getElementById('pwModalOverlay').classList.remove('active');
+                    }
+
+                    document.getElementById('pwModalOverlay')?.addEventListener('click', function (e) {
+                        if (e.target === this) pwCloseModal();
+                    });
                 </script>
             <?php else: ?>
                 <?php
@@ -3397,5 +3737,31 @@ if (($section ?? 'dashboard') === 'bookings') {
             <?php endif; ?>
         </main>
     </div>
+    <script>
+        const sidebarToggle = document.getElementById('sidebarToggle');
+        const sidebarClose = document.getElementById('sidebarClose');
+        const sidebarOverlay = document.getElementById('sidebarOverlay');
+        const mainSidebar = document.getElementById('mainSidebar');
+
+        function closeSidebar() {
+            mainSidebar.classList.remove('active');
+            sidebarOverlay.classList.remove('active');
+        }
+
+        if (sidebarToggle) {
+            sidebarToggle.addEventListener('click', () => {
+                mainSidebar.classList.toggle('active');
+                sidebarOverlay.classList.toggle('active');
+            });
+        }
+
+        if (sidebarClose) {
+            sidebarClose.addEventListener('click', closeSidebar);
+        }
+
+        if (sidebarOverlay) {
+            sidebarOverlay.addEventListener('click', closeSidebar);
+        }
+    </script>
 </body>
 </html>

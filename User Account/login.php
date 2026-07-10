@@ -27,6 +27,30 @@ if ($auth->isLoggedIn()) {
     exit;
 }
 
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'resend_verification') {
+    ob_end_clean();
+    header('Content-Type: application/json');
+    $resendEmail = trim($_POST['email'] ?? '');
+    $resendUser = $resendEmail !== '' ? $auth->getUserByEmail($resendEmail) : null;
+
+    if (!$resendUser) {
+        echo json_encode(['success' => false, 'message' => 'We could not find that account.']);
+        exit;
+    }
+    if (!empty($resendUser['email_verified'])) {
+        echo json_encode(['success' => false, 'message' => 'This email is already verified. Please sign in.']);
+        exit;
+    }
+    if (empty($resendUser['verification_token'])) {
+        echo json_encode(['success' => false, 'message' => 'Could not resend right now. Please contact support.']);
+        exit;
+    }
+
+    sendWelcomeEmail($resendUser['email'], $resendUser['full_name'], $resendUser['verification_token']);
+    echo json_encode(['success' => true, 'message' => 'Verification email resent! Please check your inbox.']);
+    exit;
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $isAjax = (strtolower($_SERVER['HTTP_X_REQUESTED_WITH'] ?? '') === 'xmlhttprequest') || (strpos($_SERVER['HTTP_ACCEPT'] ?? '', 'application/json') !== false);
 
@@ -69,6 +93,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } else {
             $error = $result['message'];
             $useGoogle = !empty($result['use_google']);
+            $needsVerification = !empty($result['needs_verification']);
         }
     }
 
@@ -77,6 +102,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         header('Content-Type: application/json');
         $resp = ['success' => false, 'message' => $error ?: 'Login failed'];
         if (!empty($useGoogle)) $resp['use_google'] = true;
+        if (!empty($needsVerification)) {
+            $resp['needs_verification'] = true;
+            $resp['email'] = $email;
+        }
         echo json_encode($resp);
         exit;
     }
@@ -579,6 +608,12 @@ ob_end_clean();
             display: none !important;
         }
 
+        /* The resend-verification prompt is the one alert on this page that needs a real
+           two-button choice (Resend vs OK) -- override the blanket hide above for it. */
+        .swal2-confirm.verify-resend-confirm-btn {
+            display: inline-block !important;
+        }
+
         .swal2-title::before {
             display: none !important;
         }
@@ -950,6 +985,37 @@ ob_end_clean();
                             if (data.use_google) {
                                 // Silently auto-trigger Google sign-in for users who registered via Google but try to login manually
                                 firebaseSignIn();
+                            } else if (data.needs_verification) {
+                                Swal.fire({
+                                    icon: 'warning',
+                                    title: 'Email Not Verified',
+                                    text: data.message || 'Please verify your email address before signing in.',
+                                    showCancelButton: true,
+                                    customClass: { confirmButton: 'verify-resend-confirm-btn' },
+                                    confirmButtonText: 'Resend Verification Email',
+                                    cancelButtonText: 'OK'
+                                }).then((result) => {
+                                    if (result.isConfirmed) {
+                                        fetch('login.php', {
+                                            method: 'POST',
+                                            headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-Requested-With': 'XMLHttpRequest' },
+                                            body: 'action=resend_verification&email=' + encodeURIComponent(data.email || '')
+                                        })
+                                            .then(r => r.json())
+                                            .then(resendData => {
+                                                Swal.fire({
+                                                    icon: resendData.success ? 'success' : 'error',
+                                                    title: resendData.success ? 'Email Sent!' : 'Error',
+                                                    text: resendData.message
+                                                });
+                                            })
+                                            .catch(() => {
+                                                Swal.fire({ icon: 'error', title: 'Error', text: 'Could not resend the email. Please try again.' });
+                                            });
+                                    }
+                                });
+                                submitBtn.disabled = false;
+                                submitBtn.innerHTML = originalBtnText;
                             } else {
                                 Swal.fire({ icon: 'error', title: 'Login Failed', text: data.message || 'Invalid credentials' });
                                 submitBtn.disabled = false;
