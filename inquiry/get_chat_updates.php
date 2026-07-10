@@ -17,6 +17,8 @@ if (!$pdo) {
     exit;
 }
 
+ensureAiChatTypingColumns($pdo);
+
 // Handle customer typing status update
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $input = json_decode(file_get_contents('php://input'), true);
@@ -30,14 +32,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 try {
-    // Check if the admin is currently typing (within the last 5 seconds)
-    $adminIsTyping = false;
-    $stmt = $pdo->prepare("SELECT admin_last_typing FROM ai_chat_sessions WHERE session_id = ?");
+    // Check if the admin is currently typing (within the last 5 seconds). Done
+    // entirely in SQL (not PHP's strtotime/time()) so it can't be thrown off by
+    // the app server and DB server having different timezones -- both sides of
+    // the comparison always use the DB's own clock.
+    $stmt = $pdo->prepare("SELECT admin_last_typing IS NOT NULL AND admin_last_typing >= (NOW() - INTERVAL 5 SECOND) AS is_typing FROM ai_chat_sessions WHERE session_id = ?");
     $stmt->execute([$sessionId]);
     $typingRow = $stmt->fetch(PDO::FETCH_ASSOC);
-    if ($typingRow && $typingRow['admin_last_typing']) {
-        $adminIsTyping = (time() - strtotime($typingRow['admin_last_typing'])) < 5;
-    }
+    $adminIsTyping = $typingRow ? (bool) $typingRow['is_typing'] : false;
 
     if ($init === 1) {
         $stmt = $pdo->prepare("SELECT id, sender, message, timestamp AS created_at FROM ai_chat_messages WHERE session_id = ? ORDER BY id ASC");

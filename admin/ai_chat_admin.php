@@ -17,6 +17,7 @@ if ($pdo === null) {
 
 require_once __DIR__ . '/../api/partner-booking-tracker.php';
 ensurePartnerReportedIssues($pdo);
+ensureAiChatTypingColumns($pdo);
 
 $action = $_GET['action'] ?? '';
 
@@ -51,14 +52,14 @@ switch ($action) {
             $stmt->execute([$sessionId]);
             $messages = $stmt->fetchAll();
 
-            // Check if the customer is currently typing (within the last 5 seconds)
-            $customerIsTyping = false;
-            $typingStmt = $pdo->prepare("SELECT customer_last_typing FROM ai_chat_sessions WHERE session_id = ?");
+            // Check if the customer is currently typing (within the last 5 seconds).
+            // Done entirely in SQL (not PHP's strtotime/time()) so it can't be thrown
+            // off by the app server and DB server having different timezones -- both
+            // sides of the comparison always use the DB's own clock.
+            $typingStmt = $pdo->prepare("SELECT customer_last_typing IS NOT NULL AND customer_last_typing >= (NOW() - INTERVAL 5 SECOND) AS is_typing FROM ai_chat_sessions WHERE session_id = ?");
             $typingStmt->execute([$sessionId]);
             $typingRow = $typingStmt->fetch();
-            if ($typingRow && $typingRow['customer_last_typing']) {
-                $customerIsTyping = (time() - strtotime($typingRow['customer_last_typing'])) < 5;
-            }
+            $customerIsTyping = $typingRow ? (bool) $typingRow['is_typing'] : false;
 
             echo json_encode(['success' => true, 'messages' => $messages, 'customer_is_typing' => $customerIsTyping]);
         } catch (PDOException $e) {

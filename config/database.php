@@ -349,6 +349,38 @@ function isAdminLoggedIn()
     return isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in'] === true;
 }
 
+// Self-healing schema check for the AI Live Chat typing indicators. These
+// columns only exist on this local database because they were added by hand
+// during development -- there was no migration in the live request path, so
+// any other database (including production) is missing them. Without this,
+// admin/ai_chat_admin.php's message-fetch throws on the typing-status lookup
+// AFTER already fetching the messages, and its catch block returns
+// success:false without the messages -- so the admin's chat panel silently
+// never shows what the customer typed, even though it saved correctly.
+function ensureAiChatTypingColumns($pdo)
+{
+    static $checked = false;
+    if ($checked) {
+        return;
+    }
+
+    try {
+        $existing = [];
+        foreach ($pdo->query("SHOW COLUMNS FROM ai_chat_sessions") as $row) {
+            $existing[$row['Field']] = true;
+        }
+        if (!isset($existing['customer_last_typing'])) {
+            $pdo->exec("ALTER TABLE ai_chat_sessions ADD COLUMN customer_last_typing DATETIME NULL");
+        }
+        if (!isset($existing['admin_last_typing'])) {
+            $pdo->exec("ALTER TABLE ai_chat_sessions ADD COLUMN admin_last_typing DATETIME NULL");
+        }
+        $checked = true;
+    } catch (PDOException $e) {
+        // ai_chat_sessions table itself doesn't exist yet; nothing to heal.
+    }
+}
+
 // Require admin login
 function requireAdminLogin()
 {
