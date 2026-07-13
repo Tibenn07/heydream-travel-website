@@ -100,38 +100,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && empty($error)) {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
-            <!-- SweetAlert2 -->
-            <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-            <script>
-                // Intercept admin login form for AJAX flow
-                const adminForm = document.querySelector('form');
-                if (adminForm) {
-                    adminForm.addEventListener('submit', function(e) {
-                        e.preventDefault();
-                        const fd = new FormData(adminForm);
-                        fetch(window.location.href, {
-                            method: 'POST',
-                            headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' },
-                            body: fd
-                        })
-                        .then(r => r.json())
-                        .then(data => {
-                            if (data.success) {
-                                Swal.fire({ title: 'Welcome back', html: `<strong>${data.name || 'Admin'}</strong>`, icon: 'success', showConfirmButton:false, timer:1200 })
-                                .then(()=> { window.location.href = data.redirect || 'dashboard.php'; });
-                            } else {
-                                Swal.fire({ icon: 'error', title: 'Login Failed', text: data.message || 'Invalid credentials' });
-                            }
-                        }).catch(err => {
-                            console.error(err);
-                            Swal.fire({ icon: 'error', title: 'Error', text: err.message });
-                        });
-                    });
-                }
-            </script>
-
         }
-        
+
         body {
             font-family: 'Poppins', sans-serif;
             background: url('../images/philippines-samal-island-resort-beach-aerial.jpg') no-repeat center center fixed;
@@ -141,8 +111,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && empty($error)) {
             align-items: center;
             justify-content: center;
             position: relative;
-            overflow: hidden;
-            padding: 20px;
+            /* overflow: hidden here used to clip the card with no way to scroll
+               to the rest of it on shorter/smaller laptop screens (e.g. 1366x768
+               or a zoomed-in browser) where the card + decorative elements are
+               taller than the viewport. overflow-x stays hidden so the animated
+               airplane/bubbles never cause a horizontal scrollbar; overflow-y is
+               auto so the page scrolls instead of clipping when content doesn't fit. */
+            overflow-x: hidden;
+            overflow-y: auto;
+            padding: 40px 20px;
         }
 
         body::before {
@@ -640,5 +617,36 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && empty($error)) {
             </a>
         </div>
     </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script>
+        // Intercept admin login form for AJAX flow. This was previously pasted
+        // inside a CSS rule in <style> by mistake, so it silently never ran —
+        // the form just fell back to a normal full-page POST submit instead.
+        const adminForm = document.querySelector('form');
+        if (adminForm) {
+            adminForm.addEventListener('submit', function (e) {
+                e.preventDefault();
+                const fd = new FormData(adminForm);
+                fetch(window.location.href, {
+                    method: 'POST',
+                    headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' },
+                    body: fd
+                })
+                    .then(r => r.json())
+                    .then(data => {
+                        if (data.success) {
+                            Swal.fire({ title: 'Welcome back', html: `<strong>${data.name || 'Admin'}</strong>`, icon: 'success', showConfirmButton: false, timer: 1200 })
+                                .then(() => { window.location.href = data.redirect || 'dashboard.php'; });
+                        } else {
+                            Swal.fire({ icon: 'error', title: 'Login Failed', text: data.message || 'Invalid credentials' });
+                        }
+                    }).catch(err => {
+                        console.error(err);
+                        Swal.fire({ icon: 'error', title: 'Error', text: err.message });
+                    });
+            });
+        }
+    </script>
 </body>
 </html>

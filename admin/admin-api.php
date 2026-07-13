@@ -820,18 +820,39 @@ EOF;
                 (isset($old_booking['booking_number']) && strpos($old_booking['booking_number'], 'VI-') === 0));
             $vStatus = strtoupper($visa_status);
             $isVisaMatch = ($vStatus === 'APPROVED' || $vStatus === 'N/A' || !$isVisaRelated);
-            if ($travel_documents === 1 && $payment_status === 'paid' && $isVisaMatch) {
+            if (($travel_documents === 1 || $travel_documents === 2) && $payment_status === 'paid' && $isVisaMatch) {
                 $booking_status = 'completed';
             }
+
+            // Record who confirmed/completed/cancelled the booking, only on the
+            // transition INTO that status (not on every re-save while already
+            // in it, so the original actor isn't overwritten by a later
+            // unrelated edit).
+            $justConfirmed = ($old_status !== 'confirmed' && $booking_status === 'confirmed');
+            $justCompleted = ($old_status !== 'completed' && $booking_status === 'completed');
+            $justCancelled = ($old_status !== 'cancelled' && $booking_status === 'cancelled');
+            $statusActorClause = ($justConfirmed ? ", confirmed_by = ?, confirmed_at = NOW()" : "")
+                . ($justCompleted ? ", completed_by = ?, completed_at = NOW()" : "")
+                . ($justCancelled ? ", cancelled_by = ?, cancelled_at = NOW()" : "");
 
             // Update the booking
             // For id=0 records, update by booking_number
             if ($id === 0 && $booking_number_key !== '') {
-                $stmt = $pdo->prepare("UPDATE bookings SET booking_status = ?, payment_status = ?, admin_notes = ?, flight_details = ?, visa_status = ?, travel_documents = ?, ready_for_travel = ?, number_of_travelers = ?, total_amount = ?, price_per_person = ? WHERE booking_number = ?");
-                $success = $stmt->execute([$booking_status, $payment_status, $admin_notes, $flight_details, $visa_status, $travel_documents, $ready_for_travel, $number_of_travelers, $total_amount, $price_per_person, $booking_number_key]);
+                $stmt = $pdo->prepare("UPDATE bookings SET booking_status = ?, payment_status = ?, admin_notes = ?, flight_details = ?, visa_status = ?, travel_documents = ?, ready_for_travel = ?, number_of_travelers = ?, total_amount = ?, price_per_person = ?{$statusActorClause} WHERE booking_number = ?");
+                $params = [$booking_status, $payment_status, $admin_notes, $flight_details, $visa_status, $travel_documents, $ready_for_travel, $number_of_travelers, $total_amount, $price_per_person];
+                if ($justConfirmed) { $params[] = $_SESSION['admin_id']; }
+                if ($justCompleted) { $params[] = $_SESSION['admin_id']; }
+                if ($justCancelled) { $params[] = $_SESSION['admin_id']; }
+                $params[] = $booking_number_key;
+                $success = $stmt->execute($params);
             } else {
-                $stmt = $pdo->prepare("UPDATE bookings SET booking_status = ?, payment_status = ?, admin_notes = ?, flight_details = ?, visa_status = ?, travel_documents = ?, ready_for_travel = ?, number_of_travelers = ?, total_amount = ?, price_per_person = ? WHERE id = ?");
-                $success = $stmt->execute([$booking_status, $payment_status, $admin_notes, $flight_details, $visa_status, $travel_documents, $ready_for_travel, $number_of_travelers, $total_amount, $price_per_person, $id]);
+                $stmt = $pdo->prepare("UPDATE bookings SET booking_status = ?, payment_status = ?, admin_notes = ?, flight_details = ?, visa_status = ?, travel_documents = ?, ready_for_travel = ?, number_of_travelers = ?, total_amount = ?, price_per_person = ?{$statusActorClause} WHERE id = ?");
+                $params = [$booking_status, $payment_status, $admin_notes, $flight_details, $visa_status, $travel_documents, $ready_for_travel, $number_of_travelers, $total_amount, $price_per_person];
+                if ($justConfirmed) { $params[] = $_SESSION['admin_id']; }
+                if ($justCompleted) { $params[] = $_SESSION['admin_id']; }
+                if ($justCancelled) { $params[] = $_SESSION['admin_id']; }
+                $params[] = $id;
+                $success = $stmt->execute($params);
             }
 
             if ($success) {
@@ -1017,9 +1038,10 @@ EOF;
                 $vStatus = strtoupper($booking['visa_status'] ?? 'PENDING');
                 $isVisaMatch = ($vStatus === 'APPROVED' || $vStatus === 'N/A' || !$isVisaRelated);
 
+                $docsVal = intval($booking['travel_documents'] ?? 0);
                 $isFinished = (strtolower($booking['booking_status'] ?? '') === 'completed' &&
                     strtolower($booking['payment_status'] ?? '') === 'paid' &&
-                    intval($booking['travel_documents'] ?? 0) === 1 &&
+                    ($docsVal === 1 || $docsVal === 2) &&
                     $isVisaMatch);
 
                 if (!$isFinished)

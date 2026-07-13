@@ -2699,9 +2699,25 @@ try {
         }
 
         async function renderStep4() {
-            updateStepIndicators(4);
             const container = document.getElementById('step-contents-container');
             const footer = document.getElementById('modal-footer-container');
+
+            if (!bookingData || !bookingData.hotelName) {
+                container.innerHTML = `
+                    <div style="text-align:center; padding:40px 20px;">
+                        <div style="width:80px; height:80px; background:#fef2f2; border-radius:50%; display:flex; align-items:center; justify-content:center; color:#ef4444; font-size:3rem; margin:0 auto 25px;">
+                            <i class="fas fa-exclamation-triangle"></i>
+                        </div>
+                        <h3 style="color:#1e293b;">Booking Session Expired</h3>
+                        <p style="color:#64748b; margin-bottom:20px;">Please close this window and start the booking again.</p>
+                        <button class="btn-proceed" onclick="closeModal()">Close</button>
+                    </div>
+                `;
+                footer.innerHTML = '';
+                return;
+            }
+
+            updateStepIndicators(4);
 
             // Show loading state
             container.innerHTML = `

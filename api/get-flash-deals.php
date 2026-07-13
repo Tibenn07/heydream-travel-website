@@ -27,21 +27,33 @@ if (session_status() === PHP_SESSION_NONE) {
         // Fetch single flash deal
         if ($id > 0) {
             $stmt = $pdo->prepare("
-                SELECT * FROM flash_deals 
-                WHERE id = ? AND is_active = 1
+                SELECT * FROM flash_deals
+                WHERE id = ?
             ");
             $stmt->execute([$id]);
         } else {
             $stmt = $pdo->prepare("
-                SELECT * FROM flash_deals 
-                WHERE (title = ? OR REPLACE(LOWER(title), ' ', '_') = ?) 
-                AND is_active = 1
+                SELECT * FROM flash_deals
+                WHERE (title = ? OR REPLACE(LOWER(title), ' ', '_') = ?)
                 LIMIT 1
             ");
             $stmt->execute([$titleSlug, $titleSlug]);
         }
         $deal = $stmt->fetch(PDO::FETCH_ASSOC);
-        
+
+        // Fallback: no exact/slug title match — try a fuzzy LIKE match
+        // (handles callers that only have a partial or slightly different
+        // display name, e.g. admin previews resolving a historical booking).
+        if (!$deal && $titleSlug !== '') {
+            $fallbackStmt = $pdo->prepare("
+                SELECT * FROM flash_deals
+                WHERE title LIKE ?
+                LIMIT 1
+            ");
+            $fallbackStmt->execute(['%' . $titleSlug . '%']);
+            $deal = $fallbackStmt->fetch(PDO::FETCH_ASSOC);
+        }
+
         if ($deal) {
             // Parse JSON fields
             $deal['itinerary'] = $deal['itinerary'] ? json_decode($deal['itinerary'], true) : [];
@@ -56,7 +68,7 @@ if (session_status() === PHP_SESSION_NONE) {
             
             echo json_encode(['success' => true, 'deal' => $deal]);
         } else {
-            echo json_encode(['success' => false, 'message' => 'Flash deal not found']);
+            echo json_encode(['success' => false, 'message' => 'Flash deal not found', 'deleted' => true]);
         }
     } else {
         // Fetch all flash deals

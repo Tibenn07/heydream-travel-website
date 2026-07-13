@@ -3908,48 +3908,60 @@ try {
         function validateAndGoToStep4() {
             if (!selectedPayment) return;
 
+            if (!currentExp || !expBookingData) {
+                alert('Your booking session has expired or was reset. Please close this window and start the booking again.');
+                return;
+            }
+
             const btn = document.getElementById('finalPaymentBtn');
             btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
             btn.style.pointerEvents = 'none';
 
-            let paymentMethodName = selectedPayment;
-            expBookingData.paymentMethod = paymentMethodName;
+            try {
+                let paymentMethodName = selectedPayment;
+                expBookingData.paymentMethod = paymentMethodName;
 
-            fetch('../api/save-service-booking.php', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    service_type: 'Travel Experience',
-                    package_name: currentExp.title,
-                    package_duration: currentExp.duration,
-                    price_per_person: currentExp.price,
-                    full_name: expBookingData.fullName,
-                    email: expBookingData.email,
-                    phone: expBookingData.phone,
-                    travel_date: expBookingData.date,
-                    number_of_travelers: expBookingData.participants,
-                    special_requests: `Time: ${expBookingData.time}, Location: ${expBookingData.location}, Dietary: ${expBookingData.dietary}, Requests: ${expBookingData.requests}`,
-                    total_amount: expBookingData.total,
-                    payment_method: expBookingData.paymentMethod,
-                    payment_reference: document.getElementById('refNumber')?.value || ''
+                fetch('../api/save-service-booking.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        service_type: 'Travel Experience',
+                        package_name: currentExp.title,
+                        package_duration: currentExp.duration,
+                        price_per_person: currentExp.price,
+                        full_name: expBookingData.fullName,
+                        email: expBookingData.email,
+                        phone: expBookingData.phone,
+                        travel_date: expBookingData.date,
+                        number_of_travelers: expBookingData.participants,
+                        special_requests: `Time: ${expBookingData.time}, Location: ${expBookingData.location}, Dietary: ${expBookingData.dietary}, Requests: ${expBookingData.requests}`,
+                        total_amount: expBookingData.total,
+                        payment_method: expBookingData.paymentMethod,
+                        payment_reference: document.getElementById('refNumber')?.value || ''
+                    })
                 })
-            })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        renderExpStep4(data.booking_number);
-                    } else {
-                        alert('Error saving booking: ' + data.message);
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            renderExpStep4(data.booking_number);
+                        } else {
+                            alert('Error saving booking: ' + data.message);
+                            btn.innerHTML = 'Complete Payment <i class="fas fa-check-circle"></i>';
+                            btn.style.pointerEvents = 'auto';
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        alert('Connection error.');
                         btn.innerHTML = 'Complete Payment <i class="fas fa-check-circle"></i>';
                         btn.style.pointerEvents = 'auto';
-                    }
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                    alert('Connection error.');
-                    btn.innerHTML = 'Complete Payment <i class="fas fa-check-circle"></i>';
-                    btn.style.pointerEvents = 'auto';
-                });
+                    });
+            } catch (err) {
+                console.error('Booking submission error:', err);
+                alert('Something went wrong while submitting your booking: ' + err.message + '. Please try again.');
+                btn.innerHTML = 'Complete Payment <i class="fas fa-check-circle"></i>';
+                btn.style.pointerEvents = 'auto';
+            }
         }
 
         window.onclick = function (event) {

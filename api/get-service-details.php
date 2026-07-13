@@ -3,22 +3,42 @@ require_once __DIR__ . '/../config/database.php';
 
 header('Content-Type: application/json');
 
-$id = intval($_GET['id'] ?? 0);
+$identifier = isset($_GET['id']) ? $_GET['id'] : '';
+$isNumeric = is_numeric($identifier);
+$id = $isNumeric ? intval($identifier) : 0;
+$name = !$isNumeric ? trim((string) $identifier) : '';
+$serviceType = isset($_GET['type']) ? trim((string) $_GET['type']) : '';
 
-if (!$id) {
+if (!$id && $name === '') {
     echo json_encode(['success' => false, 'message' => 'Invalid ID']);
     exit;
 }
 
 try {
-    $stmt = $pdo->prepare("SELECT * FROM site_services WHERE id = ? AND is_active = 1");
-    $stmt->execute([$id]);
+    $typeClause = $serviceType !== '' ? ' AND service_type = :service_type' : '';
+
+    if ($id > 0) {
+        $stmt = $pdo->prepare("SELECT * FROM site_services WHERE id = :id" . $typeClause);
+        $params = ['id' => $id];
+    } else {
+        $stmt = $pdo->prepare("
+            SELECT * FROM site_services
+            WHERE (title = :name OR REPLACE(LOWER(title), ' ', '_') = :name OR title LIKE :name_like)
+            {$typeClause}
+            LIMIT 1
+        ");
+        $params = ['name' => $name, 'name_like' => '%' . $name . '%'];
+    }
+    if ($serviceType !== '') { $params['service_type'] = $serviceType; }
+    $stmt->execute($params);
     $service = $stmt->fetch(PDO::FETCH_ASSOC);
 
     if (!$service) {
-        echo json_encode(['success' => false, 'message' => 'Service not found']);
+        echo json_encode(['success' => false, 'message' => 'Service not found', 'deleted' => true]);
         exit;
     }
+
+    $id = (int) $service['id'];
 
     // Fetch itinerary (Wrap in secondary try-catch to avoid crashing if table is missing)
     try {

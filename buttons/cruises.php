@@ -4429,28 +4429,35 @@ try {
         }
 
         function goToCruiseStep4() {
-            const refVal = document.getElementById('refNumber')?.value || '';
-            fetch('../api/save-service-booking.php', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    service_type: 'Cruise Vacation',
-                    package_name: currentCruise.title,
-                    package_duration: currentCruise.duration,
-                    price_per_person: currentCruise.price,
-                    full_name: cruiseBookingData.fullName,
-                    email: cruiseBookingData.email,
-                    phone: cruiseBookingData.phone,
-                    travel_date: cruiseBookingData.departureDate,
-                    number_of_travelers: cruiseBookingData.passengers,
-                    special_requests: `Cabin: ${cruiseBookingData.cabinLabel}, Dining: ${cruiseBookingData.dining}, Dietary: ${cruiseBookingData.dietary}, Requests: ${cruiseBookingData.requests}`,
-                    total_amount: cruiseBookingData.total,
-                    payment_method: selectedPayment,
-                    payment_reference: refVal
+            if (!currentCruise || !cruiseBookingData) {
+                alert('Your booking session has expired or was reset. Please close this window and start the booking again.');
+                return;
+            }
+
+            let refVal;
+            try {
+                refVal = document.getElementById('refNumber')?.value || '';
+                fetch('../api/save-service-booking.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        service_type: 'Cruise Vacation',
+                        package_name: currentCruise.title,
+                        package_duration: currentCruise.duration,
+                        price_per_person: currentCruise.price,
+                        full_name: cruiseBookingData.fullName,
+                        email: cruiseBookingData.email,
+                        phone: cruiseBookingData.phone,
+                        travel_date: cruiseBookingData.departureDate,
+                        number_of_travelers: cruiseBookingData.passengers,
+                        special_requests: `Cabin: ${cruiseBookingData.cabinLabel}, Dining: ${cruiseBookingData.dining}, Dietary: ${cruiseBookingData.dietary}, Requests: ${cruiseBookingData.requests}`,
+                        total_amount: cruiseBookingData.total,
+                        payment_method: selectedPayment,
+                        payment_reference: refVal
+                    })
                 })
-            })
-                .then(response => response.json())
-                .then(data => {
+                    .then(response => response.json())
+                    .then(data => {
                     if (data.success) {
                         const bookingNumber = data.booking_number;
                         const container = document.getElementById('step-contents-container');
@@ -4497,6 +4504,10 @@ try {
                     console.error('Error:', error);
                     alert('Connection error. Please try again.');
                 });
+            } catch (err) {
+                console.error('Booking submission error:', err);
+                alert('Something went wrong while submitting your booking: ' + err.message + '. Please try again.');
+            }
         }
 
         function updateCruiseSteps(step) {

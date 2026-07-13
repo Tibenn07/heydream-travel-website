@@ -63,27 +63,27 @@ try {
 // Auto-maintenance: Automatically update booking_status based on TRAVEL DOCUMENTS, VISA, and PAYMENT
 if ($pdo !== null) {
     try {
-        // 1. Mark completed: travel_documents = 1, payment_status = 'paid', visa_status = 'APPROVED' or 'N/A'
+        // 1. Mark completed: travel_documents Prepared(1) or Not Applicable(2), payment_status = 'paid', visa_status = 'APPROVED' or 'N/A'
         $pdo->exec("
-            UPDATE bookings 
+            UPDATE bookings
             SET booking_status = 'completed',
                 ready_for_travel = 1
-            WHERE booking_status != 'completed' 
+            WHERE booking_status != 'completed'
               AND booking_status != 'cancelled'
-              AND travel_documents = 1 
-              AND payment_status = 'paid' 
+              AND travel_documents IN (1, 2)
+              AND payment_status = 'paid'
               AND UPPER(COALESCE(visa_status, 'N/A')) IN ('APPROVED', 'N/A')
         ");
 
         // 2. Revert back to confirmed (if paid) or pending (if unpaid) if any requirement is pending/incomplete
         $pdo->exec("
-            UPDATE bookings 
+            UPDATE bookings
             SET booking_status = CASE WHEN payment_status = 'paid' THEN 'confirmed' ELSE 'pending' END,
                 ready_for_travel = 0
-            WHERE booking_status = 'completed' 
+            WHERE booking_status = 'completed'
               AND NOT (
-                  travel_documents = 1 
-                  AND payment_status = 'paid' 
+                  travel_documents IN (1, 2)
+                  AND payment_status = 'paid'
                   AND UPPER(COALESCE(visa_status, 'N/A')) IN ('APPROVED', 'N/A')
               )
         ");

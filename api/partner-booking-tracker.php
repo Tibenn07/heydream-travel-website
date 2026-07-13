@@ -95,6 +95,18 @@ function ensurePartnerBookingTracking($pdo)
         ['reminder_sent', 'TINYINT(1) DEFAULT 0'],
         ['visa_status', "VARCHAR(50) DEFAULT 'PENDING'"],
         ['marketing_consent', 'TINYINT(1) DEFAULT 0'],
+        // Soft-delete: deleting a booking (admin or partner side) sets this
+        // instead of removing the row, so it can be restored from a Trash view.
+        ['deleted_at', 'TIMESTAMP NULL DEFAULT NULL'],
+        // Who confirmed/completed/cancelled the booking and when — only
+        // populated going forward from the point this was added; existing
+        // bookings have no history and are shown as "not recorded".
+        ['confirmed_by', 'INT NULL DEFAULT NULL'],
+        ['confirmed_at', 'TIMESTAMP NULL DEFAULT NULL'],
+        ['completed_by', 'INT NULL DEFAULT NULL'],
+        ['completed_at', 'TIMESTAMP NULL DEFAULT NULL'],
+        ['cancelled_by', 'INT NULL DEFAULT NULL'],
+        ['cancelled_at', 'TIMESTAMP NULL DEFAULT NULL'],
     ];
 
     foreach ($trackingColumns as [$column, $definition]) {
@@ -103,6 +115,15 @@ function ensurePartnerBookingTracking($pdo)
         } catch (Throwable $e) {
             // Ignore if column already exists
         }
+    }
+
+    // Auto-purge bookings that have sat in Trash for 30+ days, same retention
+    // policy as the admin side. Safe to run from every entry point that calls
+    // this function — it's just a no-op DELETE when nothing's old enough.
+    try {
+        $pdo->exec("DELETE FROM bookings WHERE deleted_at IS NOT NULL AND deleted_at < DATE_SUB(NOW(), INTERVAL 30 DAY)");
+    } catch (Throwable $e) {
+        // Ignore — best effort cleanup
     }
 }
 

@@ -28,7 +28,7 @@ try {
             FROM destinations d
             LEFT JOIN partner_applications p ON d.partner_id = p.id
             LEFT JOIN partner_profiles pr ON pr.partner_id = d.partner_id
-            WHERE d.id = :id AND d.type = 'local' AND d.is_active = 1
+            WHERE d.id = :id AND d.type = 'local'
         ");
         $stmt->execute(['id' => $id]);
     } else {
@@ -38,8 +38,8 @@ try {
             FROM destinations d
             LEFT JOIN partner_applications p ON d.partner_id = p.id
             LEFT JOIN partner_profiles pr ON pr.partner_id = d.partner_id
-            WHERE (d.name = :name OR REPLACE(LOWER(d.name), ' ', '_') = :name OR d.name LIKE :name_like) 
-            AND d.type = 'local' AND d.is_active = 1
+            WHERE (d.name = :name OR REPLACE(LOWER(d.name), ' ', '_') = :name OR d.name LIKE :name_like)
+            AND d.type = 'local'
             LIMIT 1
         ");
         $stmt->execute([
@@ -59,7 +59,7 @@ try {
             'destination' => $dest
         ]);
     } else {
-        echo json_encode(['success' => false, 'error' => 'Destination not found']);
+        echo json_encode(['success' => false, 'error' => 'Destination not found', 'deleted' => true]);
     }
 
 } catch (PDOException $e) {

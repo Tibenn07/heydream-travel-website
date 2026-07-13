@@ -121,7 +121,7 @@ $stmtInqCount = $pdo->query("SELECT COUNT(*) FROM bookings WHERE payment_method 
 $pendingInquiriesCount = $stmtInqCount->fetchColumn();
 
 // Get active bookings count for sidebar badge — mirrors JS isFullyCompleted() logic exactly:
-// Excludes cancelled, and excludes truly finished (status=completed + paid + docs=1 + ready=1)
+// Excludes cancelled, and excludes truly finished (status=completed + paid + docs Prepared(1)/N-A(2) + ready=1)
 $stmtBookCount = $pdo->query("
     SELECT COUNT(*) FROM bookings
     WHERE booking_status != 'cancelled'
@@ -129,7 +129,7 @@ $stmtBookCount = $pdo->query("
     AND NOT (
         booking_status = 'completed'
         AND payment_status = 'paid'
-        AND travel_documents = 1
+        AND travel_documents IN (1, 2)
         AND ready_for_travel = 1
     )
 ");
@@ -2359,6 +2359,22 @@ $unreadMessagesCount = $stmtMessagesCount ? $stmtMessagesCount->fetchColumn() : 
                         <i class="fas fa-passport"></i> VISA ASSISTANCE <span
                             class="badge-count floating-badge">0</span>
                     </button>
+                    <button class="sub-filter-btn" onclick="setFilter('service_type', 'CRUISE')" id="serviceCruiseBtn">
+                        <i class="fas fa-ship"></i> CRUISES <span
+                            class="badge-count floating-badge">0</span>
+                    </button>
+                    <button class="sub-filter-btn" onclick="setFilter('service_type', 'HOTEL')" id="serviceHotelBtn">
+                        <i class="fas fa-hotel"></i> HOTEL SERVICES <span
+                            class="badge-count floating-badge">0</span>
+                    </button>
+                    <button class="sub-filter-btn" onclick="setFilter('service_type', 'FLIGHT')" id="serviceFlightBtn">
+                        <i class="fas fa-plane"></i> AIRLINE BOOKINGS <span
+                            class="badge-count floating-badge">0</span>
+                    </button>
+                    <button class="sub-filter-btn" onclick="setFilter('service_type', 'EXPERIENCE')" id="serviceExperienceBtn">
+                        <i class="fas fa-hiking"></i> EXPERIENCES <span
+                            class="badge-count floating-badge">0</span>
+                    </button>
                     <button class="sub-filter-btn" onclick="setFilter('service_type', 'INQUIRIES')"
                         id="serviceInquiriesBtn">
                         <i class="fas fa-question-circle"></i> INQUIRIES <span
@@ -2376,6 +2392,22 @@ $unreadMessagesCount = $stmtMessagesCount ? $stmtMessagesCount->fetchColumn() : 
                     </button>
                     <button class="sub-filter-btn" onclick="setFilter('completed_type', 'VISA')" id="completedVisaBtn">
                         <i class="fas fa-passport"></i> VISA ASSISTANCE <span
+                            class="badge-count floating-badge">0</span>
+                    </button>
+                    <button class="sub-filter-btn" onclick="setFilter('completed_type', 'CRUISE')" id="completedCruiseBtn">
+                        <i class="fas fa-ship"></i> CRUISES <span
+                            class="badge-count floating-badge">0</span>
+                    </button>
+                    <button class="sub-filter-btn" onclick="setFilter('completed_type', 'HOTEL')" id="completedHotelBtn">
+                        <i class="fas fa-hotel"></i> HOTEL SERVICES <span
+                            class="badge-count floating-badge">0</span>
+                    </button>
+                    <button class="sub-filter-btn" onclick="setFilter('completed_type', 'FLIGHT')" id="completedFlightBtn">
+                        <i class="fas fa-plane"></i> AIRLINE BOOKINGS <span
+                            class="badge-count floating-badge">0</span>
+                    </button>
+                    <button class="sub-filter-btn" onclick="setFilter('completed_type', 'EXPERIENCE')" id="completedExperienceBtn">
+                        <i class="fas fa-hiking"></i> EXPERIENCES <span
                             class="badge-count floating-badge">0</span>
                     </button>
                     <button class="sub-filter-btn" onclick="setFilter('completed_type', 'INQUIRIES')"
@@ -4682,45 +4714,478 @@ $unreadMessagesCount = $stmtMessagesCount ? $stmtMessagesCount->fetchColumn() : 
             });
         }
 
-        function showReceiptAlert(id) {
-            const receiptNo = 'HD-REC-' + id.toString().padStart(6, '0');
-            const now = new Date().toLocaleDateString('en-US', {
-                month: 'short',
-                day: 'numeric',
-                year: 'numeric',
-                hour: '2-digit',
-                minute: '2-digit'
+        // ── Package "flash" preview ──────────────────────────────────
+        // Reuses the exact same public data endpoints and visual language as
+        // the "View Tour Details" popups on index.php (js/home-packages.js,
+        // js/foreign-packages.js, js/flash-deals.js) — same self-contained
+        // injected-<style> pattern those files use, so nothing here touches
+        // admin's own CSS or requires loading style.css. The booking-flow
+        // ("Book This Deal" button onward) is intentionally not ported —
+        // there's nothing to book, the booking already exists.
+        function addAdminPackageModalStyles() {
+            if (document.querySelector('#adminPkgModalStyles')) return;
+            const style = document.createElement('style');
+            style.id = 'adminPkgModalStyles';
+            style.textContent = `
+                .admin-pkg-modal { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:999999; align-items:center; justify-content:center; backdrop-filter:blur(5px); padding:40px 20px; }
+                .admin-pkg-modal.active { display:flex; }
+                .admin-pkg-modal-content { background:white; border-radius:24px; max-width:900px; width:100%; max-height:85vh; overflow-y:auto; position:relative; animation:adminPkgSlideIn 0.3s ease; }
+                @keyframes adminPkgSlideIn { from { opacity:0; transform:translateY(20px); } to { opacity:1; transform:translateY(0); } }
+                .admin-pkg-close { position:absolute; top:15px; right:15px; width:35px; height:35px; background:rgba(0,0,0,0.5); color:white; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:1.4rem; cursor:pointer; z-index:10; backdrop-filter:blur(4px); transition:all 0.3s; border:1px solid rgba(255,255,255,0.2); }
+                .admin-pkg-close:hover { background:rgba(255,152,0,0.8); transform:rotate(90deg); }
+                .admin-pkg-hero { position:relative; height:250px; border-radius:24px 24px 0 0; overflow:hidden; background:#f0f0f0; }
+                .admin-pkg-hero img { width:100%; height:100%; object-fit:cover; display:block; }
+                .admin-pkg-hero-overlay { position:absolute; bottom:0; left:0; right:0; padding:40px 24px 16px; background:linear-gradient(to top, rgba(0,0,0,0.9), transparent); color:white; }
+                .admin-pkg-hero-overlay h2 { margin:0; font-size:1.5rem; font-weight:800; text-shadow:0 2px 10px rgba(0,0,0,0.9); }
+                .admin-pkg-hero-overlay p { margin:6px 0 0; font-size:0.85rem; font-weight:600; text-shadow:0 1px 4px rgba(0,0,0,0.7); }
+                .admin-pkg-body { padding:24px; }
+                .admin-pkg-tabs { display:flex; overflow-x:auto; border-bottom:1px solid #e2e8f0; margin-bottom:20px; }
+                .admin-pkg-tab { padding:10px 15px; cursor:pointer; font-weight:600; color:#64748b; border-bottom:3px solid transparent; white-space:nowrap; }
+                .admin-pkg-tab.active { color:#003580; border-bottom-color:#ff9800; }
+                .admin-pkg-pane { display:none; }
+                .admin-pkg-pane.active { display:block; }
+                .admin-pkg-details-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(140px, 1fr)); gap:15px; margin-bottom:15px; background:#f8fafc; padding:15px; border-radius:16px; }
+                .admin-pkg-detail-item { text-align:center; }
+                .admin-pkg-detail-item i { font-size:1.3rem; color:#ff9800; margin-bottom:6px; display:block; }
+                .admin-pkg-detail-label { font-size:0.7rem; color:#64748b; text-transform:uppercase; }
+                .admin-pkg-detail-value { font-size:0.95rem; font-weight:700; color:#003580; }
+                .admin-pkg-itinerary-day { background:#f8fafc; border-radius:12px; padding:12px; margin-bottom:10px; border-left:4px solid #ff9800; }
+                .admin-pkg-itinerary-day h4 { color:#003580; margin:0 0 8px; font-size:0.9rem; }
+                .admin-pkg-itinerary-day ul { list-style:none; padding-left:0; margin:0; }
+                .admin-pkg-itinerary-day li { padding:4px 0 4px 20px; position:relative; color:#555; font-size:0.8rem; }
+                .admin-pkg-itinerary-day li:before { content:"✓"; position:absolute; left:0; color:#ff9800; }
+                .admin-pkg-inclusions { background:#e8f0fe; padding:15px; border-radius:16px; margin-bottom:16px; border-left:4px solid #003580; }
+                .admin-pkg-exclusions { background:#fff3e0; padding:15px; border-radius:16px; margin-bottom:16px; border-left:4px solid #ff9800; }
+                .admin-pkg-inclusions h3, .admin-pkg-exclusions h3 { margin:0 0 12px; font-size:1rem; color:#003580; }
+                .admin-pkg-exclusions h3 { color:#ff9800; }
+                .admin-pkg-inclusions ul, .admin-pkg-exclusions ul { display:grid; grid-template-columns:repeat(auto-fill, minmax(180px, 1fr)); gap:6px; list-style:none; padding-left:0; margin:0; }
+                .admin-pkg-inclusions li, .admin-pkg-exclusions li { padding-left:20px; position:relative; color:#555; font-size:0.78rem; }
+                .admin-pkg-inclusions li:before { content:"✓"; position:absolute; left:0; color:#28a745; }
+                .admin-pkg-exclusions li:before { content:"✗"; position:absolute; left:0; color:#dc3545; }
+                .admin-pkg-footer { display:flex; justify-content:space-between; align-items:center; margin-top:20px; padding-top:15px; border-top:1px solid #eee; }
+                .admin-pkg-footer .price-label { font-size:0.8rem; color:#666; }
+                .admin-pkg-footer .price-value { font-size:1.4rem; font-weight:800; color:#ff9800; display:block; }
+                .admin-pkg-hotel-option { padding:10px 14px; border-bottom:1px solid #eee; font-size:0.85rem; display:flex; justify-content:space-between; }
+            `;
+            document.head.appendChild(style);
+        }
+
+        function ensureAdminPackageModal() {
+            addAdminPackageModalStyles();
+            let modal = document.getElementById('adminPkgModal');
+            if (!modal) {
+                modal = document.createElement('div');
+                modal.id = 'adminPkgModal';
+                modal.className = 'admin-pkg-modal';
+                modal.innerHTML = `
+                    <div class="admin-pkg-modal-content">
+                        <div class="admin-pkg-close" onclick="document.getElementById('adminPkgModal').classList.remove('active')">&times;</div>
+                        <div id="adminPkgModalBody"></div>
+                    </div>
+                `;
+                document.body.appendChild(modal);
+                modal.addEventListener('click', (e) => { if (e.target === modal) modal.classList.remove('active'); });
+            }
+            return modal;
+        }
+
+        function switchAdminPkgTab(tab) {
+            document.querySelectorAll('.admin-pkg-tab').forEach(el => el.classList.toggle('active', el.dataset.tab === tab));
+            document.querySelectorAll('.admin-pkg-pane').forEach(el => el.classList.toggle('active', el.id === 'admin-pkg-pane-' + tab));
+        }
+
+        const ADMIN_PKG_PLACEHOLDER_IMG = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='600' height='300'%3E%3Crect width='100%25' height='100%25' fill='%23e2e8f0'/%3E%3Ctext x='50%25' y='50%25' font-family='sans-serif' font-size='20' fill='%2394a3b8' text-anchor='middle' dominant-baseline='middle'%3ENo Image Available%3C/text%3E%3C/svg%3E";
+        function resolveAdminPkgImage(p) {
+            if (!p) return '';
+            if (/^(https?:)?\/\//.test(p) || p.startsWith('data:') || p.startsWith('../')) return p;
+            return '../' + p;
+        }
+
+        const ADMIN_PKG_PARTNER_SOURCE_TYPE = { local_destination: 'local', foreign_destination: 'foreign', flash_deal: 'flash', cruise: 'cruise', visa: 'visa' };
+        const ADMIN_PKG_DESTINATION_NAME_TYPE = { 'Local Package': 'local', 'Foreign Destination': 'foreign', 'Flash Deal': 'flash', 'Cruise Vacation': 'cruise', 'Hotel': 'hotel', 'Flight Booking': 'flight', 'Travel Experience': 'experience', 'Visa Assistance': 'visa' };
+        const ADMIN_PKG_TYPE_ENDPOINT = {
+            local: (id) => ['../api/get-local-destinations.php?id=' + encodeURIComponent(id), 'destination'],
+            foreign: (id) => ['../api/get-foreign-destinations.php?key=' + encodeURIComponent(id), 'destination'],
+            flash: (id) => ['../api/get-flash-deals.php?id=' + encodeURIComponent(id), 'deal'],
+            cruise: (id) => ['../api/get-cruise-details.php?id=' + encodeURIComponent(id), 'data'],
+            hotel: (id) => ['../api/get-service-details.php?id=' + encodeURIComponent(id) + '&type=premium', 'data'],
+            flight: (id) => ['../api/get-service-details.php?id=' + encodeURIComponent(id) + '&type=flight', 'data'],
+            experience: (id) => ['../api/get-service-details.php?id=' + encodeURIComponent(id) + '&type=experience', 'data'],
+            visa: (id) => ['../api/get-visa-details.php?' + (isNaN(id) ? 'title=' : 'id=') + encodeURIComponent(id), 'data']
+        };
+
+        async function showBookingPackagePreview(id) {
+            const booking = bookings.find(b => b.id == id);
+            if (!booking) return;
+
+            const modal = ensureAdminPackageModal();
+            const body = document.getElementById('adminPkgModalBody');
+            body.innerHTML = `<div style="text-align:center; padding:60px 20px;"><i class="fas fa-spinner fa-spin" style="font-size:2rem; color:#003580;"></i><p style="margin-top:15px; color:#64748b;">Loading package details...</p></div>`;
+            modal.classList.add('active');
+
+            const type = ADMIN_PKG_PARTNER_SOURCE_TYPE[booking.partner_source] || ADMIN_PKG_DESTINATION_NAME_TYPE[booking.destination_name] || null;
+            const identifier = booking.partner_package_id || booking.package_name;
+            const endpointFn = type ? ADMIN_PKG_TYPE_ENDPOINT[type] : null;
+
+            if (!endpointFn || !identifier) {
+                renderAdminPkgFallback(booking);
+                return;
+            }
+
+            let payload = null;
+            try {
+                const [url, dataKey] = endpointFn(identifier);
+                const res = await fetch(url);
+                const json = await res.json();
+                if (json.success) {
+                    payload = json[dataKey];
+                } else if (json.deleted) {
+                    renderAdminPkgDeleted(booking);
+                    return;
+                } else {
+                    renderAdminPkgFallback(booking);
+                    return;
+                }
+            } catch (e) {
+                console.error('Package preview fetch failed:', e);
+                renderAdminPkgFallback(booking);
+                return;
+            }
+
+            if (type === 'visa') {
+                renderAdminVisaPreview(payload, booking);
+                return;
+            }
+
+            const isInactive = payload.is_active === 0 || payload.is_active === '0' || payload.is_published === 0 || payload.is_published === '0';
+            renderAdminPkgDetails(normalizeAdminPkgData(payload, type), type, booking, isInactive);
+        }
+
+        function splitTextList(str) {
+            if (Array.isArray(str)) return str;
+            if (typeof str !== 'string') return [];
+            const s = str.trim();
+            if (!s) return [];
+            if (s.startsWith('[')) {
+                try { const arr = JSON.parse(s); if (Array.isArray(arr)) return arr; } catch (e) { /* fall through */ }
+            }
+            let parts = s.split('\n').map(x => x.trim()).filter(Boolean);
+            if (parts.length <= 1) parts = s.split(',').map(x => x.trim()).filter(Boolean);
+            return parts;
+        }
+
+        function normalizeAdminPkgData(raw, type) {
+            if (type === 'local' || type === 'foreign' || type === 'flash') return raw;
+
+            const parseGallery = (val) => {
+                if (!val) return [];
+                if (Array.isArray(val)) return val;
+                try { const arr = JSON.parse(val); return Array.isArray(arr) ? arr : []; } catch (e) { return []; }
+            };
+
+            if (type === 'cruise') {
+                const images = [raw.featured_image, ...parseGallery(raw.gallery)].filter(Boolean);
+                const price = parseFloat(raw.promo_price) > 0 ? raw.promo_price : (parseFloat(raw.base_price) > 0 ? raw.base_price : raw.price_per_person);
+                return {
+                    name: raw.title,
+                    location: raw.departure_port || raw.destinations || '',
+                    duration: raw.duration,
+                    currency: raw.currency || '₱',
+                    price: price,
+                    image_path: images[0] || '',
+                    image2_path: images[1] || '',
+                    image3_path: images[2] || '',
+                    itinerary: raw.itinerary || [],
+                    inclusions: [...splitTextList(raw.inclusions), ...splitTextList(raw.amenities)],
+                    exclusions: splitTextList(raw.exclusions),
+                    partner_id: raw.partner_id,
+                    partner_company: raw.partner_company
+                };
+            }
+
+            // hotel / flight / experience — all backed by site_services
+            const images = [raw.featured_image, ...parseGallery(raw.image_gallery)].filter(Boolean);
+            return {
+                name: raw.title,
+                location: raw.category || '',
+                duration: raw.duration,
+                currency: raw.currency || '₱',
+                price: raw.price,
+                image_path: images[0] || '',
+                image2_path: images[1] || '',
+                image3_path: images[2] || '',
+                itinerary: raw.itinerary || [],
+                inclusions: [...splitTextList(raw.inclusions), ...splitTextList(raw.highlights), ...splitTextList(raw.amenities)],
+                exclusions: splitTextList(raw.exclusions),
+                partner_id: raw.partner_id,
+                partner_company: raw.partner_company
+            };
+        }
+
+        function renderAdminPkgFallback(booking) {
+            const body = document.getElementById('adminPkgModalBody');
+            body.innerHTML = `
+                <div style="padding:40px 30px; text-align:center;">
+                    <i class="fas fa-box-open" style="font-size:2.5rem; color:#cbd5e1; margin-bottom:16px; display:block;"></i>
+                    <h3 style="color:#0f172a; margin-bottom:6px;">${escapeHtml(booking.package_name || booking.destination_name || 'Package')}</h3>
+                    <p style="color:#64748b; font-size:0.9rem; margin-bottom:20px;">Detailed preview not available for this package.</p>
+                    <div class="admin-pkg-details-grid" style="text-align:center; max-width:400px; margin:0 auto;">
+                        <div class="admin-pkg-detail-item"><i class="fas fa-map-marker-alt"></i><div class="admin-pkg-detail-label">Destination</div><div class="admin-pkg-detail-value">${escapeHtml(booking.destination_name || 'N/A')}</div></div>
+                        <div class="admin-pkg-detail-item"><i class="fas fa-money-bill-wave"></i><div class="admin-pkg-detail-label">Total Amount</div><div class="admin-pkg-detail-value">₱${parseFloat(booking.total_amount || 0).toLocaleString()}</div></div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderAdminPkgDeleted(booking) {
+            const body = document.getElementById('adminPkgModalBody');
+            body.innerHTML = `
+                <div style="padding:40px 30px; text-align:center;">
+                    <i class="fas fa-trash-alt" style="font-size:2.5rem; color:#f87171; margin-bottom:16px; display:block;"></i>
+                    <h3 style="color:#0f172a; margin-bottom:6px;">${escapeHtml(booking.package_name || booking.destination_name || 'Package')}</h3>
+                    <p style="color:#dc2626; font-weight:600; font-size:0.95rem; margin-bottom:20px;">This package has been deleted.</p>
+                    <div class="admin-pkg-details-grid" style="text-align:center; max-width:400px; margin:0 auto;">
+                        <div class="admin-pkg-detail-item"><i class="fas fa-tag"></i><div class="admin-pkg-detail-label">Category</div><div class="admin-pkg-detail-value">${escapeHtml(booking.destination_name || 'N/A')}</div></div>
+                        <div class="admin-pkg-detail-item"><i class="fas fa-money-bill-wave"></i><div class="admin-pkg-detail-label">Total Amount</div><div class="admin-pkg-detail-value">₱${parseFloat(booking.total_amount || 0).toLocaleString()}</div></div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderAdminVisaPreview(visa, booking) {
+            if (!visa) { renderAdminPkgFallback(booking); return; }
+            const body = document.getElementById('adminPkgModalBody');
+            const isImage = visa.icon_type === 'image' || visa.icon_type === 'upload';
+            const heroHtml = isImage
+                ? `<img src="${escapeHtml(resolveAdminPkgImage(visa.icon_value))}" alt="${escapeHtml(visa.title)}" style="max-width:160px; max-height:110px; object-fit:contain; border-radius:8px; box-shadow:0 4px 12px rgba(0,0,0,0.1);">`
+                : `<i class="${escapeHtml(visa.icon_value || 'fas fa-passport')}" style="font-size:3.5rem; color:#003580;"></i>`;
+
+            let requirements = [];
+            try { requirements = visa.requirements ? JSON.parse(visa.requirements) : []; } catch (e) { requirements = []; }
+
+            const inactiveBanner = (visa.is_active === 0 || visa.is_active === '0')
+                ? `<div style="background:#fef3c7; border:1px solid #fde68a; color:#92400e; padding:8px 14px; border-radius:8px; font-size:0.8rem; font-weight:600; text-align:center; margin-bottom:16px;"><i class="fas fa-exclamation-triangle"></i> This service is currently deactivated</div>`
+                : '';
+
+            body.innerHTML = `
+                <div style="padding:30px; text-align:center;">
+                    ${inactiveBanner}
+                    <div style="margin-bottom:16px;">${heroHtml}</div>
+                    <h2 style="color:#0f172a; margin-bottom:4px;">${escapeHtml(visa.title || 'Visa Assistance')}</h2>
+                    <p style="color:#64748b; font-size:0.85rem; margin-bottom:18px;">${escapeHtml(visa.category || '')}${visa.processing_time ? ' | ' + escapeHtml(visa.processing_time) : ''}</p>
+                    <p style="color:#334155; font-size:0.92rem; line-height:1.6; text-align:left; max-width:520px; margin:0 auto 20px;">${escapeHtml(visa.description || 'No description available.')}</p>
+                    ${requirements.length > 0 ? `
+                        <div style="text-align:left; max-width:520px; margin:0 auto 20px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; padding:16px;">
+                            <strong style="font-size:0.85rem; color:#0f172a;"><i class="fas fa-clipboard-check" style="color:#ff9800;"></i> Requirements</strong>
+                            <ul style="margin:10px 0 0; padding-left:20px; color:#475569; font-size:0.85rem; line-height:1.8;">
+                                ${requirements.map(r => `<li>${escapeHtml(r)}</li>`).join('')}
+                            </ul>
+                        </div>
+                    ` : ''}
+                    ${visa.disclaimer ? `<p style="color:#94a3b8; font-size:0.78rem; text-align:left; max-width:520px; margin:0 auto 8px;"><i class="fas fa-info-circle"></i> ${escapeHtml(visa.disclaimer)}</p>` : ''}
+                    <div class="admin-pkg-footer" style="justify-content:center; margin-top:10px;">
+                        <div><span class="price-label">Price</span><span class="price-value">${escapeHtml(visa.currency || '₱')}${parseFloat(visa.price || 0).toLocaleString()}</span></div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderAdminPkgDetails(dest, type, booking, isInactive) {
+            const name = dest.name || dest.title || booking.package_name || 'Package';
+            const location = dest.location || dest.location_name || dest.city || dest.country || booking.destination_name || '';
+            const duration = dest.duration || '3D/2N';
+            const currency = dest.currency || '₱';
+            const price = parseFloat(dest.price || 0);
+
+            ['itinerary', 'inclusions', 'exclusions', 'hotels'].forEach(field => {
+                if (typeof dest[field] === 'string') {
+                    try { dest[field] = JSON.parse(dest[field]); } catch (e) { dest[field] = []; }
+                }
+                if (!dest[field]) dest[field] = [];
             });
 
-            Swal.fire({
-                title: '<span style="color: #059669;">Payment Verification</span>',
-                html: `
-                    <div style="margin-top: 10px;">
-                        <i class="fas fa-check-circle" style="font-size: 3.5rem; color: #10b981; margin-bottom: 20px; display: block;"></i>
-                        <p style="font-size: 1.05rem; color: #475569; margin-bottom: 24px; line-height: 1.5;">
-                            This transaction has been successfully <br><strong>processed and verified</strong>.
-                        </p>
-                        
-                        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px; margin-bottom: 10px;">
-                            <span style="font-size: 0.75rem; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.1em; display: block; margin-bottom: 8px;">
-                                Verification Reference ID
-                            </span>
-                            <span style="font-family: 'JetBrains Mono', monospace; font-size: 1.25rem; font-weight: 800; color: #4f46e5; display: block; margin-bottom: 4px;">
-                                ${receiptNo}
-                            </span>
-                            <span style="font-size: 0.7rem; color: #94a3b8;">
-                                Verified on ${now}
-                            </span>
-                        </div>
-                        
-                        <div style="display: flex; justify-content: center; align-items: center; gap: 6px; margin-top: 15px; color: #10b981; font-size: 0.85rem; font-weight: 600;">
-                            <i class="fas fa-shield-alt"></i> SECURED TRANSACTION
-                        </div>
+            const images = [];
+            if (dest.image_path) images.push(dest.image_path);
+            if (dest.image2_path) images.push(dest.image2_path);
+            if (dest.image3_path) images.push(dest.image3_path);
+            const heroImg = resolveAdminPkgImage(images[0]) || ADMIN_PKG_PLACEHOLDER_IMG;
+
+            const inactiveBanner = isInactive
+                ? `<div style="background:#fef3c7; border:1px solid #fde68a; color:#92400e; padding:8px 14px; font-size:0.8rem; font-weight:600; text-align:center;"><i class="fas fa-exclamation-triangle"></i> This package is currently deactivated</div>`
+                : '';
+
+            let itineraryHtml = '';
+            if (dest.itinerary.length > 0) {
+                dest.itinerary.forEach(day => {
+                    const dayTitle = day.title || `Day ${day.day_number || day.day || ''}`;
+                    itineraryHtml += `<div class="admin-pkg-itinerary-day"><h4>${escapeHtml(dayTitle)}</h4>`;
+                    if (day.description) {
+                        itineraryHtml += `<p>${escapeHtml(day.description)}</p>`;
+                    } else {
+                        itineraryHtml += `<ul>`;
+                        (day.activities || []).forEach(a => itineraryHtml += `<li>${escapeHtml(a)}</li>`);
+                        if (!day.activities || day.activities.length === 0) itineraryHtml += `<li>No activities listed</li>`;
+                        itineraryHtml += `</ul>`;
+                    }
+                    itineraryHtml += `</div>`;
+                });
+            } else {
+                itineraryHtml = `<p style="color:#64748b;">Itinerary not available.</p>`;
+            }
+
+            let inclusionsHtml = dest.inclusions.length > 0
+                ? `<div class="admin-pkg-inclusions"><h3><i class="fas fa-check-circle"></i> Inclusions</h3><ul>${dest.inclusions.map(i => `<li>${escapeHtml(i)}</li>`).join('')}</ul></div>`
+                : '';
+            let exclusionsHtml = dest.exclusions.length > 0
+                ? `<div class="admin-pkg-exclusions"><h3><i class="fas fa-times-circle"></i> Exclusions</h3><ul>${dest.exclusions.map(i => `<li>${escapeHtml(i)}</li>`).join('')}</ul></div>`
+                : '';
+            if (!inclusionsHtml && !exclusionsHtml) {
+                inclusionsHtml = `<p style="color:#64748b;">No inclusions/exclusions listed.</p>`;
+            }
+
+            const hotelsHtml = (dest.hotels || []).length > 0
+                ? dest.hotels.map(h => `<div class="admin-pkg-hotel-option"><span>${escapeHtml(h.name)} ${h.stars ? '⭐'.repeat(h.stars) : ''}</span><span style="color:#4caf50;">${h.price > 0 ? `+${currency}${Number(h.price).toLocaleString()}` : 'Included'}</span></div>`).join('')
+                : `<div class="admin-pkg-hotel-option" style="justify-content:center; color:#94a3b8;">No hotel options listed</div>`;
+
+            const body = document.getElementById('adminPkgModalBody');
+            body.innerHTML = `
+                ${inactiveBanner}
+                <div class="admin-pkg-hero">
+                    <img src="${escapeHtml(heroImg)}" alt="${escapeHtml(name)}" onerror="this.onerror=null;this.src='${ADMIN_PKG_PLACEHOLDER_IMG}'">
+                    <div class="admin-pkg-hero-overlay">
+                        <h2>${escapeHtml(name)}</h2>
+                        <p><i class="fas fa-map-marker-alt"></i> ${escapeHtml(location)} | <i class="fas fa-clock"></i> ${escapeHtml(duration)}</p>
                     </div>
-                `,
+                </div>
+                <div class="admin-pkg-body">
+                    <div class="admin-pkg-tabs">
+                        <div class="admin-pkg-tab active" data-tab="overview" onclick="switchAdminPkgTab('overview')">Overview</div>
+                        <div class="admin-pkg-tab" data-tab="itinerary" onclick="switchAdminPkgTab('itinerary')">Itinerary</div>
+                        <div class="admin-pkg-tab" data-tab="inclusions" onclick="switchAdminPkgTab('inclusions')">Inclusions</div>
+                        ${dest.partner_id ? `<div class="admin-pkg-tab" data-tab="partner" onclick="switchAdminPkgTab('partner')">Partner</div>` : ''}
+                    </div>
+                    <div id="admin-pkg-pane-overview" class="admin-pkg-pane active">
+                        <div class="admin-pkg-details-grid">
+                            <div class="admin-pkg-detail-item"><i class="fas fa-clock"></i><div class="admin-pkg-detail-label">Validity</div><div class="admin-pkg-detail-value">${escapeHtml(dest.best_season || 'Year Round')}</div></div>
+                            <div class="admin-pkg-detail-item"><i class="fas fa-users"></i><div class="admin-pkg-detail-label">Group Size</div><div class="admin-pkg-detail-value">${escapeHtml(dest.group_size || '2-15 pax')}</div></div>
+                            <div class="admin-pkg-detail-item"><i class="fas fa-calendar-alt"></i><div class="admin-pkg-detail-label">Duration</div><div class="admin-pkg-detail-value">${escapeHtml(duration)}</div></div>
+                        </div>
+                        <div style="margin-top:15px;"><strong style="font-size:0.85rem; color:#0f172a;"><i class="fas fa-hotel" style="color:#ff9800;"></i> Hotel Options</strong><div style="margin-top:8px; border:1px solid #e2e8f0; border-radius:10px; overflow:hidden;">${hotelsHtml}</div></div>
+                    </div>
+                    <div id="admin-pkg-pane-itinerary" class="admin-pkg-pane">${itineraryHtml}</div>
+                    <div id="admin-pkg-pane-inclusions" class="admin-pkg-pane">${inclusionsHtml}${exclusionsHtml}</div>
+                    ${dest.partner_id ? `<div id="admin-pkg-pane-partner" class="admin-pkg-pane"><div style="text-align:center; padding:20px;"><i class="fas fa-handshake" style="font-size:2.5rem; color:#ff9800; margin-bottom:12px; display:block;"></i><h3 style="color:#003580;">${escapeHtml(dest.partner_company || 'Partner Provider')}</h3><a href="Partnership/partner-profile.php?id=${dest.partner_id}" target="_blank" style="display:inline-block; margin-top:12px; background:#003580; color:white; padding:10px 20px; border-radius:20px; text-decoration:none; font-weight:600;">View Partner Profile <i class="fas fa-external-link-alt"></i></a></div></div>` : ''}
+                    <div class="admin-pkg-footer">
+                        <div><span class="price-label">Price starting from</span><span class="price-value">${currency}${price.toLocaleString()}</span></div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function formatBookingActorDate(raw) {
+            return raw ? new Date(raw.replace(' ', 'T')).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true }) : null;
+        }
+
+        function showBookingStatusInfo(id) {
+            const booking = bookings.find(b => b.id == id);
+            if (!booking) return;
+
+            const status = (booking.booking_status || '').toLowerCase();
+
+            if (status === 'pending') {
+                Swal.fire({
+                    title: '<span style="color: #64748b;">Still Pending</span>',
+                    html: `
+                        <div style="margin-top: 10px;">
+                            <i class="fas fa-hourglass-half" style="font-size: 3rem; color: #cbd5e1; margin-bottom: 16px; display: block;"></i>
+                            <p style="font-size: 1rem; color: #64748b; margin-bottom: 0;">Status is still pending. No action has been taken on this booking yet.</p>
+                        </div>
+                    `,
+                    showConfirmButton: true,
+                    confirmButtonColor: '#4f46e5',
+                    confirmButtonText: 'CLOSE',
+                    customClass: { popup: 'glass-modal', confirmButton: 'swal-custom-confirm' },
+                    showClass: { popup: 'animate__animated animate__zoomIn animate__faster' },
+                    hideClass: { popup: 'animate__animated animate__fadeOut animate__faster' }
+                });
+                return;
+            }
+
+            const statusMeta = {
+                confirmed: { label: 'Approved', verb: 'Confirmed', name: booking.confirmed_by_name, at: booking.confirmed_at, icon: 'fa-user-check', color: '#10b981', notRecorded: 'This booking was confirmed before approval tracking was added, so there\'s no record of who did it.' },
+                completed: { label: 'Completed By', verb: 'Completed', name: booking.completed_by_name, at: booking.completed_at, icon: 'fa-user-check', color: '#10b981', notRecorded: 'This booking was completed before completion tracking was added, so there\'s no record of who did it.' },
+                cancelled: { label: 'Cancelled By', verb: 'Cancelled', name: booking.cancelled_by_name, at: booking.cancelled_at, icon: 'fa-user-slash', color: '#dc2626', notRecorded: 'This booking was cancelled before cancellation tracking was added, so there\'s no record of who did it.' }
+            };
+            const meta = statusMeta[status];
+            if (!meta) return;
+
+            const actorName = meta.name || null;
+            const actorAt = formatBookingActorDate(meta.at);
+
+            Swal.fire({
+                title: actorName ? `<span style="color: ${meta.color};">${meta.label}</span>` : '<span style="color: #64748b;">Not Recorded</span>',
+                html: actorName
+                    ? `
+                        <div style="margin-top: 10px;">
+                            <i class="fas ${meta.icon}" style="font-size: 3rem; color: ${meta.color}; margin-bottom: 16px; display: block;"></i>
+                            <p style="font-size: 1.15rem; font-weight: 700; color: #0f172a; margin-bottom: 4px;">${escapeHtml(actorName)}</p>
+                            <p style="font-size: 0.85rem; color: #64748b;">${meta.verb} on ${actorAt || 'an unknown date'}</p>
+                        </div>
+                    `
+                    : `
+                        <div style="margin-top: 10px;">
+                            <i class="fas fa-user-slash" style="font-size: 3rem; color: #cbd5e1; margin-bottom: 16px; display: block;"></i>
+                            <p style="font-size: 1rem; color: #64748b; margin-bottom: 0;">${meta.notRecorded}</p>
+                        </div>
+                    `,
                 showConfirmButton: true,
                 confirmButtonColor: '#4f46e5',
-                confirmButtonText: 'CLOSE RECEIPT',
+                confirmButtonText: 'CLOSE',
+                customClass: { popup: 'glass-modal', confirmButton: 'swal-custom-confirm' },
+                showClass: { popup: 'animate__animated animate__zoomIn animate__faster' },
+                hideClass: { popup: 'animate__animated animate__fadeOut animate__faster' }
+            });
+        }
+
+        function showReceiptAlert(id) {
+            const booking = bookings.find(b => b.id == id);
+            if (!booking) return;
+
+            const hasProof = !!booking.payment_proof;
+            const isImage = hasProof && /\.(jpg|jpeg|png|gif|webp)$/i.test(booking.payment_proof);
+            const proofUrl = hasProof ? ('../' + booking.payment_proof) : '';
+
+            let bodyHtml;
+            if (hasProof) {
+                bodyHtml = `
+                    <div style="margin-top: 10px; text-align: left;">
+                        <div style="display: flex; flex-direction: column; gap: 8px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 16px; margin-bottom: 16px;">
+                            ${booking.payment_method ? `<div style="display:flex;gap:8px;align-items:center;font-size:0.9rem;"><span style="color:#64748b;font-weight:600;min-width:110px;">Method:</span><span style="color:#0f172a;font-weight:700;text-transform:capitalize;">${escapeHtml(booking.payment_method)}</span></div>` : ''}
+                            ${booking.payment_reference ? `<div style="display:flex;gap:8px;align-items:center;font-size:0.9rem;"><span style="color:#64748b;font-weight:600;min-width:110px;">Reference #:</span><span style="color:#0f172a;font-weight:700;font-family:monospace;">${escapeHtml(booking.payment_reference)}</span></div>` : ''}
+                        </div>
+                        <div style="text-align:center;">
+                            ${isImage
+                        ? `<a href="${proofUrl}" target="_blank" title="Click to view full size"><img src="${proofUrl}" alt="Payment Proof" style="max-width:100%;max-height:320px;border-radius:12px;border:2px solid #bbf7d0;box-shadow:0 4px 12px rgba(0,0,0,0.1);cursor:zoom-in;object-fit:contain;display:inline-block;background:#f8fafc;"></a><p style="font-size:0.78rem;color:#64748b;margin-top:8px;"><i class="fas fa-search-plus"></i> Click image to view full size</p>`
+                        : `<a href="${proofUrl}" target="_blank" style="display:inline-flex;align-items:center;gap:8px;background:#16a34a;color:white;padding:10px 18px;border-radius:10px;font-size:0.88rem;font-weight:600;text-decoration:none;"><i class="fas fa-file-download"></i> Open / Download Receipt</a>`
+                    }
+                        </div>
+                    </div>
+                `;
+            } else {
+                bodyHtml = `
+                    <div style="margin-top: 10px;">
+                        <i class="fas fa-hourglass-half" style="font-size: 3rem; color: #cbd5e1; margin-bottom: 16px; display: block;"></i>
+                        <p style="font-size: 1rem; color: #64748b; margin-bottom: 0;">No payment proof uploaded yet.</p>
+                    </div>
+                `;
+            }
+
+            Swal.fire({
+                title: hasProof ? '<span style="color: #059669;">Proof of Payment</span>' : '<span style="color: #64748b;">No Payment Yet</span>',
+                html: bodyHtml,
+                showConfirmButton: true,
+                confirmButtonColor: '#4f46e5',
+                confirmButtonText: 'CLOSE',
                 customClass: {
                     popup: 'glass-modal',
                     confirmButton: 'swal-custom-confirm'
@@ -5069,9 +5534,9 @@ $unreadMessagesCount = $stmtMessagesCount ? $stmtMessagesCount->fetchColumn() : 
                             <label style="color: #1e293b; font-weight: 700; margin-bottom: 8px;">Booking Status</label>
                             <select id="booking_status" class="form-control" style="background: white; border: 1px solid #cbd5e1; border-radius: 12px; padding: 12px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
                                 <option value="pending" ${booking.booking_status === 'pending' ? 'selected' : ''}>Pending</option>
-                                ${isVisa ? `<option value="confirmed" ${booking.booking_status === 'confirmed' ? 'selected' : ''}>Confirmed (Checking & Send QR)</option>` : ''}
+                                <option value="confirmed" ${booking.booking_status === 'confirmed' ? 'selected' : ''}>${isVisa ? 'Confirmed (Checking & Send QR)' : 'Confirmed'}</option>
                                 <option value="cancelled" ${booking.booking_status === 'cancelled' ? 'selected' : ''}>Cancelled</option>
-                                <option value="completed" ${booking.booking_status === 'completed' || (!isVisa && booking.booking_status === 'confirmed') ? 'selected' : ''}>Completed</option>
+                                <option value="completed" ${booking.booking_status === 'completed' ? 'selected' : ''}>Completed</option>
                             </select>
                         </div>
                         <div class="form-group" style="margin-bottom: 20px;">
@@ -5117,11 +5582,17 @@ $unreadMessagesCount = $stmtMessagesCount ? $stmtMessagesCount->fetchColumn() : 
                             <label style="color: #1e293b; font-weight: 700; margin-bottom: 12px;"><i class="fas fa-tasks" style="color:#0284c7; margin-right: 6px;"></i> ${isVisa ? 'Visa Assistance Tracking Steps' : 'Booking Tracking Steps'}</label>
                             
                             <div style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 15px;">
-                                <label style="display: flex; align-items: center; gap: 12px; background: #f8fafc; padding: 12px 16px; border-radius: 12px; border: 1px solid #e2e8f0; cursor: pointer; transition: all 0.2s;">
-                                    <input type="checkbox" id="travel_documents" ${booking.travel_documents == 1 ? 'checked' : ''} style="width: 20px; height: 20px; accent-color: #ff9800; margin: 0; cursor: pointer;">
-                                    <span style="font-weight: 600; color: #334155; font-size: 0.95rem;"><i class="fas fa-file-alt" style="color:#ff9800; margin-right: 8px;"></i> ${isVisa ? 'Visa Documents Prepared' : 'Travel Documents Prepared'}</span>
-                                </label>
-                                
+                                <div style="background: #f8fafc; padding: 12px 16px; border-radius: 12px; border: 1px solid #e2e8f0;">
+                                    <span style="font-weight: 600; color: #334155; font-size: 0.95rem; display: block; margin-bottom: 10px;"><i class="fas fa-file-alt" style="color:#ff9800; margin-right: 8px;"></i> ${isVisa ? 'Visa Documents' : 'Travel Documents'}</span>
+                                    <div style="display: flex; gap: 8px;">
+                                        ${[[0, 'Pending', '#f59e0b', 'fa-clock'], [1, 'Prepared', '#22c55e', 'fa-check'], [2, 'N/A', '#94a3b8', 'fa-ban']].map(([val, label, color, icon]) => {
+                                            const isActive = Number(booking.travel_documents || 0) === val;
+                                            return `<button type="button" onclick="selectTravelDocState(this, ${val})" style="flex: 1; padding: 9px 10px; border-radius: 8px; border: 1.5px solid ${isActive ? color : '#e2e8f0'}; background: ${isActive ? color : '#fff'}; color: ${isActive ? '#fff' : '#64748b'}; font-weight: 600; font-size: 0.82rem; cursor: pointer; transition: all 0.15s;" data-color="${color}"><i class="fas ${icon}" style="margin-right: 4px;"></i>${label}</button>`;
+                                        }).join('')}
+                                    </div>
+                                    <input type="hidden" id="travel_documents" value="${Number(booking.travel_documents || 0)}">
+                                </div>
+
                                 <label style="display: flex; align-items: center; gap: 12px; background: #f8fafc; padding: 12px 16px; border-radius: 12px; border: 1px solid #e2e8f0; cursor: pointer; transition: all 0.2s;">
                                     <input type="checkbox" id="ready_for_travel" ${booking.ready_for_travel == 1 ? 'checked' : ''} style="width: 20px; height: 20px; accent-color: #22c55e; margin: 0; cursor: pointer;">
                                     <span style="font-weight: 600; color: #334155; font-size: 0.95rem;"><i class="fas fa-check-double" style="color:#22c55e; margin-right: 8px;"></i> Ready for Travel</span>
@@ -5810,7 +6281,14 @@ $unreadMessagesCount = $stmtMessagesCount ? $stmtMessagesCount->fetchColumn() : 
         // Sidebar Toggle
         // --- Advanced Bookings Dashboard Logic ---
         let bookings = <?php
-        $stmt = $pdo->prepare("SELECT * FROM bookings ORDER BY created_at DESC");
+        $stmt = $pdo->prepare("
+            SELECT b.*, au.full_name AS confirmed_by_name, cu.full_name AS completed_by_name, xu.full_name AS cancelled_by_name
+            FROM bookings b
+            LEFT JOIN admin_users au ON b.confirmed_by = au.id
+            LEFT JOIN admin_users cu ON b.completed_by = cu.id
+            LEFT JOIN admin_users xu ON b.cancelled_by = xu.id
+            ORDER BY b.created_at DESC
+        ");
         $stmt->execute();
         $rawBookings = $stmt->fetchAll(PDO::FETCH_ASSOC);
         foreach ($rawBookings as &$b) {
@@ -5818,6 +6296,12 @@ $unreadMessagesCount = $stmtMessagesCount ? $stmtMessagesCount->fetchColumn() : 
 
             // Identify if it's explicitly a Visa Service
             $b['is_visa_service'] = ($b['destination_name'] === 'Visa Assistance' || stripos($b['package_name'] ?? '', 'Visa') !== false);
+
+            // Identify Cruise / Hotel / Flight / Experience services for their own filter tabs
+            $b['is_cruise_service'] = ($b['destination_name'] === 'Cruise Vacation');
+            $b['is_hotel_service'] = ($b['destination_name'] === 'Hotel');
+            $b['is_flight_service'] = ($b['destination_name'] === 'Flight Booking');
+            $b['is_experience_service'] = ($b['destination_name'] === 'Travel Experience');
 
             // Determine Visa Status - Show status if it's a visa service OR if a status has been manually set
             if ($b['is_visa_service'] || (!empty($b['visa_status']) && $b['visa_status'] !== 'N/A')) {
@@ -5849,6 +6333,24 @@ $unreadMessagesCount = $stmtMessagesCount ? $stmtMessagesCount->fetchColumn() : 
             if (!body) return;
 
             body.innerHTML = '';
+
+            if (filteredBookings.length === 0) {
+                const search = document.getElementById('filterSearchInput')?.value?.trim();
+                const subtext = search
+                    ? `No results for "${escapeHtml(search)}". Try a different search term.`
+                    : 'There are no bookings in this view yet.';
+                body.innerHTML = `
+                    <tr>
+                        <td colspan="11" style="text-align:center; padding:70px 20px;">
+                            <i class="fas fa-inbox" style="font-size:2.75rem; color:#cbd5e1; margin-bottom:16px; display:block;"></i>
+                            <p style="color:#334155; font-size:1.05rem; font-weight:700; margin:0 0 6px;">No bookings available</p>
+                            <p style="color:#94a3b8; font-size:0.88rem; margin:0;">${subtext}</p>
+                        </td>
+                    </tr>
+                `;
+                document.getElementById('bookingCountDisplay').innerText = '(0)';
+                return;
+            }
 
             filteredBookings.forEach(booking => {
                 const tr = document.createElement('tr');
@@ -5885,16 +6387,16 @@ $unreadMessagesCount = $stmtMessagesCount ? $stmtMessagesCount->fetchColumn() : 
                             <div style="font-size: 0.75rem; color: #64748b;">${new Date(booking.created_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}</div>
                         </div>
                     </td>
-                    <td style="vertical-align: top;">${escapeHtml(booking.package_name || booking.destination_name || 'N/A')}</td>
+                    <td style="vertical-align: top; cursor: pointer; color: #003580; font-weight: 600; text-decoration: underline; text-decoration-color: #cbd5e1;" onclick="showBookingPackagePreview(${booking.id})" title="View package details">${escapeHtml(booking.package_name || booking.destination_name || 'N/A')}</td>
                     <td style="vertical-align: top;">
                         <div style="font-weight: 600; color: #475569;">
                             ${new Date(booking.travel_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                         </div>
                     </td>
                     <td style="vertical-align: top; text-align: center; display: ${isInquiryView ? 'none' : 'table-cell'};">
-                        <span class="status-badge ${booking.travel_documents == 1 ? 'status-confirmed' : 'status-pending'}">
-                            <i class="fas ${booking.travel_documents == 1 ? 'fa-check-circle' : 'fa-clock'}"></i>
-                            ${booking.travel_documents == 1 ? 'PREPARED' : 'PENDING'}
+                        <span class="status-badge ${Number(booking.travel_documents) === 1 ? 'status-confirmed' : (Number(booking.travel_documents) === 2 ? 'status-incomplete' : 'status-pending')}">
+                            <i class="fas ${Number(booking.travel_documents) === 1 ? 'fa-check-circle' : (Number(booking.travel_documents) === 2 ? 'fa-ban' : 'fa-clock')}"></i>
+                            ${Number(booking.travel_documents) === 1 ? 'PREPARED' : (Number(booking.travel_documents) === 2 ? 'N/A' : 'PENDING')}
                         </span>
                     </td>
                     <td style="vertical-align: top; text-align: center; display: ${isInquiryView ? 'none' : 'table-cell'};">
@@ -5903,10 +6405,10 @@ $unreadMessagesCount = $stmtMessagesCount ? $stmtMessagesCount->fetchColumn() : 
                             (booking.visa === 'PAID' ? 'status-paid-visa' : 'status-pending'))
                     }">${booking.visa}</span>
                     </td>
-                    <td style="vertical-align: top; text-align: center; display: ${isInquiryView ? 'none' : 'table-cell'}; ${booking.payment_status === 'paid' ? 'cursor: pointer;' : ''}" ${booking.payment_status === 'paid' ? `onclick="showReceiptAlert(${booking.id})"` : ''}>
+                    <td style="vertical-align: top; text-align: center; display: ${isInquiryView ? 'none' : 'table-cell'}; cursor: pointer;" onclick="showReceiptAlert(${booking.id})" title="View proof of payment">
                         <span class="status-badge ${booking.payment_status === 'paid' ? 'status-confirmed' : 'status-pending'}">${booking.payment_status.toUpperCase()}</span>
                     </td>
-                    <td style="vertical-align: top; text-align: center; display: ${isInquiryView ? 'none' : ((currentFilter.key === 'service_type' && currentFilter.value === 'VISA') || (currentFilter.key === 'completed_type' && currentFilter.value === 'VISA') ? 'none' : 'table-cell')};">
+                    <td style="vertical-align: top; text-align: center; display: ${isInquiryView ? 'none' : ((currentFilter.key === 'service_type' && currentFilter.value === 'VISA') || (currentFilter.key === 'completed_type' && currentFilter.value === 'VISA') ? 'none' : 'table-cell')}; cursor: pointer;" onclick="showBookingStatusInfo(${booking.id})" title="View status details">
                         <span class="status-badge status-${booking.booking_status.toLowerCase()}">${booking.booking_status.toUpperCase()}</span>
                     </td>
                     <td class="action-buttons" style="text-align: center; vertical-align: top;">
@@ -6173,6 +6675,10 @@ $unreadMessagesCount = $stmtMessagesCount ? $stmtMessagesCount->fetchColumn() : 
                 if (value === 'ALL') document.getElementById('serviceAllBtn').classList.add('active');
                 if (value === 'VISA') document.getElementById('serviceVisaBtn').classList.add('active');
                 if (value === 'TOUR') document.getElementById('serviceTourBtn').classList.add('active');
+                if (value === 'CRUISE') document.getElementById('serviceCruiseBtn').classList.add('active');
+                if (value === 'HOTEL') document.getElementById('serviceHotelBtn').classList.add('active');
+                if (value === 'FLIGHT') document.getElementById('serviceFlightBtn').classList.add('active');
+                if (value === 'EXPERIENCE') document.getElementById('serviceExperienceBtn').classList.add('active');
                 if (value === 'INQUIRIES') document.getElementById('serviceInquiriesBtn').classList.add('active');
             }
 
@@ -6199,6 +6705,10 @@ $unreadMessagesCount = $stmtMessagesCount ? $stmtMessagesCount->fetchColumn() : 
                 if (value === 'ALL') document.getElementById('completedAllBtn').classList.add('active');
                 if (value === 'VISA') document.getElementById('completedVisaBtn').classList.add('active');
                 if (value === 'TOUR') document.getElementById('completedTourBtn').classList.add('active');
+                if (value === 'CRUISE') document.getElementById('completedCruiseBtn').classList.add('active');
+                if (value === 'HOTEL') document.getElementById('completedHotelBtn').classList.add('active');
+                if (value === 'FLIGHT') document.getElementById('completedFlightBtn').classList.add('active');
+                if (value === 'EXPERIENCE') document.getElementById('completedExperienceBtn').classList.add('active');
                 if (value === 'INQUIRIES') document.getElementById('completedInquiriesBtn').classList.add('active');
             }
 
@@ -6245,6 +6755,25 @@ $unreadMessagesCount = $stmtMessagesCount ? $stmtMessagesCount->fetchColumn() : 
         }
 
         // Logic Source of Truth: When is a booking truly "FINISHED"?
+        function isOtherCategoryService(b) {
+            return !!(b.is_visa_service || b.is_cruise_service || b.is_hotel_service || b.is_flight_service || b.is_experience_service);
+        }
+
+        function selectTravelDocState(btn, value) {
+            const group = btn.parentElement;
+            group.querySelectorAll('button').forEach(b => {
+                const color = b.getAttribute('data-color');
+                b.style.background = '#fff';
+                b.style.color = '#64748b';
+                b.style.borderColor = '#e2e8f0';
+            });
+            const color = btn.getAttribute('data-color');
+            btn.style.background = color;
+            btn.style.color = '#fff';
+            btn.style.borderColor = color;
+            document.getElementById('travel_documents').value = value;
+        }
+
         function isFullyCompleted(b) {
             // 1. Status Check (Must be 'completed')
             const statusMatch = String(b.booking_status || '').toLowerCase() === 'completed';
@@ -6252,8 +6781,9 @@ $unreadMessagesCount = $stmtMessagesCount ? $stmtMessagesCount->fetchColumn() : 
             // 2. Payment Check (Must be 'paid')
             const paymentMatch = String(b.payment_status || '').toLowerCase() === 'paid';
 
-            // 3. Tracking Check (Both steps must be checked)
-            const trackingMatch = Number(b.travel_documents) === 1 && Number(b.ready_for_travel) === 1;
+            // 3. Tracking Check (documents must be Prepared(1) or Not Applicable(2), and ready-for-travel checked)
+            const docsMatch = Number(b.travel_documents) === 1 || Number(b.travel_documents) === 2;
+            const trackingMatch = docsMatch && Number(b.ready_for_travel) === 1;
 
             // 4. Visa Check (Must be 'APPROVED' or 'N/A')
             // We check visa_status directly to catch cases where a tour package still has a pending visa entry
@@ -6298,8 +6828,16 @@ $unreadMessagesCount = $stmtMessagesCount ? $stmtMessagesCount->fetchColumn() : 
                 if (currentFilter.key === 'service_type') {
                     if (currentFilter.value === 'VISA') {
                         filteredBookings = filteredBookings.filter(b => b.is_visa_service && b.payment_method !== 'Inquiry Only');
+                    } else if (currentFilter.value === 'CRUISE') {
+                        filteredBookings = filteredBookings.filter(b => b.is_cruise_service && b.payment_method !== 'Inquiry Only');
+                    } else if (currentFilter.value === 'HOTEL') {
+                        filteredBookings = filteredBookings.filter(b => b.is_hotel_service && b.payment_method !== 'Inquiry Only');
+                    } else if (currentFilter.value === 'FLIGHT') {
+                        filteredBookings = filteredBookings.filter(b => b.is_flight_service && b.payment_method !== 'Inquiry Only');
+                    } else if (currentFilter.value === 'EXPERIENCE') {
+                        filteredBookings = filteredBookings.filter(b => b.is_experience_service && b.payment_method !== 'Inquiry Only');
                     } else if (currentFilter.value === 'TOUR') {
-                        filteredBookings = filteredBookings.filter(b => !b.is_visa_service && b.payment_method !== 'Inquiry Only');
+                        filteredBookings = filteredBookings.filter(b => !isOtherCategoryService(b) && b.payment_method !== 'Inquiry Only');
                     } else if (currentFilter.value === 'INQUIRIES') {
                         filteredBookings = filteredBookings.filter(b => b.payment_method === 'Inquiry Only');
                     }
@@ -6335,8 +6873,16 @@ $unreadMessagesCount = $stmtMessagesCount ? $stmtMessagesCount->fetchColumn() : 
             if (currentFilter.key === 'completed_type') {
                 if (currentFilter.value === 'VISA') {
                     filteredBookings = filteredBookings.filter(b => b.is_visa_service && b.payment_method !== 'Inquiry Only');
+                } else if (currentFilter.value === 'CRUISE') {
+                    filteredBookings = filteredBookings.filter(b => b.is_cruise_service && b.payment_method !== 'Inquiry Only');
+                } else if (currentFilter.value === 'HOTEL') {
+                    filteredBookings = filteredBookings.filter(b => b.is_hotel_service && b.payment_method !== 'Inquiry Only');
+                } else if (currentFilter.value === 'FLIGHT') {
+                    filteredBookings = filteredBookings.filter(b => b.is_flight_service && b.payment_method !== 'Inquiry Only');
+                } else if (currentFilter.value === 'EXPERIENCE') {
+                    filteredBookings = filteredBookings.filter(b => b.is_experience_service && b.payment_method !== 'Inquiry Only');
                 } else if (currentFilter.value === 'TOUR') {
-                    filteredBookings = filteredBookings.filter(b => !b.is_visa_service && b.payment_method !== 'Inquiry Only');
+                    filteredBookings = filteredBookings.filter(b => !isOtherCategoryService(b) && b.payment_method !== 'Inquiry Only');
                 } else if (currentFilter.value === 'INQUIRIES') {
                     filteredBookings = filteredBookings.filter(b => b.payment_method === 'Inquiry Only');
                 }
@@ -6366,6 +6912,18 @@ $unreadMessagesCount = $stmtMessagesCount ? $stmtMessagesCount->fetchColumn() : 
                     if (currentFilter.value === 'VISA') {
                         tableTitleText.innerText = 'Service Availed: Visa Assistance';
                         tableTitleIcon.className = 'fas fa-passport';
+                    } else if (currentFilter.value === 'CRUISE') {
+                        tableTitleText.innerText = 'Service Availed: Cruises';
+                        tableTitleIcon.className = 'fas fa-ship';
+                    } else if (currentFilter.value === 'HOTEL') {
+                        tableTitleText.innerText = 'Service Availed: Hotel Services';
+                        tableTitleIcon.className = 'fas fa-hotel';
+                    } else if (currentFilter.value === 'FLIGHT') {
+                        tableTitleText.innerText = 'Service Availed: Airline Bookings';
+                        tableTitleIcon.className = 'fas fa-plane';
+                    } else if (currentFilter.value === 'EXPERIENCE') {
+                        tableTitleText.innerText = 'Service Availed: Experiences';
+                        tableTitleIcon.className = 'fas fa-hiking';
                     } else if (currentFilter.value === 'TOUR') {
                         tableTitleText.innerText = 'Service Availed: Tour Packages';
                         tableTitleIcon.className = 'fas fa-map-marked-alt';
@@ -6379,6 +6937,18 @@ $unreadMessagesCount = $stmtMessagesCount ? $stmtMessagesCount->fetchColumn() : 
                 } else if (currentFilter.key === 'completed_type') {
                     if (currentFilter.value === 'VISA') {
                         tableTitleText.innerText = 'Completed: Visa Assistance';
+                        tableTitleIcon.className = 'fas fa-check-double';
+                    } else if (currentFilter.value === 'CRUISE') {
+                        tableTitleText.innerText = 'Completed: Cruises';
+                        tableTitleIcon.className = 'fas fa-check-double';
+                    } else if (currentFilter.value === 'HOTEL') {
+                        tableTitleText.innerText = 'Completed: Hotel Services';
+                        tableTitleIcon.className = 'fas fa-check-double';
+                    } else if (currentFilter.value === 'FLIGHT') {
+                        tableTitleText.innerText = 'Completed: Airline Bookings';
+                        tableTitleIcon.className = 'fas fa-check-double';
+                    } else if (currentFilter.value === 'EXPERIENCE') {
+                        tableTitleText.innerText = 'Completed: Experiences';
                         tableTitleIcon.className = 'fas fa-check-double';
                     } else if (currentFilter.value === 'TOUR') {
                         tableTitleText.innerText = 'Completed: Tour Packages';
@@ -6479,10 +7049,18 @@ $unreadMessagesCount = $stmtMessagesCount ? $stmtMessagesCount->fetchColumn() : 
                 allActive: 0,
                 tourActive: 0,
                 visaActive: 0,
+                cruiseActive: 0,
+                hotelActive: 0,
+                flightActive: 0,
+                experienceActive: 0,
                 inquiriesActive: 0,
                 allCompleted: 0,
                 tourCompleted: 0,
                 visaCompleted: 0,
+                cruiseCompleted: 0,
+                hotelCompleted: 0,
+                flightCompleted: 0,
+                experienceCompleted: 0,
                 inquiriesCompleted: 0,
                 upcoming: 0,
                 trashed: 0
@@ -6505,6 +7083,10 @@ $unreadMessagesCount = $stmtMessagesCount ? $stmtMessagesCount->fetchColumn() : 
             bookings.forEach(b => {
                 const isCompleted = isFullyCompleted(b);
                 const isVisa = b.is_visa_service;
+                const isCruise = b.is_cruise_service;
+                const isHotel = b.is_hotel_service;
+                const isFlight = b.is_flight_service;
+                const isExperience = b.is_experience_service;
                 const isInquiry = b.payment_method === 'Inquiry Only';
                 const isViewed = viewedList.includes(String(b.booking_number));
                 const isTrashed = b.is_trashed;
@@ -6518,12 +7100,20 @@ $unreadMessagesCount = $stmtMessagesCount ? $stmtMessagesCount->fetchColumn() : 
                     counts.allCompleted++;
                     if (isInquiry) counts.inquiriesCompleted++;
                     else if (isVisa) counts.visaCompleted++;
+                    else if (isCruise) counts.cruiseCompleted++;
+                    else if (isHotel) counts.hotelCompleted++;
+                    else if (isFlight) counts.flightCompleted++;
+                    else if (isExperience) counts.experienceCompleted++;
                     else counts.tourCompleted++;
                 } else {
                     if (!isViewed) {
                         counts.allActive++;
                         if (isInquiry) counts.inquiriesActive++;
                         else if (isVisa) counts.visaActive++;
+                        else if (isCruise) counts.cruiseActive++;
+                        else if (isHotel) counts.hotelActive++;
+                        else if (isFlight) counts.flightActive++;
+                        else if (isExperience) counts.experienceActive++;
                         else counts.tourActive++;
                     }
 
@@ -6553,10 +7143,18 @@ $unreadMessagesCount = $stmtMessagesCount ? $stmtMessagesCount->fetchColumn() : 
             updateCount('serviceAllBtn', counts.allActive);
             updateCount('serviceTourBtn', counts.tourActive);
             updateCount('serviceVisaBtn', counts.visaActive);
+            updateCount('serviceCruiseBtn', counts.cruiseActive);
+            updateCount('serviceHotelBtn', counts.hotelActive);
+            updateCount('serviceFlightBtn', counts.flightActive);
+            updateCount('serviceExperienceBtn', counts.experienceActive);
             updateCount('serviceInquiriesBtn', counts.inquiriesActive);
             updateCount('completedAllBtn', counts.allCompleted);
             updateCount('completedTourBtn', counts.tourCompleted);
             updateCount('completedVisaBtn', counts.visaCompleted);
+            updateCount('completedCruiseBtn', counts.cruiseCompleted);
+            updateCount('completedHotelBtn', counts.hotelCompleted);
+            updateCount('completedFlightBtn', counts.flightCompleted);
+            updateCount('completedExperienceBtn', counts.experienceCompleted);
             updateCount('completedInquiriesBtn', counts.inquiriesCompleted);
             updateCount('trashFilterBtn', counts.trashed);
             updateCount('upcomingFilterBtn', counts.upcoming);
@@ -6568,33 +7166,12 @@ $unreadMessagesCount = $stmtMessagesCount ? $stmtMessagesCount->fetchColumn() : 
                 sidebarBooking.style.display = counts.allActive > 0 ? 'inline-flex' : 'none';
             }
 
-            // Sync bookingCountDisplay with the active filter badge count
-            // so the table title count ALWAYS matches the filter button badge
-            const countDisplay = document.getElementById('bookingCountDisplay');
-            if (countDisplay) {
-                let activeCount = filteredBookings.length;
-
-                // Map the active filter to its pre-computed count for perfect badge ↔ title sync
-                if (currentFilter.key === 'service_type') {
-                    if (currentFilter.value === 'TOUR') activeCount = counts.tourActive;
-                    else if (currentFilter.value === 'VISA') activeCount = counts.visaActive;
-                    else if (currentFilter.value === 'INQUIRIES') activeCount = counts.inquiriesActive;
-                    else activeCount = counts.allActive;   // ALL
-                } else if (currentFilter.key === 'completed_type') {
-                    if (currentFilter.value === 'TOUR') activeCount = counts.tourCompleted;
-                    else if (currentFilter.value === 'VISA') activeCount = counts.visaCompleted;
-                    else if (currentFilter.value === 'INQUIRIES') activeCount = counts.inquiriesCompleted;
-                    else activeCount = counts.allCompleted; // ALL completed
-                } else if (currentFilter.type === 'upcoming') {
-                    activeCount = counts.upcoming;
-                } else if (currentFilter.key === 'trashed') {
-                    activeCount = counts.trashed;
-                } else {
-                    activeCount = counts.allActive; // default: all active
-                }
-
-                countDisplay.innerText = `(${activeCount})`;
-            }
+            // NOTE: bookingCountDisplay (the big title count) is set by renderTable()
+            // from filteredBookings.length — the actual number of rows on screen.
+            // It must NOT be overridden here with the "unviewed only" counts above,
+            // since those serve a different purpose (new-item badges on the filter
+            // buttons) and would show a smaller number than what's actually visible
+            // in the table, which is confusing (e.g. "(0)" while rows are shown).
         }
 
         function resetFilters() {
@@ -7007,7 +7584,7 @@ $unreadMessagesCount = $stmtMessagesCount ? $stmtMessagesCount->fetchColumn() : 
                         formData.append('payment_status', document.getElementById('payment_status').value);
                         formData.append('admin_notes', document.getElementById('admin_notes')?.value || '');
                         formData.append('flight_details', document.getElementById('flight_details')?.value || '');
-                        formData.append('travel_documents', document.getElementById('travel_documents')?.checked ? '1' : '0');
+                        formData.append('travel_documents', document.getElementById('travel_documents')?.value || '0');
                         formData.append('ready_for_travel', document.getElementById('ready_for_travel')?.checked ? '1' : '0');
                         formData.append('number_of_travelers', document.getElementById('number_of_travelers')?.value || '1');
                         formData.append('price_per_person', document.getElementById('price_per_person')?.value || '0');

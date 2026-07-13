@@ -26,13 +26,31 @@ try {
             FROM foreign_destinations fd
             LEFT JOIN partner_applications p ON fd.partner_id = p.id
             LEFT JOIN partner_profiles pr ON pr.partner_id = fd.partner_id
-            WHERE " . ($isNumeric ? "fd.id = ?" : "fd.dest_key = ?") . " AND fd.is_active = 1
+            WHERE " . ($isNumeric ? "fd.id = ?" : "fd.dest_key = ?") . "
             LIMIT 1
         ";
         $stmt = $pdo->prepare($sql);
         $stmt->execute([$key]);
         $destination = $stmt->fetch(PDO::FETCH_ASSOC);
-        
+
+        // Fallback: no exact dest_key match — try matching by name (handles
+        // callers that only have a display name/title, e.g. admin previews
+        // resolving a historical booking's package name).
+        if (!$destination && !$isNumeric) {
+            $fallbackStmt = $pdo->prepare("
+                SELECT
+                    fd.*,
+                    COALESCE(pr.business_display_name, p.company_name, fd.partner_company) AS partner_company
+                FROM foreign_destinations fd
+                LEFT JOIN partner_applications p ON fd.partner_id = p.id
+                LEFT JOIN partner_profiles pr ON pr.partner_id = fd.partner_id
+                WHERE (fd.name = :name OR REPLACE(LOWER(fd.name), ' ', '_') = :name OR fd.name LIKE :name_like)
+                LIMIT 1
+            ");
+            $fallbackStmt->execute(['name' => $key, 'name_like' => '%' . $key . '%']);
+            $destination = $fallbackStmt->fetch(PDO::FETCH_ASSOC);
+        }
+
         if ($destination) {
             // Parse JSON fields
             $destination['itinerary'] = $destination['itinerary'] ? json_decode($destination['itinerary'], true) : [];
@@ -53,7 +71,8 @@ try {
         } else {
             echo json_encode([
                 'success' => false,
-                'error' => 'Destination not found'
+                'error' => 'Destination not found',
+                'deleted' => true
             ]);
         }
     } 
