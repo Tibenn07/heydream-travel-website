@@ -2297,8 +2297,15 @@ if ($selected_dest_name) {
             }
         };
 
-        // ========== UPDATED showDestinationDetails WITH PAYMENT METHODS ==========
+        // "View Details" now navigates to the full package-details.php page
+        // instead of opening this page's own legacy modal, matching every
+        // other local-package entry point on the site.
         function showDestinationDetails(destKey) {
+            window.location.href = `package-details.php?type=local&id=${encodeURIComponent(destKey)}`;
+        }
+
+        // ========== UPDATED showDestinationDetails WITH PAYMENT METHODS (unused, kept for reference) ==========
+        function showDestinationDetailsModal_unused(destKey) {
             const destination = allDestinations.find(d => d.key === destKey);
             if (!destination) return;
 

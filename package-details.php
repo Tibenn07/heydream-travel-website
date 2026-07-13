@@ -27,8 +27,11 @@ try {
             $stmt = $pdo->prepare($sql . "d.id = :id");
             $stmt->execute(['id' => intval($identifier)]);
         } else {
+            // Homepage cards prefix the slug with "local_" (e.g. "local_boracay"),
+            // while other entry points pass the bare slug — accept both.
+            $lookupKey = preg_replace('/^local_/', '', $identifier);
             $stmt = $pdo->prepare($sql . "(d.name = :name OR REPLACE(LOWER(d.name), ' ', '_') = :name OR d.name LIKE :name_like)");
-            $stmt->execute(['name' => $identifier, 'name_like' => '%' . $identifier . '%']);
+            $stmt->execute(['name' => $lookupKey, 'name_like' => '%' . $lookupKey . '%']);
         }
         $row = $stmt->fetch(PDO::FETCH_ASSOC);
         if ($row) {
@@ -159,6 +162,7 @@ function resolveImgSrc($path)
     <title><?= $pkg ? htmlspecialchars($pkg['name']) . ' - HeyDream Travel' : 'Package Not Found - HeyDream Travel' ?></title>
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="css/sidepanel.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
 
@@ -167,9 +171,14 @@ function resolveImgSrc($path)
 
         .pkgdet-wrap { max-width: 1200px; margin: 0 auto; padding: 24px 20px 60px; }
 
-        .pkgdet-breadcrumb { font-size: 0.85rem; color: #64748b; margin-bottom: 16px; }
+        .pkgdet-top-row { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; margin-bottom: 16px; }
+
+        .pkgdet-breadcrumb { font-size: 0.85rem; color: #64748b; }
         .pkgdet-breadcrumb a { color: #003580; text-decoration: none; font-weight: 600; }
         .pkgdet-breadcrumb a:hover { text-decoration: underline; }
+
+        .pkgdet-back-btn { display: inline-flex; align-items: center; gap: 8px; background: #fff; color: #003580; border: 1px solid #e2e8f0; padding: 8px 16px; border-radius: 20px; font-weight: 700; font-size: 0.85rem; text-decoration: none; box-shadow: 0 1px 3px rgba(15,23,42,0.06); cursor: pointer; transition: background 0.2s, box-shadow 0.2s; flex-shrink: 0; }
+        .pkgdet-back-btn:hover { background: #f1f5f9; box-shadow: 0 2px 6px rgba(15,23,42,0.1); }
 
         .pkgdet-title-row { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 16px; }
         .pkgdet-title-row h1 { font-size: 1.9rem; font-weight: 800; color: #0f172a; margin: 0 0 6px; }
@@ -250,8 +259,17 @@ function resolveImgSrc($path)
         .pkgdet-price-meta { display: flex; flex-direction: column; gap: 8px; margin-top: 16px; font-size: 0.85rem; color: #475569; }
         .pkgdet-price-meta div { display: flex; justify-content: space-between; }
 
-        .pkgdet-notfound { text-align: center; padding: 100px 20px; }
-        .pkgdet-notfound i { font-size: 3.5rem; color: #cbd5e1; margin-bottom: 20px; display: block; }
+        .pkgdet-notfound { text-align: center; min-height: 56vh; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 40px 20px; }
+        .pkgdet-notfound .pkgdet-notfound-icon { width: 88px; height: 88px; border-radius: 50%; background: #eef2ff; display: flex; align-items: center; justify-content: center; margin: 0 auto 24px; }
+        .pkgdet-notfound .pkgdet-notfound-icon i { font-size: 2.2rem; color: #003580; }
+        .pkgdet-notfound h2 { font-size: 1.6rem; font-weight: 800; color: #0f172a; margin-bottom: 8px; }
+        .pkgdet-notfound p { color: #64748b; margin-bottom: 28px; }
+        .pkgdet-notfound-actions { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; }
+        .pkgdet-notfound-btn { display: inline-flex; align-items: center; gap: 8px; padding: 12px 26px; border-radius: 24px; font-weight: 700; font-size: 0.9rem; text-decoration: none; transition: transform 0.15s, box-shadow 0.15s; }
+        .pkgdet-notfound-btn.primary { background: #003580; color: #fff; box-shadow: 0 4px 12px rgba(0,53,128,0.25); }
+        .pkgdet-notfound-btn.primary:hover { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(0,53,128,0.32); }
+        .pkgdet-notfound-btn.secondary { background: #fff; color: #003580; border: 1px solid #e2e8f0; }
+        .pkgdet-notfound-btn.secondary:hover { background: #f1f5f9; transform: translateY(-2px); }
 
         /* ---- Lightbox ---- */
         .pkgdet-lightbox { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.92); z-index: 5000; align-items: center; justify-content: center; }
@@ -347,16 +365,23 @@ function resolveImgSrc($path)
         <div class="pkgdet-wrap">
             <?php if (!$pkg): ?>
                 <div class="pkgdet-notfound">
-                    <i class="fas fa-map-signs"></i>
+                    <div class="pkgdet-notfound-icon"><i class="fas fa-map-signs"></i></div>
                     <h2>Package Not Found</h2>
-                    <p style="color:#64748b; margin-bottom: 24px;">This package may have been removed or the link is incorrect.</p>
-                    <a href="index.php" style="background:#003580; color:#fff; padding:12px 28px; border-radius:24px; text-decoration:none; font-weight:700;">Back to Home</a>
+                    <p>This package may have been removed or the link is incorrect.</p>
+                    <div class="pkgdet-notfound-actions">
+                        <a href="javascript:void(0)" class="pkgdet-notfound-btn secondary" onclick="goBackFromPackageDetails('index.php')"><i class="fas fa-arrow-left"></i> Go Back</a>
+                        <a href="index.php" class="pkgdet-notfound-btn primary"><i class="fas fa-home"></i> Back to Home</a>
+                    </div>
                 </div>
             <?php else: ?>
-                <div class="pkgdet-breadcrumb">
-                    <a href="index.php">Home</a> /
-                    <a href="<?= $pkg['type'] === 'local' ? 'local-destination.php' : ($pkg['type'] === 'foreign' ? 'foreign-destinations.php' : 'flash-deals.php') ?>"><?= $pkg['type'] === 'local' ? 'Local Tours' : ($pkg['type'] === 'foreign' ? 'Foreign Tours' : 'Flash Deals') ?></a> /
-                    <?= htmlspecialchars($pkg['name']) ?>
+                <?php $pkgListingUrl = $pkg['type'] === 'local' ? 'local-destination.php' : ($pkg['type'] === 'foreign' ? 'foreign-destinations.php' : 'flash-deals.php'); ?>
+                <div class="pkgdet-top-row">
+                    <a href="index.php" class="pkgdet-back-btn"><i class="fas fa-home"></i> Back to Home</a>
+                    <div class="pkgdet-breadcrumb">
+                        <a href="index.php">Home</a> /
+                        <a href="<?= $pkgListingUrl ?>"><?= $pkg['type'] === 'local' ? 'Local Tours' : ($pkg['type'] === 'foreign' ? 'Foreign Tours' : 'Flash Deals') ?></a> /
+                        <?= htmlspecialchars($pkg['name']) ?>
+                    </div>
                 </div>
 
                 <div class="pkgdet-title-row">
@@ -461,7 +486,7 @@ function resolveImgSrc($path)
                             <div class="pkgdet-partner-box">
                                 <div class="icon"><i class="fas fa-store"></i></div>
                                 <div>
-                                    <a href="view-partner-profile.php?id=<?= intval($pkg['partner_id']) ?>"><?= htmlspecialchars($pkg['partner_company'] ?: 'Partner Provider') ?></a>
+                                    <a href="view-partner-profile.php?id=<?= intval($pkg['partner_id']) ?>&from_type=<?= urlencode($type) ?>&from_id=<?= urlencode($identifier) ?>"><?= htmlspecialchars($pkg['partner_company'] ?: 'Partner Provider') ?></a>
                                     <p style="margin:2px 0 0; color:#64748b; font-size:0.82rem;">This package is offered by one of our trusted partners.</p>
                                 </div>
                             </div>
@@ -504,7 +529,7 @@ function resolveImgSrc($path)
                             <div class="pkgdet-price-meta">
                                 <div><span>Duration</span><strong><?= htmlspecialchars($pkg['duration']) ?></strong></div>
                                 <div><span>Group Size</span><strong><?= htmlspecialchars($pkg['group_size']) ?></strong></div>
-                                <div><span>Best Season</span><strong><?= htmlspecialchars($pkg['best_season']) ?></strong></div>
+                                <div><span>Travel Validity</span><strong><?= htmlspecialchars($pkg['best_season']) ?></strong></div>
                             </div>
                         </div>
                     </div>
@@ -600,6 +625,20 @@ function resolveImgSrc($path)
             if (e.key === 'ArrowRight') shiftLightbox(1);
         });
 
+        // Package pages are linked from many places (home, listing pages, search,
+        // saved items, partner profiles) -- prefer real browser history so "Back"
+        // returns wherever the user actually came from, and only fall back to the
+        // matching listing page when there's no same-site history to go back to
+        // (e.g. the page was opened directly or in a new tab).
+        function goBackFromPackageDetails(fallbackUrl) {
+            const cameFromThisSite = document.referrer && document.referrer.indexOf(window.location.host) !== -1;
+            if (cameFromThisSite && window.history.length > 1) {
+                window.history.back();
+            } else {
+                window.location.href = fallbackUrl;
+            }
+        }
+
         // "Book This Deal" reuses the existing, proven modal booking flow —
         // opens the same popup used elsewhere on the site, then jumps
         // straight to its booking step instead of the details tab, since
@@ -621,9 +660,9 @@ function resolveImgSrc($path)
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
     <script src="js/auth-menu.js?v=2"></script>
     <script src="js/voucher-checkout.js"></script>
-    <script src="js/home-packages.js?v=2"></script>
-    <script src="js/foreign-packages.js?v=2"></script>
-    <script src="js/flash-deals.js?v=2"></script>
+    <script src="js/home-packages.js?v=3"></script>
+    <script src="js/foreign-packages.js?v=3"></script>
+    <script src="js/flash-deals.js?v=3"></script>
     <script src="js/saved.js"></script>
 </body>
 

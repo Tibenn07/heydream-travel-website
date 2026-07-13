@@ -32,10 +32,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $stmt = $pdo->prepare("INSERT INTO password_resets (email, token, expires_at) VALUES (?, ?, ?)");
                 $stmt->execute([$email, $token, $expiresAt]);
                 
-                // Create reset link
+                // Create reset link. Build the base path dynamically from the current
+                // script's location instead of hardcoding a folder name -- a stale
+                // hardcoded "/HeyDream Website/User Account/..." path here previously
+                // sent users to a 404 because the project folder had since been renamed.
                 $protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https://' : 'http://';
-               // Create reset link - THIS MUST BE CORRECT
-$resetLink = $protocol . $_SERVER['HTTP_HOST'] . "/HeyDream%20Website/User%20Account/reset-password.php?token=" . $token;
+                $basePath = str_replace('\\', '/', rtrim(dirname(dirname($_SERVER['SCRIPT_NAME'])), '/\\'));
+                $safeBasePath = str_replace(' ', '%20', $basePath);
+                $resetLink = $protocol . $_SERVER['HTTP_HOST'] . $safeBasePath . "/User%20Account/reset-password.php?token=" . $token;
                 
                 // Send email
                 $result = sendPasswordResetEmail($email, $user['full_name'], $resetLink);

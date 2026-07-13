@@ -330,22 +330,6 @@ window.showForeignPackagePopupModal = async function (destKey) {
                     <div class="detail-item"><i class="fas fa-clock"></i><div class="detail-label">TRAVEL VALIDITY</div><div class="detail-value">${escapeHtml(formatValidityDate(destination.promo_start, destination.promo_end, destination.bestSeason))}</div></div>
                     <div class="detail-item"><i class="fas fa-users"></i><div class="detail-label">GROUP SIZE</div><div class="detail-value">${escapeHtml(destination.groupSize)}</div></div>
                     <div class="detail-item"><i class="fas fa-calendar-alt"></i><div class="detail-label">DURATION</div><div class="detail-value">${escapeHtml(destination.duration)}</div></div>
-                    <div class="detail-item hotel-selection-item" onclick="toggleForeignHotelSelection()" style="cursor:pointer;">
-                        <i class="fas fa-hotel"></i>
-                        <div class="detail-label">HOTEL</div>
-                        <div class="detail-value" id="foreignSelectedHotelName" style="color:#ff9800; font-weight:bold;">${destination.hotels && destination.hotels.length > 0 ? escapeHtml(destination.hotels[0].name) + (destination.hotels[0].stars ? '⭐'.repeat(destination.hotels[0].stars) : '') : 'Change Hotel'} <i class="fas fa-chevron-down" style="font-size:0.7rem; margin-left:5px;"></i></div>
-                    </div>
-                </div>
-                <div id="foreignHotelDropdown" class="hotel-dropdown" style="display:none; margin: 10px 0; background: white; border: 1px solid #ddd; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
-                    ${(destination.hotels || []).map((h, i) => `
-                        <div class="hotel-option ${i === 0 ? 'active' : ''}" onclick="selectForeignHotel(${i}, '${escapeHtml(h.name).replace(/'/g, "\\'")}', ${h.stars || 0}, ${h.price})" style="padding: 12px 15px; border-bottom: 1px solid #eee; cursor: pointer; transition: background 0.2s;">
-                            <div style="display:flex; justify-content:space-between; align-items:center;">
-                                <span style="font-weight:500;">${escapeHtml(h.name)} <span style="font-size:0.8rem;">${h.stars ? '⭐'.repeat(h.stars) : ''}</span></span>
-                                <span style="color:#4caf50; font-size:0.9rem;">${h.price > 0 ? `+${destination.currency || '₱'}${formatNumber(h.price)}` : 'Included'}</span>
-                            </div>
-                        </div>
-                    `).join('')}
-                    ${(!destination.hotels || destination.hotels.length === 0) ? '<div style="padding:15px; text-align:center; color:#888;">No other hotels available</div>' : ''}
                 </div>
             </div>
 
@@ -382,9 +366,6 @@ window.showForeignPackagePopupModal = async function (destKey) {
         </div>
 
         <div id="foreignBookingView" style="display:none;">
-            <div style="margin-bottom:15px;">
-                <button onclick="document.getElementById('foreignBookingView').style.display='none'; document.getElementById('foreignDetailsView').style.display='block';" style="background:none; border:none; color:#003580; font-weight:600; cursor:pointer;"><i class="fas fa-arrow-left"></i> Back to Details</button>
-            </div>
             <div class="deal-price-card">
                 <div class="price">${destination.currency || '₱'}${formatNumber(destination.price)}</div>
                 <small>/ person</small>
@@ -445,7 +426,27 @@ window.showForeignPackagePopupModal = async function (destKey) {
                         </button>
                     </div>
                 </div>
-                
+
+                ${destination.hotels && destination.hotels.length > 0 ? `
+                <div class="form-group" style="margin-top:20px;">
+                    <label>Hotel</label>
+                    <div class="hotel-selection-item" onclick="toggleForeignHotelSelection()" style="cursor:pointer; border:1px solid #ddd; border-radius:8px; padding:12px 15px; display:flex; align-items:center; justify-content:space-between;">
+                        <span><i class="fas fa-hotel" style="color:#ff9800; margin-right:8px;"></i><span id="foreignSelectedHotelName" style="font-weight:600;">${escapeHtml(destination.hotels[0].name)}${destination.hotels[0].stars ? ' ' + '⭐'.repeat(destination.hotels[0].stars) : ''}</span></span>
+                        <i class="fas fa-chevron-down" style="font-size:0.8rem; color:#666;"></i>
+                    </div>
+                    <div id="foreignHotelDropdown" class="hotel-dropdown" style="display:none; margin-top:8px; background: white; border: 1px solid #ddd; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+                        ${destination.hotels.map((h, i) => `
+                            <div class="hotel-option ${i === 0 ? 'active' : ''}" onclick="selectForeignHotel(${i}, '${escapeHtml(h.name).replace(/'/g, "\\'")}', ${h.stars || 0}, ${h.price})" style="padding: 12px 15px; border-bottom: 1px solid #eee; cursor: pointer; transition: background 0.2s;">
+                                <div style="display:flex; justify-content:space-between; align-items:center;">
+                                    <span style="font-weight:500;">${escapeHtml(h.name)} <span style="font-size:0.8rem;">${h.stars ? '⭐'.repeat(h.stars) : ''}</span></span>
+                                    <span style="color:#4caf50; font-size:0.9rem;">${h.price > 0 ? `+${destination.currency || '₱'}${formatNumber(h.price)}` : 'Included'}</span>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+                ` : ''}
+
                 <div id="foreignStep1Errors" class="error-message" style="display: none;"></div>
                 
                 <div class="action-buttons">
@@ -681,7 +682,10 @@ window.showForeignPackagePopupModal = async function (destKey) {
 
     flatpickr('#foreignStepDate', {
         minDate: destination.promo_start && new Date(destination.promo_start) > new Date() ? destination.promo_start : 'today',
-        maxDate: destination.promo_end || null,
+        // A promo_end in the past (an expired promo an admin never updated) must
+        // not be used as maxDate -- that would put maxDate before minDate and
+        // flatpickr disables every date on the calendar with no visible error.
+        maxDate: destination.promo_end && new Date(destination.promo_end) > new Date() ? destination.promo_end : null,
         disableMobile: true,
         disable: [
             ...blockedDates,
@@ -966,37 +970,39 @@ function validateForeignStep1() {
     return true;
 }
 
-window.resumeForeignBooking = function (destKey, step) {
+window.resumeForeignBooking = async function (destKey, step) {
     const modal = document.getElementById('foreignPackageModal');
     if (modal && modal.classList.contains('active')) {
-        // Modal is already open, just go to the next step
-        if (step > 1) {
+        // Modal is already open. resumeForeignBooking is only ever called to
+        // enter or resume the booking flow (never to show the details view),
+        // so always switch to it -- package-details.php already shows details.
+        const detailsView = document.getElementById('foreignDetailsView');
+        const bookingView = document.getElementById('foreignBookingView');
+        if (detailsView) detailsView.style.display = 'none';
+        if (bookingView) bookingView.style.display = 'block';
+        goToForeignStep(step);
+    } else {
+        // Modal not open (likely after login redirect, or arriving fresh from
+        // package-details.php). showForeignPackagePopupModal does a real
+        // network fetch + builds the modal -- await it fully instead of
+        // guessing a fixed delay, otherwise goToForeignStep can run before
+        // the modal (and its date picker) is actually ready.
+        if (typeof showForeignPackagePopupModal === 'function') {
+            await showForeignPackagePopupModal(destKey);
+
+            // Always switch straight to the booking view -- skip the
+            // redundant details view since package-details.php already shows it.
             const detailsView = document.getElementById('foreignDetailsView');
             const bookingView = document.getElementById('foreignBookingView');
             if (detailsView) detailsView.style.display = 'none';
             if (bookingView) bookingView.style.display = 'block';
-        }
-        goToForeignStep(step);
-    } else {
-        // Modal not open (likely after login redirect), load it first
-        if (typeof showForeignPackagePopupModal === 'function') {
-            showForeignPackagePopupModal(destKey);
-            setTimeout(() => {
-                // Switch to booking view if needed
-                if (step > 1) {
-                    const detailsView = document.getElementById('foreignDetailsView');
-                    const bookingView = document.getElementById('foreignBookingView');
-                    if (detailsView) detailsView.style.display = 'none';
-                    if (bookingView) bookingView.style.display = 'block';
-                }
 
-                // Pre-fill user info if available
-                if (window.currentFullName) {
-                    const nameField = document.getElementById('foreignStepFullName');
-                    if (nameField) nameField.value = window.currentFullName;
-                }
-                goToForeignStep(step);
-            }, 500); // Small delay to allow modal to render
+            // Pre-fill user info if available
+            if (window.currentFullName) {
+                const nameField = document.getElementById('foreignStepFullName');
+                if (nameField) nameField.value = window.currentFullName;
+            }
+            goToForeignStep(step);
         }
     }
 };

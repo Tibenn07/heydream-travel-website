@@ -7,6 +7,17 @@ if ($partnerId <= 0) {
     die('<h1>Invalid Partner</h1><p>No partner ID provided.</p>');
 }
 
+// If we arrived here from a package's details page, "Back" should return
+// there instead of dumping the user on the homepage.
+$fromType = $_GET['from_type'] ?? '';
+$fromId = $_GET['from_id'] ?? '';
+$backUrl = 'index.php';
+$backLabel = 'Back to Home';
+if ($fromType && $fromId) {
+    $backUrl = 'package-details.php?type=' . urlencode($fromType) . '&id=' . urlencode($fromId);
+    $backLabel = 'Back to Package Details';
+}
+
 $stmt = $pdo->prepare("SELECT * FROM partner_applications WHERE id = ? AND status = 'approved' LIMIT 1");
 $stmt->execute([$partnerId]);
 $partner = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -208,7 +219,7 @@ if ($hasMapQuery && GOOGLE_MAPS_API_KEY !== '') {
                 <img src="images/Heydream Logo.png" alt="HeyDream">
                 <span>Partner Profile</span>
             </div>
-            <a href="index.php" class="top-back"><i class="fas fa-arrow-left"></i> Back to Home</a>
+            <a href="<?= htmlspecialchars($backUrl) ?>" class="top-back"><i class="fas fa-arrow-left"></i> <?= htmlspecialchars($backLabel) ?></a>
         </div>
 
         <div class="profile-hero">
