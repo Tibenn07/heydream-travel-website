@@ -47,13 +47,14 @@ $pdo->prepare("UPDATE bookings SET travel_date = '2026-05-20' WHERE booking_numb
 // Get statistics
 // Trashed (soft-deleted) bookings are excluded from every stat below — they're
 // no longer "active" once moved to Trash, even though the row still exists.
-$totalBookings = $pdo->query("SELECT COUNT(*) FROM bookings WHERE deleted_at IS NULL AND partner_approved = 1")->fetchColumn();
-$pendingBookings = $pdo->query("SELECT COUNT(*) FROM bookings WHERE booking_status = 'pending' AND deleted_at IS NULL AND partner_approved = 1")->fetchColumn();
-$confirmedBookings = $pdo->query("SELECT COUNT(*) FROM bookings WHERE booking_status = 'confirmed' AND deleted_at IS NULL AND partner_approved = 1")->fetchColumn();
+$activeBookingCondition = "(deleted_at IS NULL OR deleted_at = '0000-00-00 00:00:00')";
+$totalBookings = $pdo->query("SELECT COUNT(*) FROM bookings WHERE {$activeBookingCondition} AND partner_approved = 1")->fetchColumn();
+$pendingBookings = $pdo->query("SELECT COUNT(*) FROM bookings WHERE booking_status = 'pending' AND {$activeBookingCondition} AND partner_approved = 1")->fetchColumn();
+$confirmedBookings = $pdo->query("SELECT COUNT(*) FROM bookings WHERE booking_status = 'confirmed' AND {$activeBookingCondition} AND partner_approved = 1")->fetchColumn();
 
 // Calculate Revenue (Foreign bookings as USD, others as Peso)
-$totalRevenueUSD = $pdo->query("SELECT SUM(total_amount) FROM bookings WHERE payment_status = 'paid' AND deleted_at IS NULL AND partner_approved = 1 AND (booking_number LIKE 'FO-%' OR booking_number LIKE 'FOR-%')")->fetchColumn() ?: 0;
-$totalRevenuePeso = $pdo->query("SELECT SUM(total_amount) FROM bookings WHERE payment_status = 'paid' AND deleted_at IS NULL AND partner_approved = 1 AND (booking_number NOT LIKE 'FO-%' AND booking_number NOT LIKE 'FOR-%')")->fetchColumn() ?: 0;
+$totalRevenueUSD = $pdo->query("SELECT SUM(total_amount) FROM bookings WHERE payment_status = 'paid' AND {$activeBookingCondition} AND partner_approved = 1 AND (booking_number LIKE 'FO-%' OR booking_number LIKE 'FOR-%')")->fetchColumn() ?: 0;
+$totalRevenuePeso = $pdo->query("SELECT SUM(total_amount) FROM bookings WHERE payment_status = 'paid' AND {$activeBookingCondition} AND partner_approved = 1 AND (booking_number NOT LIKE 'FO-%' AND booking_number NOT LIKE 'FOR-%')")->fetchColumn() ?: 0;
 
 $totalUsers = $pdo->query("SELECT COUNT(*) FROM users")->fetchColumn();
 $totalDestinations = $pdo->query("SELECT COUNT(*) FROM destinations")->fetchColumn();
@@ -71,7 +72,7 @@ $bookingsChartEndDate = date('Y-m-d', strtotime($bookingsChartStartDate . ' +13 
 
 $dailyBookingsRaw = $pdo->prepare("SELECT DATE(created_at) as booking_date, COUNT(*) as total
     FROM bookings
-    WHERE DATE(created_at) BETWEEN ? AND ? AND deleted_at IS NULL AND partner_approved = 1
+    WHERE DATE(created_at) BETWEEN ? AND ? AND ({$activeBookingCondition}) AND partner_approved = 1
     GROUP BY DATE(created_at)");
 $dailyBookingsRaw->execute([$bookingsChartStartDate, $bookingsChartEndDate]);
 $dailyBookingsRaw = $dailyBookingsRaw->fetchAll(PDO::FETCH_KEY_PAIR);
@@ -117,7 +118,7 @@ try {
 }
 
 // Get pending inquiries count for marketing badge
-$stmtInqCount = $pdo->query("SELECT COUNT(*) FROM bookings WHERE payment_method = 'Inquiry Only' AND deleted_at IS NULL AND partner_approved = 1");
+$stmtInqCount = $pdo->query("SELECT COUNT(*) FROM bookings WHERE payment_method = 'Inquiry Only' AND ({$activeBookingCondition}) AND partner_approved = 1");
 $pendingInquiriesCount = $stmtInqCount->fetchColumn();
 
 // Get active bookings count for sidebar badge — mirrors JS isFullyCompleted() logic exactly:
@@ -125,7 +126,7 @@ $pendingInquiriesCount = $stmtInqCount->fetchColumn();
 $stmtBookCount = $pdo->query("
     SELECT COUNT(*) FROM bookings
     WHERE booking_status != 'cancelled'
-    AND deleted_at IS NULL
+    AND ({$activeBookingCondition})
     AND partner_approved = 1
     AND NOT (
         booking_status = 'completed'
@@ -2251,70 +2252,83 @@ $unreadMessagesCount = $stmtMessagesCount ? $stmtMessagesCount->fetchColumn() : 
                 </div>
             </div>
 
-            <div class="data-table">
-                <div class="table-header">
-                    <h2><i class="fas fa-clock"></i> Recent Bookings</h2>
-                </div>
-                <div class="table-responsive">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Phone</th>
-                                <th>Customer</th>
-                                <th>Service #</th>
-                                <th>Destination</th>
-                                <th>Travel Date</th>
-                                <th>Total</th>
-                                <th>Status</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <?php
-                            $stmt = $pdo->prepare("SELECT * FROM bookings WHERE deleted_at IS NULL AND partner_approved = 1 ORDER BY created_at DESC LIMIT 5");
-                            $stmt->execute();
-                            $recentBookings = $stmt->fetchAll();
-                            foreach ($recentBookings as $booking):
-                                $statusClass = '';
-                                switch ($booking['booking_status']) {
-                                    case 'pending':
-                                        $statusClass = 'status-pending';
-                                        break;
-                                    case 'confirmed':
-                                        $statusClass = 'status-confirmed';
-                                        break;
-                                    case 'cancelled':
-                                        $statusClass = 'status-cancelled';
-                                        break;
-                                    case 'completed':
-                                        $statusClass = 'status-completed';
-                                        break;
-                                }
+            <?php
+            $stmt = $pdo->prepare("SELECT * FROM bookings WHERE (deleted_at IS NULL OR deleted_at = '0000-00-00 00:00:00') AND partner_approved = 1 ORDER BY created_at DESC LIMIT 5");
+            $stmt->execute();
+            $recentBookings = $stmt->fetchAll();
+            ?>
 
-                                $contactNum = (!empty($booking['contact_number']) && $booking['contact_number'] !== 'N/A')
-                                    ? $booking['contact_number']
-                                    : (!empty($booking['phone']) ? $booking['phone'] : 'N/A');
-                                ?>
+            <?php if (!empty($recentBookings)): ?>
+                <div class="data-table">
+                    <div class="table-header">
+                        <h2><i class="fas fa-clock"></i> Recent Bookings</h2>
+                    </div>
+                    <div class="table-responsive">
+                        <table>
+                            <thead>
                                 <tr>
-                                    <td><strong><?= htmlspecialchars($contactNum) ?></strong></td>
-                                    <td onclick="viewUserHistory('<?= $booking['email'] ?>', '<?= htmlspecialchars($booking['full_name'], ENT_QUOTES) ?>')"
-                                        style="cursor: pointer; color: var(--primary); font-weight: 600;"
-                                        title="Click to view travel history">
-                                        <?= htmlspecialchars($booking['full_name']) ?>
-                                    </td>
-                                    <td><strong><?= $booking['booking_number'] ?></strong></td>
-                                    <td><?= htmlspecialchars($booking['destination_name']) ?></td>
-                                    <td><?= date('M d, Y', strtotime($booking['travel_date'])) ?></td>
-                                    <td><?= ((strpos($booking['booking_number'], 'FO-') === 0 || strpos($booking['booking_number'], 'FOR-') === 0) ? '$' : '₱') . number_format($booking['total_amount'], 2) ?>
-                                    </td>
-                                    <td><span
-                                            class="status-badge <?= $statusClass ?>"><?= ucfirst($booking['booking_status']) ?></span>
-                                    </td>
+                                    <th>Phone</th>
+                                    <th>Customer</th>
+                                    <th>Service #</th>
+                                    <th>Destination</th>
+                                    <th>Travel Date</th>
+                                    <th>Total</th>
+                                    <th>Status</th>
                                 </tr>
-                            <?php endforeach; ?>
-                        </tbody>
-                    </table>
+                            </thead>
+                            <tbody>
+                                <?php foreach ($recentBookings as $booking):
+                                    $statusClass = '';
+                                    switch ($booking['booking_status']) {
+                                        case 'pending':
+                                            $statusClass = 'status-pending';
+                                            break;
+                                        case 'confirmed':
+                                            $statusClass = 'status-confirmed';
+                                            break;
+                                        case 'cancelled':
+                                            $statusClass = 'status-cancelled';
+                                            break;
+                                        case 'completed':
+                                            $statusClass = 'status-completed';
+                                            break;
+                                    }
+
+                                    $contactNum = (!empty($booking['contact_number']) && $booking['contact_number'] !== 'N/A')
+                                        ? $booking['contact_number']
+                                        : (!empty($booking['phone']) ? $booking['phone'] : 'N/A');
+                                    ?>
+                                    <tr>
+                                        <td><strong><?= htmlspecialchars($contactNum) ?></strong></td>
+                                        <td onclick="viewUserHistory('<?= $booking['email'] ?>', '<?= htmlspecialchars($booking['full_name'], ENT_QUOTES) ?>')"
+                                            style="cursor: pointer; color: var(--primary); font-weight: 600;"
+                                            title="Click to view travel history">
+                                            <?= htmlspecialchars($booking['full_name']) ?>
+                                        </td>
+                                        <td><strong><?= $booking['booking_number'] ?></strong></td>
+                                        <td><?= htmlspecialchars($booking['destination_name']) ?></td>
+                                        <td><?= date('M d, Y', strtotime($booking['travel_date'])) ?></td>
+                                        <td><?= ((strpos($booking['booking_number'], 'FO-') === 0 || strpos($booking['booking_number'], 'FOR-') === 0) ? '$' : '₱') . number_format($booking['total_amount'], 2) ?>
+                                        </td>
+                                        <td><span
+                                                class="status-badge <?= $statusClass ?>"><?= ucfirst($booking['booking_status']) ?></span>
+                                        </td>
+                                    </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
-            </div>
+            <?php else: ?>
+                <div class="data-table">
+                    <div class="table-header">
+                        <h2><i class="fas fa-clock"></i> Recent Bookings</h2>
+                    </div>
+                    <div class="table-responsive" style="padding: 30px; text-align: center; color: #64748b; font-size: 0.95rem; background: #fff; border: 1px solid #e2e8f0; border-radius: 16px;">
+                        No recent booking data is available because there are no active bookings in the Bookings section.
+                    </div>
+                </div>
+            <?php endif; ?>
 
         </div>
 
@@ -6288,7 +6302,7 @@ $unreadMessagesCount = $stmtMessagesCount ? $stmtMessagesCount->fetchColumn() : 
             LEFT JOIN admin_users au ON b.confirmed_by = au.id
             LEFT JOIN admin_users cu ON b.completed_by = cu.id
             LEFT JOIN admin_users xu ON b.cancelled_by = xu.id
-            WHERE b.deleted_at IS NULL AND b.partner_approved = 1
+            WHERE ({$activeBookingCondition}) AND b.partner_approved = 1
             ORDER BY b.created_at DESC
         ");
         $stmt->execute();
