@@ -229,10 +229,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'confirm_booking') {
     $bookingId = (int)($_POST['booking_id'] ?? 0);
     if ($bookingId > 0) {
-        $checkStmt = $pdo->prepare("SELECT id FROM bookings WHERE id = ? AND partner_id = ?");
+        $checkStmt = $pdo->prepare("SELECT id FROM bookings WHERE id = ? AND partner_id = ? AND deleted_at IS NULL");
         $checkStmt->execute([$bookingId, $partnerId]);
         if ($checkStmt->fetch()) {
-            $stmt = $pdo->prepare("UPDATE bookings SET booking_status = 'confirmed', payment_status = 'paid', partner_approved = 1 WHERE id = ? AND partner_id = ?");
+            $stmt = $pdo->prepare("UPDATE bookings SET booking_status = 'confirmed', payment_status = 'paid', partner_approved = 1 WHERE id = ? AND partner_id = ? AND deleted_at IS NULL");
+            if ($stmt->execute([$bookingId, $partnerId])) {
+                $successMessage = 'Booking approved successfully. It will now appear in the admin Bookings dashboard.';
+            } else {
+                $errorMessage = 'Failed to approve booking. Please try again.';
+            }
         }
     }
 }
@@ -242,7 +247,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     if ($bookingId > 0) {
         $checkStmt = $pdo->prepare(
             "SELECT booking_status, payment_status, email, full_name, booking_number, destination_name, package_name, partner_package_name, travel_date, number_of_travelers, total_amount, travel_documents, ready_for_travel
-             FROM bookings WHERE id = ? AND partner_id = ?"
+             FROM bookings WHERE id = ? AND partner_id = ? AND deleted_at IS NULL"
         );
         $checkStmt->execute([$bookingId, $partnerId]);
         $oldBooking = $checkStmt->fetch(PDO::FETCH_ASSOC);
@@ -328,12 +333,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'delete_booking') {
     $bookingId = (int)($_POST['booking_id'] ?? 0);
     if ($bookingId > 0) {
-        $checkStmt = $pdo->prepare("SELECT id FROM bookings WHERE id = ? AND partner_id = ?");
+        $checkStmt = $pdo->prepare("SELECT id FROM bookings WHERE id = ? AND partner_id = ? AND deleted_at IS NULL");
         $checkStmt->execute([$bookingId, $partnerId]);
         if ($checkStmt->fetch()) {
-            $stmt = $pdo->prepare("DELETE FROM bookings WHERE id = ? AND partner_id = ?");
-            $stmt->execute([$bookingId, $partnerId]);
-            $successMessage = 'Booking deleted successfully!';
+            $stmt = $pdo->prepare("UPDATE bookings SET deleted_at = NOW() WHERE id = ? AND partner_id = ? AND deleted_at IS NULL");
+            if ($stmt->execute([$bookingId, $partnerId])) {
+                $successMessage = 'Booking removed successfully. It will also disappear from admin and partner booking lists.';
+            } else {
+                $errorMessage = 'Failed to remove booking. Please try again.';
+            }
         } else {
             $errorMessage = 'You do not have permission to delete this booking.';
         }
@@ -607,7 +615,13 @@ $partnerBookingStatsStmt = $pdo->prepare(
     "SELECT COUNT(*) AS total_bookings,
             COALESCE(SUM(CASE WHEN payment_status = 'paid' OR booking_status IN ('confirmed','completed') THEN total_amount ELSE 0 END), 0) AS paid_revenue,
             COALESCE(SUM(CASE WHEN payment_status = 'unpaid' AND booking_status = 'pending' THEN total_amount ELSE 0 END), 0) AS pending_revenue
-     FROM bookings WHERE partner_id = ?"
+     FROM bookings
+     WHERE partner_id = ?
+       AND deleted_at IS NULL
+       AND destination_name NOT LIKE '%Chocolate Hills%'
+       AND package_name NOT LIKE '%Chocolate Hills%'
+       AND partner_package_name NOT LIKE '%Chocolate Hills%'
+    "
 );
 $partnerBookingStatsStmt->execute([$partnerId]);
 $partnerBookingStats = $partnerBookingStatsStmt->fetch(PDO::FETCH_ASSOC) ?: [
@@ -615,13 +629,6 @@ $partnerBookingStats = $partnerBookingStatsStmt->fetch(PDO::FETCH_ASSOC) ?: [
     'paid_revenue' => 0,
     'pending_revenue' => 0,
 ];
-
-$recentBookingsStmt = $pdo->prepare(
-    "SELECT id, booking_number, full_name, package_name, partner_package_name, destination_name, total_amount, booking_status, payment_status, created_at
-     FROM bookings WHERE partner_id = ? ORDER BY created_at DESC LIMIT 10"
-);
-$recentBookingsStmt->execute([$partnerId]);
-$partnerBookings = $recentBookingsStmt->fetchAll();
 
 $paginatedBookings = [];
 $totalPages = 1;
@@ -636,9 +643,13 @@ if (($section ?? 'dashboard') === 'bookings') {
     $limit = 10;
     $offset = ($currentPage - 1) * $limit;
 
-    $whereClause = "partner_id = :partner_id";
+    $whereClause = "partner_id = :partner_id AND deleted_at IS NULL"
+                 . " AND destination_name NOT LIKE :exclude_destination"
+                 . " AND package_name NOT LIKE :exclude_destination"
+                 . " AND partner_package_name NOT LIKE :exclude_destination";
     $params = [
         'partner_id' => $partnerId,
+        'exclude_destination' => '%Chocolate Hills%',
     ];
 
     if ($searchQuery !== '') {
@@ -2262,7 +2273,7 @@ if (($section ?? 'dashboard') === 'bookings') {
             </div>
             <nav class="nav-list">
                 <a href="partner-dashboard.php" class="<?= $section === 'dashboard' ? 'active' : '' ?>"><i class="fas fa-chart-pie"></i> Dashboard</a>
-                <a href="partner-dashboard.php?section=bookings" class="<?= $section === 'bookings' ? 'active' : '' ?>"><i class="fas fa-book-open"></i> Bookings</a>
+                <a href="partner-dashboard.php?section=bookings" class="<?= $section === 'bookings' ? 'active' : '' ?>"><i class="fas fa-clipboard-list"></i> Bookings</a>
                 <a href="partner-dashboard.php?section=profile" class="<?= $section === 'profile' ? 'active' : '' ?>"><i class="fas fa-user-tie"></i> My Profile</a>
                 <a href="partner-content-manager.php" class="nav-item"><i class="fas fa-edit"></i> Content Manager</a>
                 <a href="partner-dashboard.php?section=report-problems" class="<?= $section === 'report-problems' ? 'active' : '' ?>"><i class="fas fa-headset"></i> Report problems</a>
@@ -2302,7 +2313,7 @@ if (($section ?? 'dashboard') === 'bookings') {
                 <div class="dashboard-hero-actions">
                     <?php if ($section === 'dashboard'): ?>
                         <a class="pill-btn primary" href="partner-content-manager.php"><i class="fas fa-upload"></i> Upload Package</a>
-                        <a class="pill-btn" href="partner-dashboard.php?section=bookings"><i class="fas fa-book-open"></i> View Bookings</a>
+                        <a class="pill-btn" href="partner-dashboard.php?section=bookings"><i class="fas fa-clipboard-list"></i> Bookings</a>
                         <a class="pill-btn" href="partner-dashboard.php?section=profile"><i class="fas fa-user-tie"></i> Profile</a>
                     <?php endif; ?>
                     <a class="pill-btn logout-btn" href="partner-logout.php"><i class="fas fa-sign-out-alt"></i> Logout</a>
@@ -2392,44 +2403,6 @@ if (($section ?? 'dashboard') === 'bookings') {
                     </div>
                 </section>
 
-                <section class="panel">
-                    <div class="panel-head">
-                        <h3>Customer Booking Activity</h3>
-                        <span class="muted">Packages booked by customers from your partnership listings</span>
-                    </div>
-                    <div class="table-wrap">
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>Customer</th>
-                                    <th>Booked Package</th>
-                                    <th>Amount</th>
-                                    <th>Status</th>
-                                    <th>Date</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <?php if (empty($partnerBookings)): ?>
-                                    <tr><td colspan="5" class="muted">No customer bookings recorded yet.</td></tr>
-                                <?php else: ?>
-                                    <?php foreach ($partnerBookings as $booking): ?>
-                                        <?php $displayPackage = $booking['partner_package_name'] ?: $booking['package_name']; ?>
-                                        <tr>
-                                            <td>
-                                                <strong><?= htmlspecialchars($booking['full_name'] ?: 'Customer') ?></strong><br>
-                                                <span class="muted"><?= htmlspecialchars($booking['booking_number']) ?></span>
-                                            </td>
-                                            <td><?= htmlspecialchars($displayPackage ?: 'Package not listed') ?></td>
-                                            <td>₱<?= number_format((float)($booking['total_amount'] ?? 0), 2) ?></td>
-                                            <td><span class="status-badge <?= htmlspecialchars(($booking['payment_status'] === 'paid' || $booking['booking_status'] === 'confirmed' || $booking['booking_status'] === 'completed') ? 'success' : 'pending') ?>"><?= htmlspecialchars(ucfirst($booking['payment_status'] ?: $booking['booking_status'] ?: 'pending')) ?></span></td>
-                                            <td><?= htmlspecialchars(date('M d, Y', strtotime($booking['created_at']))) ?></td>
-                                        </tr>
-                                    <?php endforeach; ?>
-                                <?php endif; ?>
-                            </tbody>
-                        </table>
-                    </div>
-                </section>
             <?php elseif ($section === 'bookings'): ?>
                 <section class="panel">
                     <div class="panel-head">

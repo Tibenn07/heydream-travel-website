@@ -1115,13 +1115,13 @@ EOF;
 
             $id = intval($idInput);
             if ($id > 0) {
-                $stmt = $pdo->prepare("UPDATE bookings SET deleted_at = NOW() WHERE id = ? AND deleted_at IS NULL");
+                $stmt = $pdo->prepare("UPDATE bookings SET deleted_at = NOW() WHERE id = ? AND (deleted_at IS NULL OR deleted_at = '' OR deleted_at = '0000-00-00 00:00:00')");
                 $success = $stmt->execute([$id]);
                 $deleted = $success && $stmt->rowCount() > 0;
                 debugLog("Booking soft-delete " . ($deleted ? "successful" : "failed") . " for ID: " . $id);
                 echo json_encode(['success' => $deleted, 'message' => $deleted ? 'Booking moved to Trash successfully' : 'Booking not found or already trashed']);
             } elseif ($bookingNumberInput !== '') {
-                $stmt = $pdo->prepare("UPDATE bookings SET deleted_at = NOW() WHERE booking_number = ? AND deleted_at IS NULL");
+                $stmt = $pdo->prepare("UPDATE bookings SET deleted_at = NOW() WHERE booking_number = ? AND (deleted_at IS NULL OR deleted_at = '' OR deleted_at = '0000-00-00 00:00:00')");
                 $success = $stmt->execute([$bookingNumberInput]);
                 $deleted = $success && $stmt->rowCount() > 0;
                 debugLog("Booking soft-delete " . ($deleted ? "successful" : "failed") . " for booking number: " . $bookingNumberInput);
