@@ -2606,12 +2606,9 @@ try {
                                 <div class="price-tag">
                                     <?= htmlspecialchars($visa['currency']) ?>         <?= number_format($visa['price'], 0) ?>
                                 </div>
-                                <button class="book-btn" data-desc="<?= htmlspecialchars($visa['description'] ?? '') ?>"
-                                    data-reqs="<?= htmlspecialchars($visa_requirements_json) ?>"
-                                    data-disclaimer="<?= htmlspecialchars($visa_disclaimer) ?>"
-                                    data-notes="<?= htmlspecialchars($visa_notes) ?>"
-                                    onclick="showVisaGate(this, '<?= addslashes($visa['title']) ?>', <?= $visa['price'] ?>, '<?= addslashes($visa['processing_time'] ?? '') ?>')">
-                                    Apply Now <i class="fas fa-arrow-right"></i>
+                                <button class="book-btn"
+                                    onclick="window.location.href='visa-details.php?id=<?= intval($visa['id']) ?>'">
+                                    View Details <i class="fas fa-arrow-right"></i>
                                 </button>
                             </div>
                         </div>

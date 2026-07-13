@@ -3157,7 +3157,7 @@ try {
         <div class="service-grid">
             <?php if (!empty($db_experiences)): ?>
                 <?php foreach ($db_experiences as $service): ?>
-                    <div class="service-card" onclick="viewServiceDetails(<?= $service['id'] ?>)">
+                    <div class="service-card" onclick="window.location.href='experience-details.php?id=<?= $service['id'] ?>'">
                         <div class="card-main-layout">
                             <div class="service-image-container">
                                 <div class="card-badge">
@@ -3847,7 +3847,7 @@ try {
 
             footer.innerHTML = `
                 <button class="btn-back" onclick="goToExpStep2()"><i class="fas fa-arrow-left"></i> Back</button>
-                <button class="btn-proceed" id="finalPaymentBtn" style="opacity:0.5; pointer-events:none;" onclick="renderExpStep4()">Complete Payment <i class="fas fa-check-circle"></i></button>
+                <button class="btn-proceed" id="finalPaymentBtn" style="opacity:0.5; pointer-events:none;" onclick="validateAndGoToStep4()">Complete Payment <i class="fas fa-check-circle"></i></button>
             `;
         }
 

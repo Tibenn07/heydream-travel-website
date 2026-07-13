@@ -3727,7 +3727,7 @@ try {
                                 </div>
                             </div>
 
-                            <button class="card-action-btn" onclick="viewServiceDetails(<?= $flight['id'] ?>)">
+                            <button class="card-action-btn" onclick="window.location.href='flight-details.php?id=<?= $flight['id'] ?>'">
                                 View Details <i class="fas fa-arrow-right"></i>
                             </button>
                         </div>
@@ -4477,6 +4477,7 @@ try {
             div.textContent = text;
             return div.innerHTML;
         }
+
     </script>
     <script>
         /* ==========================================

@@ -3893,7 +3893,7 @@ try {
                                         </div>
                                     </div>
 
-                                    <button class="view-details-btn" onclick="viewCruiseDetails(<?= $cruise['id'] ?>)">
+                                    <button class="view-details-btn" onclick="window.location.href='cruise-details.php?id=<?= $cruise['id'] ?>'">
                                         View Details <i class="fas fa-arrow-right"></i>
                                     </button>
                                 </div>

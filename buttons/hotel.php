@@ -2313,7 +2313,7 @@ try {
                                     </div>
 
                                     <button class="view-details-btn"
-                                        onclick="viewServiceDetails(<?php echo $service['id']; ?>)">
+                                        onclick="window.location.href='hotel-details.php?id=<?php echo $service['id']; ?>'">
                                         View Details <i class="fas fa-arrow-right"></i>
                                     </button>
                                 </div>
