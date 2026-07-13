@@ -75,7 +75,7 @@ switch ($action) {
             $campaign_ids = isset($_GET['campaign_ids']) ? explode(',', $_GET['campaign_ids']) : [];
 
             // Map emails to social media sources from inquiries
-            $stmt = $pdo->prepare("SELECT email, special_requests FROM bookings WHERE email IS NOT NULL AND email != '' AND payment_method = 'Inquiry Only'");
+            $stmt = $pdo->prepare("SELECT email, special_requests FROM bookings WHERE email IS NOT NULL AND email != '' AND payment_method = 'Inquiry Only' AND deleted_at IS NULL");
             $stmt->execute();
             $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
@@ -250,11 +250,15 @@ switch ($action) {
             $id = isset($_POST['id']) ? intval($_POST['id']) : 0;
             $booking_number = $_POST['booking_number'] ?? '';
 
+            // Inquiries are rows in the shared `bookings` table, so this soft-deletes
+            // (sets deleted_at) instead of hard-deleting, matching admin-api.php's
+            // delete_booking — an inquiry can be restored from Trash instead of
+            // being gone permanently.
             if ($id === 0 && $booking_number !== '') {
-                $stmt = $pdo->prepare("DELETE FROM bookings WHERE booking_number = ?");
+                $stmt = $pdo->prepare("UPDATE bookings SET deleted_at = NOW() WHERE booking_number = ? AND deleted_at IS NULL");
                 $stmt->execute([$booking_number]);
             } else if ($id > 0) {
-                $stmt = $pdo->prepare("DELETE FROM bookings WHERE id = ?");
+                $stmt = $pdo->prepare("UPDATE bookings SET deleted_at = NOW() WHERE id = ? AND deleted_at IS NULL");
                 $stmt->execute([$id]);
             } else {
                 ob_clean();
@@ -297,9 +301,9 @@ switch ($action) {
         if ($audience === 'website')
             $stmt = $pdo->query("SELECT email, full_name FROM users WHERE email IS NOT NULL AND email != '' AND marketing_consent = 1 GROUP BY email");
         elseif ($audience === 'inquiries')
-            $stmt = $pdo->query("SELECT email, full_name FROM bookings WHERE email IS NOT NULL AND email != '' AND payment_method = 'Inquiry Only' AND marketing_consent = 1 GROUP BY email");
+            $stmt = $pdo->query("SELECT email, full_name FROM bookings WHERE email IS NOT NULL AND email != '' AND payment_method = 'Inquiry Only' AND marketing_consent = 1 AND deleted_at IS NULL GROUP BY email");
         else
-            $stmt = $pdo->query("SELECT email, full_name FROM users WHERE email IS NOT NULL AND email != '' AND marketing_consent = 1 UNION SELECT email, full_name FROM bookings WHERE email IS NOT NULL AND email != '' AND marketing_consent = 1");
+            $stmt = $pdo->query("SELECT email, full_name FROM users WHERE email IS NOT NULL AND email != '' AND marketing_consent = 1 UNION SELECT email, full_name FROM bookings WHERE email IS NOT NULL AND email != '' AND marketing_consent = 1 AND deleted_at IS NULL");
 
         $recipients = $stmt->fetchAll(PDO::FETCH_ASSOC);
         $totalCount = count($recipients);
@@ -768,21 +772,21 @@ switch ($action) {
     case 'get_inquiry_stats':
         try {
             // 1. Current Stats
-            $stmt = $pdo->query("SELECT 
+            $stmt = $pdo->query("SELECT
                 COUNT(*) as total,
                 SUM(CASE WHEN booking_status NOT IN ('contacted', 'completed', 'cancelled', 'confirmed') THEN 1 ELSE 0 END) as pending,
                 SUM(CASE WHEN booking_status = 'confirmed' THEN 1 ELSE 0 END) as confirmed
-                FROM bookings WHERE payment_method = 'Inquiry Only'");
+                FROM bookings WHERE payment_method = 'Inquiry Only' AND deleted_at IS NULL");
             $inqStats = $stmt->fetch(PDO::FETCH_ASSOC);
 
             // 2. Trend Calculation (Last 7 days vs 7 days before that)
-            $stmtTrend = $pdo->query("SELECT 
-                (SELECT COUNT(*) FROM bookings WHERE payment_method = 'Inquiry Only' AND created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)) as total_curr,
-                (SELECT COUNT(*) FROM bookings WHERE payment_method = 'Inquiry Only' AND created_at >= DATE_SUB(NOW(), INTERVAL 14 DAY) AND created_at < DATE_SUB(NOW(), INTERVAL 7 DAY)) as total_prev,
-                (SELECT COUNT(*) FROM bookings WHERE payment_method = 'Inquiry Only' AND booking_status NOT IN ('contacted', 'completed', 'cancelled', 'confirmed') AND created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)) as pending_curr,
-                (SELECT COUNT(*) FROM bookings WHERE payment_method = 'Inquiry Only' AND booking_status NOT IN ('contacted', 'completed', 'cancelled', 'confirmed') AND created_at >= DATE_SUB(NOW(), INTERVAL 14 DAY) AND created_at < DATE_SUB(NOW(), INTERVAL 7 DAY)) as pending_prev,
-                (SELECT COUNT(*) FROM bookings WHERE payment_method = 'Inquiry Only' AND booking_status = 'confirmed' AND created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)) as confirmed_curr,
-                (SELECT COUNT(*) FROM bookings WHERE payment_method = 'Inquiry Only' AND booking_status = 'confirmed' AND created_at >= DATE_SUB(NOW(), INTERVAL 14 DAY) AND created_at < DATE_SUB(NOW(), INTERVAL 7 DAY)) as confirmed_prev
+            $stmtTrend = $pdo->query("SELECT
+                (SELECT COUNT(*) FROM bookings WHERE payment_method = 'Inquiry Only' AND deleted_at IS NULL AND created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)) as total_curr,
+                (SELECT COUNT(*) FROM bookings WHERE payment_method = 'Inquiry Only' AND deleted_at IS NULL AND created_at >= DATE_SUB(NOW(), INTERVAL 14 DAY) AND created_at < DATE_SUB(NOW(), INTERVAL 7 DAY)) as total_prev,
+                (SELECT COUNT(*) FROM bookings WHERE payment_method = 'Inquiry Only' AND deleted_at IS NULL AND booking_status NOT IN ('contacted', 'completed', 'cancelled', 'confirmed') AND created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)) as pending_curr,
+                (SELECT COUNT(*) FROM bookings WHERE payment_method = 'Inquiry Only' AND deleted_at IS NULL AND booking_status NOT IN ('contacted', 'completed', 'cancelled', 'confirmed') AND created_at >= DATE_SUB(NOW(), INTERVAL 14 DAY) AND created_at < DATE_SUB(NOW(), INTERVAL 7 DAY)) as pending_prev,
+                (SELECT COUNT(*) FROM bookings WHERE payment_method = 'Inquiry Only' AND deleted_at IS NULL AND booking_status = 'confirmed' AND created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)) as confirmed_curr,
+                (SELECT COUNT(*) FROM bookings WHERE payment_method = 'Inquiry Only' AND deleted_at IS NULL AND booking_status = 'confirmed' AND created_at >= DATE_SUB(NOW(), INTERVAL 14 DAY) AND created_at < DATE_SUB(NOW(), INTERVAL 7 DAY)) as confirmed_prev
             ");
             $trends = $stmtTrend->fetch(PDO::FETCH_ASSOC);
 
@@ -823,7 +827,7 @@ switch ($action) {
     case 'get_source_analytics':
         try {
             // 1. Map emails to sources from inquiries only
-            $stmt = $pdo->prepare("SELECT email, special_requests FROM bookings WHERE email IS NOT NULL AND email != '' AND payment_method = 'Inquiry Only'");
+            $stmt = $pdo->prepare("SELECT email, special_requests FROM bookings WHERE email IS NOT NULL AND email != '' AND payment_method = 'Inquiry Only' AND deleted_at IS NULL");
             $stmt->execute();
             $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
@@ -1114,7 +1118,7 @@ switch ($action) {
                 file_put_contents($debugLog, date('Y-m-d H:i:s') . " - Website audience: " . count($recipients) . " recipients\n", FILE_APPEND);
             } elseif ($audience === 'inquiries') {
                 // ONLY inquiry leads (bookings)
-                $stmt = $pdo->query("SELECT DISTINCT email, full_name FROM bookings WHERE email IS NOT NULL AND email != '' AND payment_method = 'Inquiry Only' ORDER BY email");
+                $stmt = $pdo->query("SELECT DISTINCT email, full_name FROM bookings WHERE email IS NOT NULL AND email != '' AND payment_method = 'Inquiry Only' AND deleted_at IS NULL ORDER BY email");
                 $recipients = $stmt->fetchAll(PDO::FETCH_ASSOC);
                 file_put_contents($debugLog, date('Y-m-d H:i:s') . " - Inquiries audience: " . count($recipients) . " recipients\n", FILE_APPEND);
             } elseif ($audience === 'partners') {
@@ -1134,7 +1138,7 @@ switch ($action) {
                 file_put_contents($debugLog, date('Y-m-d H:i:s') . " - Partners audience: " . count($recipients) . " valid recipients\n", FILE_APPEND);
             } else { // 'all' is the fallback
                 // ALL users (deduplicated)
-                $stmt = $pdo->query("SELECT DISTINCT email, full_name FROM users WHERE email IS NOT NULL AND email != '' UNION DISTINCT SELECT email, full_name FROM bookings WHERE email IS NOT NULL AND email != '' ORDER BY email");
+                $stmt = $pdo->query("SELECT DISTINCT email, full_name FROM users WHERE email IS NOT NULL AND email != '' UNION DISTINCT SELECT email, full_name FROM bookings WHERE email IS NOT NULL AND email != '' AND deleted_at IS NULL ORDER BY email");
                 $recipients = $stmt->fetchAll(PDO::FETCH_ASSOC);
                 file_put_contents($debugLog, date('Y-m-d H:i:s') . " - All audience: " . count($recipients) . " recipients\n", FILE_APPEND);
             }
@@ -1491,10 +1495,10 @@ switch ($action) {
     case 'get_dashboard_data':
         try {
             // 1. Stats
-            $stmt = $pdo->query("SELECT 
-                (SELECT COUNT(*) FROM bookings WHERE payment_method = 'Inquiry Only' AND booking_status NOT IN ('completed', 'cancelled')) as pending,
-                (SELECT COUNT(*) FROM bookings WHERE payment_method = 'Inquiry Only' AND booking_status NOT IN ('contacted', 'completed', 'cancelled', 'confirmed')) as pending,
-                (SELECT COUNT(*) FROM bookings WHERE payment_method = 'Inquiry Only' AND booking_status = 'confirmed') as confirmed,
+            $stmt = $pdo->query("SELECT
+                (SELECT COUNT(*) FROM bookings WHERE payment_method = 'Inquiry Only' AND deleted_at IS NULL AND booking_status NOT IN ('completed', 'cancelled')) as pending,
+                (SELECT COUNT(*) FROM bookings WHERE payment_method = 'Inquiry Only' AND deleted_at IS NULL AND booking_status NOT IN ('contacted', 'completed', 'cancelled', 'confirmed')) as pending,
+                (SELECT COUNT(*) FROM bookings WHERE payment_method = 'Inquiry Only' AND deleted_at IS NULL AND booking_status = 'confirmed') as confirmed,
                 (SELECT COUNT(*) FROM marketing_templates) as templates
             ");
             $stats = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -1504,7 +1508,7 @@ switch ($action) {
             $campaigns = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
             // 3. Recent Inquiries (For Dashboard Table)
-            $stmt = $pdo->query("SELECT id, full_name, special_requests, package_name as destination, booking_status, created_at FROM bookings WHERE payment_method = 'Inquiry Only' ORDER BY created_at DESC LIMIT 10");
+            $stmt = $pdo->query("SELECT id, full_name, special_requests, package_name as destination, booking_status, created_at FROM bookings WHERE payment_method = 'Inquiry Only' AND deleted_at IS NULL ORDER BY created_at DESC LIMIT 10");
             $inquiries = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
             ob_clean();

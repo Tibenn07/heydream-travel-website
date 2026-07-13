@@ -45,13 +45,15 @@ ensurePartnerBookingTracking($pdo);
 $pdo->prepare("UPDATE bookings SET travel_date = '2026-05-20' WHERE booking_number IN ('FO-89118920260512', 'FO-FA655F20260513')")->execute();
 
 // Get statistics
-$totalBookings = $pdo->query("SELECT COUNT(*) FROM bookings")->fetchColumn();
-$pendingBookings = $pdo->query("SELECT COUNT(*) FROM bookings WHERE booking_status = 'pending'")->fetchColumn();
-$confirmedBookings = $pdo->query("SELECT COUNT(*) FROM bookings WHERE booking_status = 'confirmed'")->fetchColumn();
+// Trashed (soft-deleted) bookings are excluded from every stat below — they're
+// no longer "active" once moved to Trash, even though the row still exists.
+$totalBookings = $pdo->query("SELECT COUNT(*) FROM bookings WHERE deleted_at IS NULL")->fetchColumn();
+$pendingBookings = $pdo->query("SELECT COUNT(*) FROM bookings WHERE booking_status = 'pending' AND deleted_at IS NULL")->fetchColumn();
+$confirmedBookings = $pdo->query("SELECT COUNT(*) FROM bookings WHERE booking_status = 'confirmed' AND deleted_at IS NULL")->fetchColumn();
 
 // Calculate Revenue (Foreign bookings as USD, others as Peso)
-$totalRevenueUSD = $pdo->query("SELECT SUM(total_amount) FROM bookings WHERE payment_status = 'paid' AND (booking_number LIKE 'FO-%' OR booking_number LIKE 'FOR-%')")->fetchColumn() ?: 0;
-$totalRevenuePeso = $pdo->query("SELECT SUM(total_amount) FROM bookings WHERE payment_status = 'paid' AND (booking_number NOT LIKE 'FO-%' AND booking_number NOT LIKE 'FOR-%')")->fetchColumn() ?: 0;
+$totalRevenueUSD = $pdo->query("SELECT SUM(total_amount) FROM bookings WHERE payment_status = 'paid' AND deleted_at IS NULL AND (booking_number LIKE 'FO-%' OR booking_number LIKE 'FOR-%')")->fetchColumn() ?: 0;
+$totalRevenuePeso = $pdo->query("SELECT SUM(total_amount) FROM bookings WHERE payment_status = 'paid' AND deleted_at IS NULL AND (booking_number NOT LIKE 'FO-%' AND booking_number NOT LIKE 'FOR-%')")->fetchColumn() ?: 0;
 
 $totalUsers = $pdo->query("SELECT COUNT(*) FROM users")->fetchColumn();
 $totalDestinations = $pdo->query("SELECT COUNT(*) FROM destinations")->fetchColumn();
@@ -69,7 +71,7 @@ $bookingsChartEndDate = date('Y-m-d', strtotime($bookingsChartStartDate . ' +13 
 
 $dailyBookingsRaw = $pdo->prepare("SELECT DATE(created_at) as booking_date, COUNT(*) as total
     FROM bookings
-    WHERE DATE(created_at) BETWEEN ? AND ?
+    WHERE DATE(created_at) BETWEEN ? AND ? AND deleted_at IS NULL
     GROUP BY DATE(created_at)");
 $dailyBookingsRaw->execute([$bookingsChartStartDate, $bookingsChartEndDate]);
 $dailyBookingsRaw = $dailyBookingsRaw->fetchAll(PDO::FETCH_KEY_PAIR);
@@ -115,14 +117,15 @@ try {
 }
 
 // Get pending inquiries count for marketing badge
-$stmtInqCount = $pdo->query("SELECT COUNT(*) FROM bookings WHERE payment_method = 'Inquiry Only'");
+$stmtInqCount = $pdo->query("SELECT COUNT(*) FROM bookings WHERE payment_method = 'Inquiry Only' AND deleted_at IS NULL");
 $pendingInquiriesCount = $stmtInqCount->fetchColumn();
 
 // Get active bookings count for sidebar badge — mirrors JS isFullyCompleted() logic exactly:
 // Excludes cancelled, and excludes truly finished (status=completed + paid + docs=1 + ready=1)
 $stmtBookCount = $pdo->query("
-    SELECT COUNT(*) FROM bookings 
+    SELECT COUNT(*) FROM bookings
     WHERE booking_status != 'cancelled'
+    AND deleted_at IS NULL
     AND NOT (
         booking_status = 'completed'
         AND payment_status = 'paid'
@@ -994,6 +997,25 @@ $unreadMessagesCount = $stmtMessagesCount ? $stmtMessagesCount->fetchColumn() : 
             color: white;
             transform: translateY(-2px);
             box-shadow: 0 4px 12px rgba(220, 38, 38, 0.2);
+        }
+
+        /* Permanent delete (purge from Trash) — deliberately a deeper red than the
+           regular delete-btn so it reads as more severe/irreversible. Previously
+           this was an inline style="background:#c92a2a" on top of .delete-btn,
+           which only overrode the background and left the icon at .delete-btn's
+           medium-red color — nearly invisible against the darker background —
+           and also permanently blocked the :hover background transition, since
+           inline styles always beat stylesheet rules regardless of :hover. */
+        .purge-btn {
+            background: #fecaca;
+            color: #991b1b;
+        }
+
+        .purge-btn:hover {
+            background: #991b1b;
+            color: white;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(153, 27, 27, 0.3);
         }
 
         .view-btn {
@@ -2247,7 +2269,7 @@ $unreadMessagesCount = $stmtMessagesCount ? $stmtMessagesCount->fetchColumn() : 
                         </thead>
                         <tbody>
                             <?php
-                            $stmt = $pdo->prepare("SELECT * FROM bookings ORDER BY created_at DESC LIMIT 5");
+                            $stmt = $pdo->prepare("SELECT * FROM bookings WHERE deleted_at IS NULL ORDER BY created_at DESC LIMIT 5");
                             $stmt->execute();
                             $recentBookings = $stmt->fetchAll();
                             foreach ($recentBookings as $booking):
@@ -3519,7 +3541,14 @@ $unreadMessagesCount = $stmtMessagesCount ? $stmtMessagesCount->fetchColumn() : 
                     }
                 } else if (typeof args[0] === 'string') {
                     if (args[2] === 'success') {
-                        return originalSwalFire({
+                        // Must use .call(this, ...) not a bare call — SweetAlert2's fire()
+                        // relies on `this` internally (it does `new this(...)`), and calling
+                        // it detached throws "TypeError: this is not a constructor". That
+                        // silently broke every success toast using the 3-arg string form
+                        // (e.g. Swal.fire('Trashed!', msg, 'success')), which is why booking
+                        // delete/restore/purge looked like they were failing even when the
+                        // server had already succeeded.
+                        return originalSwalFire.call(this, {
                             title: args[0],
                             text: args[1],
                             icon: undefined,
@@ -3527,7 +3556,7 @@ $unreadMessagesCount = $stmtMessagesCount ? $stmtMessagesCount->fetchColumn() : 
                             customClass: { icon: 'no-border-icon' }
                         });
                     } else if (args[2] === 'warning') {
-                        return originalSwalFire({
+                        return originalSwalFire.call(this, {
                             title: args[0],
                             text: args[1],
                             icon: undefined,
@@ -4416,7 +4445,7 @@ $unreadMessagesCount = $stmtMessagesCount ? $stmtMessagesCount->fetchColumn() : 
                             if (data.success) {
                                 Swal.fire({ icon: 'success', title: 'Deleted', text: data.message, timer: 1500, showConfirmButton: false });
                                 // remove row or reload
-                                setTimeout(() => location.reload(), 800);
+                                setTimeout(() => reloadPreservingPage(), 800);
                             } else {
                                 Swal.fire('Error', data.message || 'Failed to delete user', 'error');
                             }
@@ -4469,7 +4498,7 @@ $unreadMessagesCount = $stmtMessagesCount ? $stmtMessagesCount->fetchColumn() : 
                 .then(data => {
                     if (data.success) {
                         Swal.fire({ icon: 'success', title: 'Done', text: data.message, timer: 1500, showConfirmButton: false });
-                        setTimeout(() => location.reload(), 700);
+                        setTimeout(() => reloadPreservingPage(), 700);
                     } else {
                         Swal.fire('Error', data.message || 'Failed to update ban status', 'error');
                     }
@@ -4521,7 +4550,7 @@ $unreadMessagesCount = $stmtMessagesCount ? $stmtMessagesCount->fetchColumn() : 
                                         popup: 'modern-modal-popup',
                                         confirmButton: 'swal2-confirm'
                                     }
-                                }).then(() => location.reload());
+                                }).then(() => reloadPreservingPage());
                             } else {
                                 Swal.fire('Error', data.message || 'An error occurred', 'error');
                             }
@@ -4633,7 +4662,7 @@ $unreadMessagesCount = $stmtMessagesCount ? $stmtMessagesCount->fetchColumn() : 
                                         popup: 'modern-modal-popup',
                                         confirmButton: 'swal2-confirm'
                                     }
-                                }).then(() => location.reload());
+                                }).then(() => reloadPreservingPage());
                             } else {
                                 Swal.fire({
                                     title: 'Error',
@@ -5175,9 +5204,42 @@ $unreadMessagesCount = $stmtMessagesCount ? $stmtMessagesCount->fetchColumn() : 
         function refreshBookingsTable() {
             const bookingsPage = document.getElementById('bookings-page');
             if (bookingsPage && bookingsPage.style.display !== 'none') {
-                location.reload();
+                reloadPreservingPage();
             }
         }
+
+        // A plain location.reload() always lands back on the Dashboard's default
+        // "Command Center" view, because the page only restores whatever was in
+        // sessionStorage's 'active_dashboard_page' key on load — and a fresh
+        // reload never sets that key itself. Every delete/ban/restore/purge/
+        // approve action across the dashboard uses this instead, so the admin
+        // stays on the exact screen (and, for bookings, the Trash filter if
+        // that's what they were viewing) they were already on.
+        function reloadPreservingPage() {
+            try {
+                const activeItem = document.querySelector('.menu-item.active');
+                const pageId = activeItem ? activeItem.dataset.page : null;
+                if (pageId) {
+                    sessionStorage.setItem('active_dashboard_page', pageId);
+                }
+                if (typeof currentFilter !== 'undefined' && currentFilter && currentFilter.key === 'trashed') {
+                    sessionStorage.setItem('active_dashboard_filter', 'trashed');
+                } else {
+                    sessionStorage.removeItem('active_dashboard_filter');
+                }
+            } catch (e) {
+                console.error('reloadPreservingPage: failed to save current screen state', e);
+            }
+            location.reload();
+        }
+
+        // Guards against a booking's delete/restore firing twice (impatient double-click,
+        // a slow single-threaded dev server queuing the first request so a second one
+        // goes out before the UI updates, etc.). Without this, the first request can
+        // succeed while a redundant second request for the same booking gets back
+        // "already trashed" / "already active" and shows as a scary error — even though
+        // the booking already ended up exactly where it was supposed to.
+        const bookingActionInFlight = new Set();
 
         function deleteBooking(event, id, bookingNumber = '') {
             if (event && typeof event.stopPropagation === 'function') {
@@ -5188,6 +5250,11 @@ $unreadMessagesCount = $stmtMessagesCount ? $stmtMessagesCount->fetchColumn() : 
 
             if ((isNaN(bookingId) || bookingId < 0) && !bookingNumberValue) {
                 Swal.fire('Error', 'Invalid booking ID. Please refresh the page and try again.', 'error');
+                return;
+            }
+
+            const inFlightKey = 'delete:' + (bookingId > 0 ? bookingId : bookingNumberValue);
+            if (bookingActionInFlight.has(inFlightKey)) {
                 return;
             }
 
@@ -5208,6 +5275,11 @@ $unreadMessagesCount = $stmtMessagesCount ? $stmtMessagesCount->fetchColumn() : 
                 }
             }).then((result) => {
                 if (result.isConfirmed) {
+                    if (bookingActionInFlight.has(inFlightKey)) {
+                        return;
+                    }
+                    bookingActionInFlight.add(inFlightKey);
+
                     Swal.fire({ title: 'Processing...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
                     const formData = new URLSearchParams();
                     formData.append('action', 'delete_booking');
@@ -5236,16 +5308,20 @@ $unreadMessagesCount = $stmtMessagesCount ? $stmtMessagesCount->fetchColumn() : 
                             }
 
                             console.debug('delete_booking raw response:', text, data);
-                            if (response.ok && (!data || data.success !== false)) {
-                                Swal.fire('Trashed!', (data && data.message) || 'Booking moved to Trash', 'success').then(() => location.reload());
+                            const alreadyTrashed = data && data.message && /already trashed/i.test(data.message);
+                            if ((response.ok && (!data || data.success !== false)) || alreadyTrashed) {
+                                Swal.fire('Trashed!', (data && data.message) || 'Booking moved to Trash', 'success').then(() => reloadPreservingPage());
                             } else {
                                 const message = data && data.message ? data.message : (text || 'Unable to delete booking. Please try again.');
-                                Swal.fire('Error', message, 'error');
+                                Swal.fire('Error', message + ' Refreshing to show the current status…', 'error').then(() => reloadPreservingPage());
                             }
                         })
                         .catch(error => {
                             console.error('Delete booking error:', error);
                             Swal.fire('Error', 'Unable to delete booking. Please try again.', 'error');
+                        })
+                        .finally(() => {
+                            bookingActionInFlight.delete(inFlightKey);
                         });
                 }
             });
@@ -5259,6 +5335,11 @@ $unreadMessagesCount = $stmtMessagesCount ? $stmtMessagesCount->fetchColumn() : 
             const bookingNumberValue = String(bookingNumber || '').trim();
             if ((isNaN(bookingId) || bookingId < 0) && !bookingNumberValue) {
                 Swal.fire('Error', 'Invalid booking ID. Please refresh the page and try again.', 'error');
+                return;
+            }
+
+            const inFlightKey = 'restore:' + (bookingId > 0 ? bookingId : bookingNumberValue);
+            if (bookingActionInFlight.has(inFlightKey)) {
                 return;
             }
 
@@ -5277,6 +5358,11 @@ $unreadMessagesCount = $stmtMessagesCount ? $stmtMessagesCount->fetchColumn() : 
                 }
             }).then(result => {
                 if (result.isConfirmed) {
+                    if (bookingActionInFlight.has(inFlightKey)) {
+                        return;
+                    }
+                    bookingActionInFlight.add(inFlightKey);
+
                     Swal.fire({ title: 'Processing...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
                     const formData = new URLSearchParams();
                     formData.append('action', 'restore_booking');
@@ -5303,16 +5389,20 @@ $unreadMessagesCount = $stmtMessagesCount ? $stmtMessagesCount->fetchColumn() : 
                                 }
                             }
                             console.debug('restore_booking raw response:', text, data);
-                            if (response.ok && (!data || data.success !== false)) {
-                                Swal.fire('Restored!', (data && data.message) || 'Booking restored successfully', 'success').then(() => location.reload());
+                            const alreadyActive = data && data.message && /already active/i.test(data.message);
+                            if ((response.ok && (!data || data.success !== false)) || alreadyActive) {
+                                Swal.fire('Restored!', (data && data.message) || 'Booking restored successfully', 'success').then(() => reloadPreservingPage());
                             } else {
                                 const message = data && data.message ? data.message : (text || 'Unable to restore booking. Please try again.');
-                                Swal.fire('Error', message, 'error');
+                                Swal.fire('Error', message + ' Refreshing to show the current status…', 'error').then(() => reloadPreservingPage());
                             }
                         })
                         .catch(error => {
                             console.error('Restore booking error:', error);
                             Swal.fire('Error', 'Unable to restore booking. Please try again.', 'error');
+                        })
+                        .finally(() => {
+                            bookingActionInFlight.delete(inFlightKey);
                         });
                 }
             });
@@ -5326,6 +5416,11 @@ $unreadMessagesCount = $stmtMessagesCount ? $stmtMessagesCount->fetchColumn() : 
             const bookingNumberValue = String(bookingNumber || '').trim();
             if ((isNaN(bookingId) || bookingId < 0) && !bookingNumberValue) {
                 Swal.fire('Error', 'Invalid booking ID. Please refresh the page and try again.', 'error');
+                return;
+            }
+
+            const inFlightKey = 'purge:' + (bookingId > 0 ? bookingId : bookingNumberValue);
+            if (bookingActionInFlight.has(inFlightKey)) {
                 return;
             }
 
@@ -5344,6 +5439,11 @@ $unreadMessagesCount = $stmtMessagesCount ? $stmtMessagesCount->fetchColumn() : 
                 }
             }).then(result => {
                 if (result.isConfirmed) {
+                    if (bookingActionInFlight.has(inFlightKey)) {
+                        return;
+                    }
+                    bookingActionInFlight.add(inFlightKey);
+
                     Swal.fire({ title: 'Processing...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
                     const formData = new URLSearchParams();
                     formData.append('action', 'purge_booking');
@@ -5370,16 +5470,20 @@ $unreadMessagesCount = $stmtMessagesCount ? $stmtMessagesCount->fetchColumn() : 
                                 }
                             }
                             console.debug('purge_booking raw response:', text, data);
-                            if (response.ok && (!data || data.success !== false)) {
-                                Swal.fire('Deleted!', (data && data.message) || 'Booking permanently deleted', 'success').then(() => location.reload());
+                            const alreadyGone = data && data.message && /not found/i.test(data.message);
+                            if ((response.ok && (!data || data.success !== false)) || alreadyGone) {
+                                Swal.fire('Deleted!', (data && data.message) || 'Booking permanently deleted', 'success').then(() => reloadPreservingPage());
                             } else {
                                 const message = data && data.message ? data.message : (text || 'Unable to delete booking. Please try again.');
-                                Swal.fire('Error', message, 'error');
+                                Swal.fire('Error', message + ' Refreshing to show the current status…', 'error').then(() => reloadPreservingPage());
                             }
                         })
                         .catch(error => {
                             console.error('Purge booking error:', error);
                             Swal.fire('Error', 'Unable to delete booking. Please try again.', 'error');
+                        })
+                        .finally(() => {
+                            bookingActionInFlight.delete(inFlightKey);
                         });
                 }
             });
@@ -5455,7 +5559,7 @@ $unreadMessagesCount = $stmtMessagesCount ? $stmtMessagesCount->fetchColumn() : 
                         .then(response => response.json())
                         .then(data => {
                             if (data.success) {
-                                Swal.fire('Deleted!', 'Destination deleted successfully', 'success').then(() => location.reload());
+                                Swal.fire('Deleted!', 'Destination deleted successfully', 'success').then(() => reloadPreservingPage());
                             } else {
                                 Swal.fire('Error', data.message, 'error');
                             }
@@ -5544,7 +5648,7 @@ $unreadMessagesCount = $stmtMessagesCount ? $stmtMessagesCount->fetchColumn() : 
                         .then(response => response.json())
                         .then(data => {
                             if (data.success) {
-                                Swal.fire('Deleted!', 'Package deleted successfully', 'success').then(() => location.reload());
+                                Swal.fire('Deleted!', 'Package deleted successfully', 'success').then(() => reloadPreservingPage());
                             } else {
                                 Swal.fire('Error', data.message, 'error');
                             }
@@ -5649,7 +5753,7 @@ $unreadMessagesCount = $stmtMessagesCount ? $stmtMessagesCount->fetchColumn() : 
                             timer: 1500,
                             showConfirmButton: false
                         });
-                        setTimeout(() => location.reload(), 1500);
+                        setTimeout(() => reloadPreservingPage(), 1500);
                     } else {
                         showNotification('❌ Error: ' + data.message, 'error');
                     }
@@ -5813,7 +5917,7 @@ $unreadMessagesCount = $stmtMessagesCount ? $stmtMessagesCount->fetchColumn() : 
                             <button class="edit-btn" onclick="restoreBooking(event, ${booking.id}, '${escapeForJsString(booking.booking_number || '')}')" title="Restore">
                                 <i class="fas fa-undo"></i>
                             </button>
-                            <button type="button" class="delete-btn" style="background:#c92a2a;" onclick="purgeBooking(event, ${booking.id}, '${escapeForJsString(booking.booking_number || '')}')" title="Delete Permanently">
+                            <button type="button" class="delete-btn purge-btn" onclick="purgeBooking(event, ${booking.id}, '${escapeForJsString(booking.booking_number || '')}')" title="Delete Permanently">
                                 <i class="fas fa-times"></i>
                             </button>
                         ` : (!isInquiryView ? `
@@ -6819,6 +6923,14 @@ $unreadMessagesCount = $stmtMessagesCount ? $stmtMessagesCount->fetchColumn() : 
                     sessionStorage.removeItem('active_dashboard_page');
                     if (window.switchPage) window.switchPage(savedPage);
                 }
+            }
+
+            // Re-apply the Trash filter if that's what was showing before a
+            // delete/restore/purge triggered a reload — see reloadPreservingPage().
+            const savedFilter = sessionStorage.getItem('active_dashboard_filter');
+            if (savedFilter === 'trashed') {
+                sessionStorage.removeItem('active_dashboard_filter');
+                if (typeof setFilter === 'function') setFilter('trashed', 'ALL');
             }
 
             if (isSaved === 'success') {

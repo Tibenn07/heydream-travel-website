@@ -21,6 +21,38 @@ function debugLog($message, $data = null)
     error_log($logEntry);
 }
 
+// Safety net: if a fatal error happens anywhere below (a slow/queued request
+// timing out under a single-threaded dev server, a DB connection failure, an
+// uncaught exception, etc.), the frontend would otherwise get blank or broken
+// output that fails JSON.parse() and shows a generic "please try again" error
+// with no clue why. This guarantees a real, parseable JSON error instead, and
+// logs exactly what happened so it's diagnosable from admin_api_debug.log
+// even when the browser/DevTools aren't available.
+register_shutdown_function(function () use ($debugLogFile) {
+    $error = error_get_last();
+    if (!$error || !in_array($error['type'], [E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR, E_USER_ERROR], true)) {
+        return;
+    }
+
+    while (ob_get_level() > 0) {
+        ob_end_clean();
+    }
+
+    $logEntry = date('Y-m-d H:i:s') . " - FATAL ERROR: " . $error['message']
+        . " in " . $error['file'] . ':' . $error['line'];
+    file_put_contents($debugLogFile, $logEntry . "\n", FILE_APPEND);
+    error_log($logEntry);
+
+    if (!headers_sent()) {
+        http_response_code(500);
+        header('Content-Type: application/json');
+    }
+    echo json_encode([
+        'success' => false,
+        'message' => 'Server error: ' . $error['message'],
+    ]);
+});
+
 debugLog("=== Admin API Request Started ===");
 debugLog("Request Method: " . $_SERVER['REQUEST_METHOD']);
 debugLog("POST Data: " . print_r($_POST, true));
@@ -61,87 +93,101 @@ if (!isset($pdo) || !$pdo) {
 
 debugLog("Database connection successful");
 
-require_once __DIR__ . '/../api/partner-booking-tracker.php';
-ensurePartnerBookingTracking($pdo);
+// All the schema self-heal checks below (~24 queries: SHOW COLUMNS/ALTER TABLE
+// attempts, CREATE TABLE IF NOT EXISTS, the 30-day trash cleanup) used to run
+// on *every single request* — including the dashboard's ~30-second background
+// polling. Under a multi-process server (Apache/PHP-FPM) that's wasteful but
+// harmless; under a single-threaded dev server (`php -S`, e.g. the VS Code
+// "PHP Server" extension) it can queue up requests behind each other and
+// cause an unrelated action (like a delete) to time out. Caching a
+// "checked recently" flag in the session means this only actually runs once
+// every 5 minutes per logged-in admin instead of on every call.
+$schemaCheckDue = empty($_SESSION['schema_verified_at']) || (time() - $_SESSION['schema_verified_at']) > 300;
+if ($schemaCheckDue) {
+    require_once __DIR__ . '/../api/partner-booking-tracker.php';
+    ensurePartnerBookingTracking($pdo);
 
-// Migration for visa_status
-try {
-    $stmtMigrate = $pdo->query("SHOW COLUMNS FROM bookings LIKE 'visa_status'");
-    if (!$stmtMigrate->fetch()) {
-        $pdo->exec("ALTER TABLE bookings ADD COLUMN visa_status VARCHAR(50) DEFAULT 'PENDING'");
-        debugLog("Migration: Added visa_status column to bookings table");
+    // Migration for visa_status
+    try {
+        $stmtMigrate = $pdo->query("SHOW COLUMNS FROM bookings LIKE 'visa_status'");
+        if (!$stmtMigrate->fetch()) {
+            $pdo->exec("ALTER TABLE bookings ADD COLUMN visa_status VARCHAR(50) DEFAULT 'PENDING'");
+            debugLog("Migration: Added visa_status column to bookings table");
+        }
+    } catch (Exception $e) {
+        debugLog("Migration Error: " . $e->getMessage());
     }
-} catch (Exception $e) {
-    debugLog("Migration Error: " . $e->getMessage());
-}
 
-// Migration for payment_proof
-try {
-    $stmtMigrate2 = $pdo->query("SHOW COLUMNS FROM bookings LIKE 'payment_proof'");
-    if (!$stmtMigrate2->fetch()) {
-        $pdo->exec("ALTER TABLE bookings ADD COLUMN payment_proof VARCHAR(500) DEFAULT NULL AFTER payment_reference");
-        debugLog("Migration: Added payment_proof column to bookings table");
+    // Migration for payment_proof
+    try {
+        $stmtMigrate2 = $pdo->query("SHOW COLUMNS FROM bookings LIKE 'payment_proof'");
+        if (!$stmtMigrate2->fetch()) {
+            $pdo->exec("ALTER TABLE bookings ADD COLUMN payment_proof VARCHAR(500) DEFAULT NULL AFTER payment_reference");
+            debugLog("Migration: Added payment_proof column to bookings table");
+        }
+    } catch (Exception $e) {
+        debugLog("Migration Error (payment_proof): " . $e->getMessage());
     }
-} catch (Exception $e) {
-    debugLog("Migration Error (payment_proof): " . $e->getMessage());
-}
 
-// Migration for deleted_at soft delete retention
-try {
-    $stmtMigrate3 = $pdo->query("SHOW COLUMNS FROM bookings LIKE 'deleted_at'");
-    if (!$stmtMigrate3->fetch()) {
-        $pdo->exec("ALTER TABLE bookings ADD COLUMN deleted_at TIMESTAMP NULL DEFAULT NULL AFTER updated_at");
-        debugLog("Migration: Added deleted_at column to bookings table");
+    // Migration for deleted_at soft delete retention
+    try {
+        $stmtMigrate3 = $pdo->query("SHOW COLUMNS FROM bookings LIKE 'deleted_at'");
+        if (!$stmtMigrate3->fetch()) {
+            $pdo->exec("ALTER TABLE bookings ADD COLUMN deleted_at TIMESTAMP NULL DEFAULT NULL AFTER updated_at");
+            debugLog("Migration: Added deleted_at column to bookings table");
+        }
+    } catch (Exception $e) {
+        debugLog("Migration Error (deleted_at): " . $e->getMessage());
     }
-} catch (Exception $e) {
-    debugLog("Migration Error (deleted_at): " . $e->getMessage());
-}
 
-// Auto-cleanup trashed bookings older than 30 days
-try {
-    $pdo->exec("DELETE FROM bookings WHERE deleted_at IS NOT NULL AND deleted_at < DATE_SUB(NOW(), INTERVAL 30 DAY)");
-    debugLog("Cleaned up old trashed bookings older than 30 days");
-} catch (Exception $e) {
-    debugLog("Trash cleanup error: " . $e->getMessage());
-}
+    // Auto-cleanup trashed bookings older than 30 days
+    try {
+        $pdo->exec("DELETE FROM bookings WHERE deleted_at IS NOT NULL AND deleted_at < DATE_SUB(NOW(), INTERVAL 30 DAY)");
+        debugLog("Cleaned up old trashed bookings older than 30 days");
+    } catch (Exception $e) {
+        debugLog("Trash cleanup error: " . $e->getMessage());
+    }
 
-// Ensure package table exists for package add/edit/delete flows.
-try {
-    $pdo->exec("CREATE TABLE IF NOT EXISTS packages (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        destination_id INT NOT NULL,
-        name VARCHAR(150) NOT NULL,
-        duration VARCHAR(50) DEFAULT '',
-        price DECIMAL(10,2) DEFAULT 0,
-        activities_count INT DEFAULT 0,
-        is_active TINYINT DEFAULT 1,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-        INDEX idx_packages_destination (destination_id),
-        INDEX idx_packages_active (is_active)
-    )");
-    debugLog("Migration: Ensured packages table exists");
+    // Ensure package table exists for package add/edit/delete flows.
+    try {
+        $pdo->exec("CREATE TABLE IF NOT EXISTS packages (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            destination_id INT NOT NULL,
+            name VARCHAR(150) NOT NULL,
+            duration VARCHAR(50) DEFAULT '',
+            price DECIMAL(10,2) DEFAULT 0,
+            activities_count INT DEFAULT 0,
+            is_active TINYINT DEFAULT 1,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            INDEX idx_packages_destination (destination_id),
+            INDEX idx_packages_active (is_active)
+        )");
+        debugLog("Migration: Ensured packages table exists");
 
-    $pdo->exec("CREATE TABLE IF NOT EXISTS partner_applications (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        company_name VARCHAR(255) NOT NULL,
-        contact_person VARCHAR(255) NOT NULL,
-        email VARCHAR(150) NOT NULL UNIQUE,
-        phone VARCHAR(50) NOT NULL,
-        website VARCHAR(255) DEFAULT NULL,
-        business_type VARCHAR(100) NOT NULL,
-        message TEXT,
-        password VARCHAR(255) NOT NULL,
-        status ENUM('pending','approved','rejected') DEFAULT 'pending',
-        rejection_reason TEXT DEFAULT NULL,
-        approved_at DATETIME DEFAULT NULL,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-        INDEX idx_status (status)
-    )");
-    debugLog("Migration: Ensured partner_applications table exists");
-} catch (Exception $e) {
-    debugLog("Migration Error (packages table): " . $e->getMessage());
+        $pdo->exec("CREATE TABLE IF NOT EXISTS partner_applications (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            company_name VARCHAR(255) NOT NULL,
+            contact_person VARCHAR(255) NOT NULL,
+            email VARCHAR(150) NOT NULL UNIQUE,
+            phone VARCHAR(50) NOT NULL,
+            website VARCHAR(255) DEFAULT NULL,
+            business_type VARCHAR(100) NOT NULL,
+            message TEXT,
+            password VARCHAR(255) NOT NULL,
+            status ENUM('pending','approved','rejected') DEFAULT 'pending',
+            rejection_reason TEXT DEFAULT NULL,
+            approved_at DATETIME DEFAULT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            INDEX idx_status (status)
+        )");
+        debugLog("Migration: Ensured partner_applications table exists");
+    } catch (Exception $e) {
+        debugLog("Migration Error (packages table): " . $e->getMessage());
+    }
+
+    $_SESSION['schema_verified_at'] = time();
 }
 
 $admin_role = $_SESSION['admin_role'] ?? 'admin';
@@ -150,6 +196,16 @@ debugLog("Action: " . $action);
 debugLog("Admin Role: " . $admin_role);
 
 header('Content-Type: application/json');
+
+// PHP's built-in dev server (`php -S`, e.g. the VS Code "PHP Server" extension)
+// is single-threaded and can mismatch a response with the wrong in-flight
+// request when the browser reuses a keep-alive connection while another
+// request (like this dashboard's ~30s background polling) is also in play —
+// the client then sees a garbled/empty body for an action that actually
+// succeeded server-side. Forcing the connection to close after every response
+// makes the browser open a fresh connection per request instead, which
+// eliminates that class of mismatch. Harmless under Apache/PHP-FPM too.
+header('Connection: close');
 
 // Helper function to check if user has permission
 function hasPermission($allowed_roles, $current_role)
@@ -935,10 +991,10 @@ EOF;
 
             // 1. Query upcoming travel dates for admin dashboard (next 3 days)
             $stmt = $pdo->prepare("
-                SELECT id, full_name, destination_name, travel_date, booking_number, booking_status, 
+                SELECT id, full_name, destination_name, travel_date, booking_number, booking_status,
                        payment_status, travel_documents, ready_for_travel, visa_status, package_name
-                FROM bookings 
-                WHERE LOWER(booking_status) != 'cancelled'
+                FROM bookings
+                WHERE LOWER(booking_status) != 'cancelled' AND deleted_at IS NULL
                 ORDER BY travel_date ASC
             ");
             $stmt->execute();
@@ -984,10 +1040,11 @@ EOF;
             try {
                 $remind_stmt = $pdo->prepare("
                     SELECT id, full_name, email, destination_name, travel_date, booking_number, package_name
-                    FROM bookings 
+                    FROM bookings
                     WHERE travel_date BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 3 DAY)
                     AND booking_status IN ('confirmed', 'completed')
                     AND reminder_sent = 0
+                    AND deleted_at IS NULL
                 ");
                 $remind_stmt->execute();
                 $to_remind = $remind_stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -1975,11 +2032,16 @@ EOF;
                 echo json_encode(['success' => false, 'message' => 'Invalid ID']);
                 break;
             }
-            $stmt = $pdo->prepare("DELETE FROM bookings WHERE id = ? AND payment_method = 'Inquiry Only'");
-            if ($stmt->execute([$id])) {
-                echo json_encode(['success' => true, 'message' => 'Inquiry deleted successfully']);
+            // Inquiries live in the same `bookings` table as regular bookings, so
+            // this now soft-deletes (sets deleted_at) instead of hard-deleting,
+            // matching delete_booking — an inquiry can be restored from Trash
+            // the same way a booking can, instead of being gone permanently.
+            $stmt = $pdo->prepare("UPDATE bookings SET deleted_at = NOW() WHERE id = ? AND payment_method = 'Inquiry Only' AND deleted_at IS NULL");
+            $success = $stmt->execute([$id]);
+            if ($success && $stmt->rowCount() > 0) {
+                echo json_encode(['success' => true, 'message' => 'Inquiry moved to Trash successfully']);
             } else {
-                echo json_encode(['success' => false, 'message' => 'Failed to delete inquiry']);
+                echo json_encode(['success' => false, 'message' => 'Inquiry not found or already trashed']);
             }
             break;
 
@@ -1989,7 +2051,7 @@ EOF;
                 echo json_encode(['success' => false, 'message' => 'Permission denied']);
                 break;
             }
-            $stmt = $pdo->prepare("SELECT full_name, email, phone, destination_name, package_name, travel_date, special_requests, created_at FROM bookings WHERE payment_method = 'Inquiry Only' ORDER BY created_at DESC");
+            $stmt = $pdo->prepare("SELECT full_name, email, phone, destination_name, package_name, travel_date, special_requests, created_at FROM bookings WHERE payment_method = 'Inquiry Only' AND deleted_at IS NULL ORDER BY created_at DESC");
             $stmt->execute();
             $inquiries = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
@@ -2123,7 +2185,7 @@ EOF;
 
                 $stmt = $pdo->prepare("SELECT MONTH(created_at) as m, COUNT(*) as total
                     FROM bookings
-                    WHERE YEAR(created_at) = ?
+                    WHERE YEAR(created_at) = ? AND deleted_at IS NULL
                     GROUP BY MONTH(created_at)");
                 $stmt->execute([$requestedYear]);
                 $rawCounts = $stmt->fetchAll(PDO::FETCH_KEY_PAIR);
@@ -2180,7 +2242,7 @@ EOF;
 
             $stmt = $pdo->prepare("SELECT DATE(created_at) as booking_date, COUNT(*) as total
                 FROM bookings
-                WHERE DATE(created_at) BETWEEN ? AND ?
+                WHERE DATE(created_at) BETWEEN ? AND ? AND deleted_at IS NULL
                 GROUP BY DATE(created_at)");
             $stmt->execute([$startDate, $endDate]);
             $rawCounts = $stmt->fetchAll(PDO::FETCH_KEY_PAIR);

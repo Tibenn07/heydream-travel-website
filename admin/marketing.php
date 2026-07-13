@@ -50,7 +50,7 @@ $stmtInq = $pdo->query("SELECT
     booking_number,
     created_at
 FROM bookings
-WHERE payment_method = 'Inquiry Only'
+WHERE payment_method = 'Inquiry Only' AND deleted_at IS NULL
 ORDER BY created_at DESC");
 $inquiries = $stmtInq->fetchAll(PDO::FETCH_ASSOC);
 
