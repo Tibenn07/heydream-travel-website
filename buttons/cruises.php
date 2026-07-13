@@ -4063,6 +4063,10 @@ try {
                 <form id="cruiseForm" onsubmit="return false;">
                     <div class="section-header"><i class="fas fa-user"></i> Passenger Information</div>
                     <div class="input-group">
+                        <label>Email Address <span class="required">*</span></label>
+                        <input type="email" id="applicationEmail" value="${window.currentUserEmail || ''}" placeholder="Your email address">
+                    </div>
+                    <div class="input-group">
                         <label>Full Name <span class="required">*</span></label>
                         <input type="text" id="fullName" placeholder="As per passport" value="${window.currentFullName || ''}">
                     </div>
@@ -4127,19 +4131,20 @@ try {
 
         function validateAndGoToStep2() {
             const errors = [];
+            const email = document.getElementById('applicationEmail')?.value.trim();
             const fullName = document.getElementById('fullName')?.value.trim();
             const phone = document.getElementById('phone')?.value.trim();
             const departureDate = document.getElementById('departureDate')?.value;
             const passengers = document.getElementById('passengers')?.value;
+            if (!email) errors.push('Email address is required');
+            else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) errors.push('Please enter a valid email address');
             if (!fullName) errors.push('Full Name is required');
-
-            const email = window.currentUserEmail || '';
-            if (!email) errors.push('Your account email could not be detected. Please log in again.');
             if (!phone) errors.push('Phone number is required');
             if (!departureDate) errors.push('Departure Date is required');
             if (!passengers || passengers < 1) errors.push('At least 1 passenger is required');
 
             document.querySelectorAll('.input-group input, .input-group select').forEach(f => f.classList.remove('error'));
+            if (!email) document.getElementById('applicationEmail')?.classList.add('error');
             if (!fullName) document.getElementById('fullName')?.classList.add('error');
             if (!phone) document.getElementById('phone')?.classList.add('error');
             if (!departureDate) document.getElementById('departureDate')?.classList.add('error');
@@ -4157,7 +4162,7 @@ try {
 
         function goToCruiseStep2() {
             const fullName = document.getElementById('fullName')?.value;
-            const email = window.currentUserEmail || '';
+            const email = document.getElementById('applicationEmail')?.value.trim() || window.currentUserEmail || '';
             const phone = document.getElementById('phone')?.value;
             const departureDate = document.getElementById('departureDate')?.value;
             const passengers = parseInt(document.getElementById('passengers')?.value) || 1;
@@ -4221,6 +4226,7 @@ try {
             renderCruiseStep1();
             setTimeout(() => {
                 if (cruiseBookingData) {
+                    if (document.getElementById('applicationEmail')) document.getElementById('applicationEmail').value = cruiseBookingData.email || '';
                     if (document.getElementById('fullName')) document.getElementById('fullName').value = cruiseBookingData.fullName || '';
                     if (document.getElementById('phone')) document.getElementById('phone').value = cruiseBookingData.phone || '';
                     if (document.getElementById('departureDate')) document.getElementById('departureDate').value = cruiseBookingData.departureDate || '';
@@ -4492,7 +4498,8 @@ try {
                         </div>`;
 
                         footer.innerHTML = `
-                        <button class="btn-proceed" style="flex:1;" onclick="closeCruiseBookingModal(); location.reload();"><i class="fas fa-plus"></i> Book Another Cruise</button>
+                        <button class="btn-proceed" style="flex:1;" onclick="window.location.href='../User Account/profile.php?track=' + encodeURIComponent('${bookingNumber}')"><i class="fas fa-file-upload"></i> View My Booking</button>
+                        <button class="btn-back" style="flex:1;" onclick="closeCruiseBookingModal(); location.reload();"><i class="fas fa-plus"></i> Book Another Cruise</button>
                         <button class="btn-back" style="flex:1;" onclick="closeCruiseBookingModal()"><i class="fas fa-times"></i> Close</button>
                     `;
                         updateCruiseSteps(4);

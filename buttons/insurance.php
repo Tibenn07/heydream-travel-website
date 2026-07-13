@@ -1689,6 +1689,7 @@ $auth = new Auth($pdo);
                 <div class="booking-service-summary"><div class="service-icon-large"><i class="fas fa-shield-alt"></i></div><div class="service-info"><h3>${currentInsurance.title}</h3><p class="service-price">₱${formatNumber(currentInsurance.price)}</p><p class="service-duration">${currentInsurance.duration}</p></div></div>
                 <form id="insuranceForm" onsubmit="return false;">
                     <div class="form-section"><h4><i class="fas fa-user"></i> Personal Information</h4>
+                        <div class="form-group"><label>Email Address <span class="required">*</span></label><input type="email" id="applicationEmail" value="${window.currentUserEmail || ''}" placeholder="Your email address"></div>
                         <div class="form-group"><label>Full Name <span class="required">*</span></label><input type="text" id="fullName" placeholder="As per ID" value="${window.currentFullName || ''}"></div>
                         <div class="form-group"><label>Phone <span class="required">*</span></label><input type="tel" id="phone" placeholder="+63 912 345 6789"></div>
                         <div class="form-group"><label>Date of Birth <span class="required">*</span></label><input type="date" id="dob" max="${new Date().toISOString().split('T')[0]}"></div>
@@ -1710,6 +1711,7 @@ $auth = new Auth($pdo);
 
         function validateAndGoToStep2() {
             const errors = [];
+            const email = document.getElementById('applicationEmail')?.value.trim();
             const fullName = document.getElementById('fullName')?.value.trim();
             const phone = document.getElementById('phone')?.value.trim();
             const dob = document.getElementById('dob')?.value;
@@ -1717,11 +1719,9 @@ $auth = new Auth($pdo);
             const endDate = document.getElementById('endDate')?.value;
             const destination = document.getElementById('destination')?.value.trim();
             const travelers = document.getElementById('travelers')?.value;
+            if (!email) errors.push('Email address is required');
+            else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) errors.push('Please enter a valid email address');
             if (!fullName) errors.push('Full Name is required');
-
-            // Use auto-detected email
-            const email = window.currentUserEmail || '';
-            if (!email) errors.push('Your account email could not be detected. Please log in again.');
             if (!phone) errors.push('Phone number is required');
             if (!dob) errors.push('Date of Birth is required');
             if (!startDate) errors.push('Start Date is required');
@@ -1729,6 +1729,7 @@ $auth = new Auth($pdo);
             if (!destination) errors.push('Destination is required');
             if (!travelers || travelers < 1) errors.push('At least 1 traveler is required');
             document.querySelectorAll('.form-group input, .form-group select').forEach(f => f.classList.remove('error'));
+            if (!email) document.getElementById('applicationEmail')?.classList.add('error');
             if (!fullName) document.getElementById('fullName')?.classList.add('error');
             if (!phone) document.getElementById('phone')?.classList.add('error');
             if (!dob) document.getElementById('dob')?.classList.add('error');
@@ -1742,7 +1743,7 @@ $auth = new Auth($pdo);
 
         function goToInsuranceStep2() {
             const fullName = document.getElementById('fullName')?.value;
-            const email = window.currentUserEmail || '';
+            const email = document.getElementById('applicationEmail')?.value.trim() || window.currentUserEmail || '';
             const phone = document.getElementById('phone')?.value;
             const dob = document.getElementById('dob')?.value;
             const startDate = document.getElementById('startDate')?.value;
@@ -1765,7 +1766,7 @@ $auth = new Auth($pdo);
             updateInsuranceSteps(2);
         }
 
-        function goToInsuranceStep1() { updateInsuranceSteps(1); setTimeout(() => { if (insuranceBookingData) { if (document.getElementById('fullName')) document.getElementById('fullName').value = insuranceBookingData.fullName || ''; if (document.getElementById('email')) document.getElementById('email').value = insuranceBookingData.email || ''; if (document.getElementById('phone')) document.getElementById('phone').value = insuranceBookingData.phone || ''; if (document.getElementById('startDate')) document.getElementById('startDate').value = insuranceBookingData.startDate || ''; if (document.getElementById('endDate')) document.getElementById('endDate').value = insuranceBookingData.endDate || ''; if (document.getElementById('destination')) document.getElementById('destination').value = insuranceBookingData.destination || ''; } }, 50); }
+        function goToInsuranceStep1() { updateInsuranceSteps(1); setTimeout(() => { if (insuranceBookingData) { if (document.getElementById('fullName')) document.getElementById('fullName').value = insuranceBookingData.fullName || ''; if (document.getElementById('applicationEmail')) document.getElementById('applicationEmail').value = insuranceBookingData.email || ''; if (document.getElementById('phone')) document.getElementById('phone').value = insuranceBookingData.phone || ''; if (document.getElementById('startDate')) document.getElementById('startDate').value = insuranceBookingData.startDate || ''; if (document.getElementById('endDate')) document.getElementById('endDate').value = insuranceBookingData.endDate || ''; if (document.getElementById('destination')) document.getElementById('destination').value = insuranceBookingData.destination || ''; } }, 50); }
 
         function goToInsuranceStep3() {
             document.getElementById('step3Content').innerHTML = `
@@ -1819,40 +1820,50 @@ $auth = new Auth($pdo);
         }
 
         function goToInsuranceStep4() {
-            // Save to server
-            fetch('../api/save-service-booking.php', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    service_type: 'Travel Insurance',
-                    package_name: currentInsurance.title,
-                    package_duration: `${insuranceBookingData.startDate} to ${insuranceBookingData.endDate}`,
-                    price_per_person: currentInsurance.price,
-                    full_name: insuranceBookingData.fullName,
-                    email: insuranceBookingData.email,
-                    phone: insuranceBookingData.phone,
-                    travel_date: insuranceBookingData.startDate,
-                    number_of_travelers: insuranceBookingData.travelers,
-                    special_requests: `DOB: ${insuranceBookingData.dob}, Conditions: ${insuranceBookingData.conditions}, Coverage: ${insuranceBookingData.coverageLabel}`,
-                    total_amount: insuranceBookingData.total,
-                    payment_method: selectedPayment,
-                    payment_reference: document.getElementById(`paymentRef${selectedPayment.charAt(0).toUpperCase() + selectedPayment.slice(1)}`)?.value || ''
+            if (!currentInsurance || !insuranceBookingData) {
+                alert('Your booking session has expired or was reset. Please close this window and start the booking again.');
+                return;
+            }
+
+            try {
+                // Save to server
+                fetch('../api/save-service-booking.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        service_type: 'Travel Insurance',
+                        package_name: currentInsurance.title,
+                        package_duration: `${insuranceBookingData.startDate} to ${insuranceBookingData.endDate}`,
+                        price_per_person: currentInsurance.price,
+                        full_name: insuranceBookingData.fullName,
+                        email: insuranceBookingData.email,
+                        phone: insuranceBookingData.phone,
+                        travel_date: insuranceBookingData.startDate,
+                        number_of_travelers: insuranceBookingData.travelers,
+                        special_requests: `DOB: ${insuranceBookingData.dob}, Conditions: ${insuranceBookingData.conditions}, Coverage: ${insuranceBookingData.coverageLabel}`,
+                        total_amount: insuranceBookingData.total,
+                        payment_method: selectedPayment,
+                        payment_reference: document.getElementById(`paymentRef${selectedPayment.charAt(0).toUpperCase() + selectedPayment.slice(1)}`)?.value || ''
+                    })
                 })
-            })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        const bookingNumber = data.booking_number;
-                        document.getElementById('step4Content').innerHTML = `<div class="success-message"><i class="fas fa-check-circle"></i><h2>⏳ Policy Received!</h2><p>Your insurance application has been received and saved.</p><div class="booking-number">Policy: ${bookingNumber}</div><div class="details-card"><h4>📋 Policy Details:</h4><p><strong>Plan:</strong> ${currentInsurance.title}</p><p><strong>Coverage:</strong> ${new Date(insuranceBookingData.startDate).toLocaleDateString()} - ${new Date(insuranceBookingData.endDate).toLocaleDateString()}</p><p><strong>Destination:</strong> ${escapeHtml(insuranceBookingData.destination)}</p><p><strong>Travelers:</strong> ${insuranceBookingData.travelers}</p><p><strong>Total Premium:</strong> <span style="color:#ff9800;">₱${formatNumber(insuranceBookingData.total)}</span></p><p><strong>Payment Method:</strong> ${insuranceBookingData.paymentMethod}</p><p><strong>Payment Status:</strong> <span style="color:#ff9800;">Pending Verification</span></p><p><strong>Insured:</strong> ${escapeHtml(insuranceBookingData.fullName)}</p></div><div class="payment-status-pending"><i class="fas fa-info-circle"></i> Your payment is pending verification. Our team will review your payment proof and send confirmation within 24 hours. A confirmation has been sent to ${insuranceBookingData.email}.</div><div class="action-buttons"><button class="submit-booking-btn btn-primary" onclick="closeInsuranceBookingModal(); location.reload();"><i class="fas fa-plus"></i> Get Another Quote</button><button class="submit-booking-btn btn-secondary" onclick="closeInsuranceBookingModal()"><i class="fas fa-times"></i> Close</button></div></div>`;
-                        updateInsuranceSteps(4);
-                    } else {
-                        alert('Error saving booking: ' + data.message);
-                    }
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                    alert('Connection error. Please try again.');
-                });
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            const bookingNumber = data.booking_number;
+                            document.getElementById('step4Content').innerHTML = `<div class="success-message"><i class="fas fa-check-circle"></i><h2>⏳ Policy Received!</h2><p>Your insurance application has been received and saved.</p><div class="booking-number">Policy: ${bookingNumber}</div><div class="details-card"><h4>📋 Policy Details:</h4><p><strong>Plan:</strong> ${currentInsurance.title}</p><p><strong>Coverage:</strong> ${new Date(insuranceBookingData.startDate).toLocaleDateString()} - ${new Date(insuranceBookingData.endDate).toLocaleDateString()}</p><p><strong>Destination:</strong> ${escapeHtml(insuranceBookingData.destination)}</p><p><strong>Travelers:</strong> ${insuranceBookingData.travelers}</p><p><strong>Total Premium:</strong> <span style="color:#ff9800;">₱${formatNumber(insuranceBookingData.total)}</span></p><p><strong>Payment Method:</strong> ${insuranceBookingData.paymentMethod}</p><p><strong>Payment Status:</strong> <span style="color:#ff9800;">Pending Verification</span></p><p><strong>Insured:</strong> ${escapeHtml(insuranceBookingData.fullName)}</p></div><div class="payment-status-pending"><i class="fas fa-info-circle"></i> Your payment is pending verification. Our team will review your payment proof and send confirmation within 24 hours. A confirmation has been sent to ${insuranceBookingData.email}.</div><div class="action-buttons"><button class="submit-booking-btn btn-primary" onclick="window.location.href='../User Account/profile.php?track=' + encodeURIComponent('${bookingNumber}')"><i class="fas fa-file-upload"></i> View My Booking</button><button class="submit-booking-btn btn-secondary" onclick="closeInsuranceBookingModal(); location.reload();"><i class="fas fa-plus"></i> Get Another Quote</button><button class="submit-booking-btn btn-secondary" onclick="closeInsuranceBookingModal()"><i class="fas fa-times"></i> Close</button></div></div>`;
+                            updateInsuranceSteps(4);
+                        } else {
+                            alert('Error saving booking: ' + data.message);
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        alert('Connection error. Please try again.');
+                    });
+            } catch (err) {
+                console.error('Booking submission error:', err);
+                alert('Something went wrong while submitting your booking: ' + err.message + '. Please try again.');
+            }
         }
 
         function updateInsuranceSteps(step) { for (let i = 1; i <= 4; i++) { const ind = document.getElementById(`step${i}Indicator`), cont = document.getElementById(`step${i}Content`); if (i < step) { ind.classList.add('completed'); ind.classList.remove('active'); } else if (i === step) { ind.classList.add('active'); ind.classList.remove('completed'); } else { ind.classList.remove('active', 'completed'); } if (i === step) cont.classList.add('active'); else cont.classList.remove('active'); } }

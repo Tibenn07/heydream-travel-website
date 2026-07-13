@@ -135,8 +135,16 @@ window.switchForeignTab = function (event, tabId) {
     modalBody.querySelector('#foreign-pane-' + tabId).style.display = 'block';
 };
 
+// "View Tour Details" now navigates to the full package-details.php page.
+// The original modal-building logic is kept as showForeignPackagePopupModal —
+// used by package-details.php's "Book This Deal" button (via resumeForeignBooking)
+// to open the booking flow directly, without rebuilding it.
+window.showForeignPackagePopup = function (destKey) {
+    window.location.href = `package-details.php?type=foreign&id=${encodeURIComponent(destKey)}`;
+};
+
 // Global function to show foreign package popup
-window.showForeignPackagePopup = async function (destKey) {
+window.showForeignPackagePopupModal = async function (destKey) {
     console.log('Showing foreign package for:', destKey);
 
     // Create modal if it doesn't exist
@@ -971,8 +979,8 @@ window.resumeForeignBooking = function (destKey, step) {
         goToForeignStep(step);
     } else {
         // Modal not open (likely after login redirect), load it first
-        if (typeof showForeignPackagePopup === 'function') {
-            showForeignPackagePopup(destKey);
+        if (typeof showForeignPackagePopupModal === 'function') {
+            showForeignPackagePopupModal(destKey);
             setTimeout(() => {
                 // Switch to booking view if needed
                 if (step > 1) {

@@ -3872,6 +3872,7 @@ try {
                 <div class="booking-service-summary"><div class="service-icon-large"><i class="fas fa-plane"></i></div><div class="service-info"><h3>${currentFlight.title}</h3><p class="service-price">₱${formatNumber(currentFlight.price)}</p><p class="service-duration">${currentFlight.duration}</p></div></div>
                 <form id="flightForm" onsubmit="return false;">
                     <div class="form-section"><h4><i class="fas fa-user"></i> Traveler Information</h4>
+                        <div class="form-group"><label>Email Address <span class="required">*</span></label><input type="email" id="applicationEmail" value="${window.currentUserEmail || ''}" placeholder="Your email address"></div>
                         <div class="form-group"><label>Full Name <span class="required">*</span></label><input type="text" id="fullName" placeholder="As per passport/ID" value="${window.currentFullName || ''}"></div>
                         <div class="form-group"><label>Phone <span class="required">*</span></label><input type="tel" id="phone" placeholder="+63 912 345 6789"></div>
                     </div>
@@ -3914,6 +3915,7 @@ try {
 
         function validateAndGoToStep2() {
             const errors = [];
+            const email = document.getElementById('applicationEmail')?.value.trim();
             const fullName = document.getElementById('fullName')?.value.trim();
             const phone = document.getElementById('phone')?.value.trim();
             const departureDate = document.getElementById('departureDate')?.value;
@@ -3921,11 +3923,9 @@ try {
             const toCity = document.getElementById('toCity')?.value.trim();
             const passengers = document.getElementById('passengers')?.value;
 
+            if (!email) errors.push('Email address is required');
+            else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) errors.push('Please enter a valid email address');
             if (!fullName) errors.push('Full Name is required');
-
-            // Use auto-detected email
-            const email = window.currentUserEmail || '';
-            if (!email) errors.push('Your account email could not be detected. Please log in again.');
             if (!phone) errors.push('Phone number is required');
             if (!departureDate) errors.push('Departure Date is required');
             if (!fromCity) errors.push('Departure City is required');
@@ -3933,6 +3933,7 @@ try {
             if (!passengers || passengers < 1) errors.push('At least 1 traveler is required');
 
             document.querySelectorAll('.form-group input, .form-group select').forEach(f => f.classList.remove('error'));
+            if (!email) document.getElementById('applicationEmail')?.classList.add('error');
             if (!fullName) document.getElementById('fullName')?.classList.add('error');
             if (!phone) document.getElementById('phone')?.classList.add('error');
             if (!departureDate) document.getElementById('departureDate')?.classList.add('error');
@@ -3952,7 +3953,7 @@ try {
 
         function goToFlightStep2() {
             const fullName = document.getElementById('fullName')?.value;
-            const email = window.currentUserEmail || '';
+            const email = document.getElementById('applicationEmail')?.value.trim() || window.currentUserEmail || '';
             const phone = document.getElementById('phone')?.value;
             const departureDate = document.getElementById('departureDate')?.value;
             const returnDate = document.getElementById('returnDate')?.value;
@@ -4001,7 +4002,7 @@ try {
             setTimeout(() => {
                 if (flightBookingData) {
                     if (document.getElementById('fullName')) document.getElementById('fullName').value = flightBookingData.fullName || '';
-                    if (document.getElementById('email')) document.getElementById('email').value = flightBookingData.email || '';
+                    if (document.getElementById('applicationEmail')) document.getElementById('applicationEmail').value = flightBookingData.email || '';
                     if (document.getElementById('phone')) document.getElementById('phone').value = flightBookingData.phone || '';
                     if (document.getElementById('departureDate')) document.getElementById('departureDate').value = flightBookingData.departureDate || '';
                     if (document.getElementById('fromCity')) document.getElementById('fromCity').value = flightBookingData.fromCity || '';
@@ -4161,40 +4162,50 @@ try {
         }
 
         function goToFlightStep4() {
-            // Save to server
-            fetch('../api/save-service-booking.php', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    service_type: 'Flight Booking',
-                    package_name: currentFlight.title,
-                    package_duration: currentFlight.duration,
-                    price_per_person: currentFlight.price,
-                    full_name: flightBookingData.fullName,
-                    email: flightBookingData.email,
-                    phone: flightBookingData.phone,
-                    travel_date: flightBookingData.departureDate,
-                    number_of_travelers: flightBookingData.passengers,
-                    special_requests: `Route: ${flightBookingData.fromCity} -> ${flightBookingData.toCity}, Return: ${flightBookingData.returnDate}, Class: ${flightBookingData.classLabel}, Meal: ${flightBookingData.mealPref}, Requests: ${flightBookingData.requests}`,
-                    total_amount: flightBookingData.total,
-                    payment_method: selectedPayment,
-                    payment_reference: document.getElementById(`paymentRef${selectedPayment.charAt(0).toUpperCase() + selectedPayment.slice(1)}`)?.value || ''
+            if (!currentFlight || !flightBookingData) {
+                alert('Your booking session has expired or was reset. Please close this window and start the booking again.');
+                return;
+            }
+
+            try {
+                // Save to server
+                fetch('../api/save-service-booking.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        service_type: 'Flight Booking',
+                        package_name: currentFlight.title,
+                        package_duration: currentFlight.duration,
+                        price_per_person: currentFlight.price,
+                        full_name: flightBookingData.fullName,
+                        email: flightBookingData.email,
+                        phone: flightBookingData.phone,
+                        travel_date: flightBookingData.departureDate,
+                        number_of_travelers: flightBookingData.passengers,
+                        special_requests: `Route: ${flightBookingData.fromCity} -> ${flightBookingData.toCity}, Return: ${flightBookingData.returnDate}, Class: ${flightBookingData.classLabel}, Meal: ${flightBookingData.mealPref}, Requests: ${flightBookingData.requests}`,
+                        total_amount: flightBookingData.total,
+                        payment_method: selectedPayment,
+                        payment_reference: document.getElementById(`paymentRef${selectedPayment.charAt(0).toUpperCase() + selectedPayment.slice(1)}`)?.value || ''
+                    })
                 })
-            })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        const bookingNumber = data.booking_number;
-                        document.getElementById('step4Content').innerHTML = `<div class="success-message"><i class="fas fa-check-circle"></i><h2>✈️ Booking Confirmed!</h2><p>Your flight booking has been confirmed and saved.</p><div class="booking-number">Ticket Reference: ${bookingNumber}</div><div class="details-card"><h4>📋 Ticket Details:</h4><p><strong>Route:</strong> ${currentFlight.title}</p><p><strong>Departure:</strong> ${new Date(flightBookingData.departureDate).toLocaleDateString()}</p><p><strong>Travelers:</strong> ${flightBookingData.passengers}</p><p><strong>Class:</strong> ${flightBookingData.classLabel}</p><p><strong>Total Fare:</strong> <span style="color:#ff9800;">₱${formatNumber(flightBookingData.total)}</span></p><p><strong>Payment Status:</strong> <span style="color:#28a745;">Confirmed</span></p><p><strong>Booked By:</strong> ${escapeHtml(flightBookingData.fullName)}</p></div><div class="instruction-note"><i class="fas fa-info-circle"></i> Your e-ticket will be sent to your email (${flightBookingData.email}) within 2 hours.</div><div class="action-buttons"><button class="submit-booking-btn btn-primary" onclick="closeFlightBookingModal(); location.reload();"><i class="fas fa-plus"></i> Book Another Flight</button><button class="submit-booking-btn btn-secondary" onclick="closeFlightBookingModal()"><i class="fas fa-times"></i> Close</button></div></div>`;
-                        updateFlightSteps(4);
-                    } else {
-                        alert('Error saving booking: ' + data.message);
-                    }
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                    alert('Connection error. Please try again.');
-                });
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            const bookingNumber = data.booking_number;
+                            document.getElementById('step4Content').innerHTML = `<div class="success-message"><i class="fas fa-check-circle"></i><h2>✈️ Booking Confirmed!</h2><p>Your flight booking has been confirmed and saved.</p><div class="booking-number">Ticket Reference: ${bookingNumber}</div><div class="details-card"><h4>📋 Ticket Details:</h4><p><strong>Route:</strong> ${currentFlight.title}</p><p><strong>Departure:</strong> ${new Date(flightBookingData.departureDate).toLocaleDateString()}</p><p><strong>Travelers:</strong> ${flightBookingData.passengers}</p><p><strong>Class:</strong> ${flightBookingData.classLabel}</p><p><strong>Total Fare:</strong> <span style="color:#ff9800;">₱${formatNumber(flightBookingData.total)}</span></p><p><strong>Payment Status:</strong> <span style="color:#28a745;">Confirmed</span></p><p><strong>Booked By:</strong> ${escapeHtml(flightBookingData.fullName)}</p></div><div class="instruction-note"><i class="fas fa-info-circle"></i> Your e-ticket will be sent to your email (${flightBookingData.email}) within 2 hours.</div><div class="action-buttons"><button class="submit-booking-btn btn-primary" onclick="window.location.href='../User Account/profile.php?track=' + encodeURIComponent('${bookingNumber}')"><i class="fas fa-file-upload"></i> View My Booking</button><button class="submit-booking-btn btn-secondary" onclick="closeFlightBookingModal(); location.reload();"><i class="fas fa-plus"></i> Book Another Flight</button><button class="submit-booking-btn btn-secondary" onclick="closeFlightBookingModal()"><i class="fas fa-times"></i> Close</button></div></div>`;
+                            updateFlightSteps(4);
+                        } else {
+                            alert('Error saving booking: ' + data.message);
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        alert('Connection error. Please try again.');
+                    });
+            } catch (err) {
+                console.error('Booking submission error:', err);
+                alert('Something went wrong while submitting your booking: ' + err.message + '. Please try again.');
+            }
         }
 
         function updateFlightSteps(step) {

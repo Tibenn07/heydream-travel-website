@@ -201,6 +201,29 @@ try {
         }
         // ─────────────────────────────────────────────────────────────
 
+        // Respond to the client now — the confirmation email below is a real
+        // SMTP round-trip (can take several seconds) and shouldn't hold up
+        // the booking flow. Flush the response first, then keep running in
+        // the background to send it.
+        $responseBody = json_encode([
+            'success' => true,
+            'message' => 'Booking saved successfully',
+            'booking_number' => $booking_number
+        ]);
+        ignore_user_abort(true);
+        if (ob_get_level() === 0) {
+            ob_start();
+        }
+        echo $responseBody;
+        header('Content-Length: ' . ob_get_length());
+        header('Connection: close');
+        if (function_exists('fastcgi_finish_request')) {
+            fastcgi_finish_request();
+        } else {
+            ob_end_flush();
+            @flush();
+        }
+
         // Include email functions
         require_once __DIR__ . '/../config/email_functions.php';
 
@@ -209,18 +232,10 @@ try {
         $stmt->execute([$booking_id]);
         $booking = $stmt->fetch(PDO::FETCH_ASSOC);
 
-        // Send confirmation email
-        $emailSent = false;
+        // Send confirmation email (client has already received its response)
         if ($booking) {
-            $emailSent = sendBookingConfirmationEmail($booking_id, $booking);
+            sendBookingConfirmationEmail($booking_id, $booking);
         }
-
-        echo json_encode([
-            'success' => true,
-            'message' => 'Booking saved successfully',
-            'booking_number' => $booking_number,
-            'email_sent' => $emailSent
-        ]);
     } else {
         echo json_encode(['success' => false, 'message' => 'Failed to save booking']);
     }

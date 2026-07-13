@@ -3631,8 +3631,12 @@ try {
 
                 <div class="section-header"><i class="fas fa-user"></i> Guest Information</div>
                 <div class="input-group">
+                    <label>Email Address <span class="required">*</span></label>
+                    <input type="email" id="applicationEmail" value="${(expBookingData && expBookingData.email) || window.currentUserEmail || ''}" placeholder="Your email address">
+                </div>
+                <div class="input-group">
                     <label>Full Name <span class="required">*</span></label>
-                    <input type="text" id="fullName" placeholder="Your full name" value="${window.currentFullName || ''}">
+                    <input type="text" id="fullName" placeholder="Your full name" value="${(expBookingData && expBookingData.fullName) || window.currentFullName || ''}">
                 </div>
                 <div class="input-group">
                     <label>Phone <span class="required">*</span></label>
@@ -3692,11 +3696,16 @@ try {
         }
 
         function validateAndGoToStep2() {
+            const email = document.getElementById('applicationEmail')?.value.trim();
             const fullName = document.getElementById('fullName')?.value.trim();
             const phone = document.getElementById('phone')?.value.trim();
             const date = document.getElementById('date')?.value;
             const participants = document.getElementById('participants')?.value;
 
+            if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+                alert('Please enter a valid email address.');
+                return;
+            }
             if (!fullName || !phone || !date || !participants || participants < 1) {
                 alert('Please fill in all required fields.');
                 return;
@@ -3708,7 +3717,7 @@ try {
         function goToExpStep2() {
             updateExpSteps(2);
             const fullName = document.getElementById('fullName')?.value;
-            const email = window.currentUserEmail || '';
+            const email = document.getElementById('applicationEmail')?.value.trim() || window.currentUserEmail || '';
             const phone = document.getElementById('phone')?.value;
             const date = document.getElementById('date')?.value;
             const time = document.getElementById('time')?.value;
@@ -3901,7 +3910,8 @@ try {
             `;
 
             footer.innerHTML = `
-                <button class="btn-proceed" style="flex:1;" onclick="closeExpBookingModal(); location.reload();"><i class="fas fa-home"></i> View Bookings</button>
+                <button class="btn-proceed" style="flex:1;" onclick="window.location.href='../User Account/profile.php?track=' + encodeURIComponent('${bookingNumber}')"><i class="fas fa-file-upload"></i> View My Booking</button>
+                <button class="btn-proceed" style="flex:1;" onclick="closeExpBookingModal(); location.reload();"><i class="fas fa-plus"></i> Book Another Experience</button>
             `;
         }
 

@@ -109,8 +109,16 @@ window.switchFlashTab = function (event, tabId) {
     modalBody.querySelector('#flash-pane-' + tabId).style.display = 'block';
 };
 
+// "View Deal"/"View Tour Details" now navigates to the full package-details.php page.
+// The original modal-building logic is kept as showFlashDealPopupModal —
+// used by package-details.php's "Book This Deal" button (via resumeFlashBooking)
+// to open the booking flow directly, without rebuilding it.
+window.showFlashDealPopup = function (dealId) {
+    window.location.href = `package-details.php?type=flash&id=${encodeURIComponent(dealId)}`;
+};
+
 // Global function to show flash deal popup
-window.showFlashDealPopup = async function (dealId) {
+window.showFlashDealPopupModal = async function (dealId) {
     console.log('Showing flash deal for ID:', dealId);
 
     // Create modal if it doesn't exist
@@ -935,8 +943,8 @@ window.resumeFlashBooking = function (dealId, step) {
         goToFlashStep(step);
     } else {
         // Modal not open (likely after login redirect), load it first
-        if (typeof showFlashDealPopup === 'function') {
-            showFlashDealPopup(dealId);
+        if (typeof showFlashDealPopupModal === 'function') {
+            showFlashDealPopupModal(dealId);
             setTimeout(() => {
                 // Switch to booking view if needed
                 if (step > 1) {

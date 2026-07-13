@@ -1107,6 +1107,7 @@ $bookings = array_filter($all_bookings, function ($b) {
                             <div class="booking-price">₱<?= number_format($booking['total_amount'], 2) ?></div>
                             <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 8px;">
                                 <button class="track-btn"
+                                    data-booking-number="<?= htmlspecialchars($booking['booking_number']) ?>"
                                     onclick="showTracking('<?= $booking['booking_number'] ?>', '<?= $booking['booking_status'] ?>', '<?= $booking['payment_status'] ?>', <?= intval($booking['travel_documents'] ?? 0) ?>, <?= intval($booking['ready_for_travel'] ?? 0) ?>, '<?= $booking['payment_proof'] ? '../' . $booking['payment_proof'] : '' ?>')"
                                     style="padding: 8px 20px; border-radius: 12px; font-size: 0.85rem; box-shadow: 0 4px 10px rgba(0, 53, 128, 0.1);">
                                     <i class="fas fa-map-pin"></i> Track
@@ -1734,16 +1735,9 @@ $bookings = array_filter($all_bookings, function ($b) {
             }
 
             // Auto-open tracking modal if booking_number is in URL
-            const bookingParam = urlParams.get('booking_number');
+            const bookingParam = urlParams.get('booking_number') || urlParams.get('track');
             if (bookingParam) {
-                const trackBtns = document.querySelectorAll('button.track-btn');
-                let foundBtn = null;
-                for (let btn of trackBtns) {
-                    if (btn.getAttribute('onclick') && btn.getAttribute('onclick').includes(bookingParam)) {
-                        foundBtn = btn;
-                        break;
-                    }
-                }
+                const foundBtn = document.querySelector(`button.track-btn[data-booking-number="${CSS.escape(bookingParam)}"]`);
 
                 if (foundBtn) {
                     setTimeout(() => {

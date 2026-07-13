@@ -2482,6 +2482,10 @@ try {
 
                 <div class="section-header"><i class="fas fa-user"></i> Guest Information</div>
                 <div class="input-group">
+                    <label>Email Address <span class="required">*</span></label>
+                    <input type="email" id="applicationEmail" value="${bookingData.email || ''}" placeholder="Your email address">
+                </div>
+                <div class="input-group">
                     <label>Full Name <span class="required">*</span></label>
                     <input type="text" id="fullName" value="${bookingData.fullName}" placeholder="Steven Rebancos">
                 </div>
@@ -2518,17 +2522,23 @@ try {
         }
 
         function validateStep1() {
+            const email = document.getElementById('applicationEmail').value.trim();
             const name = document.getElementById('fullName').value;
             const phone = document.getElementById('phone').value;
             const checkIn = document.getElementById('checkIn').value;
             const checkOut = document.getElementById('checkOut').value;
             const travelers = document.getElementById('travelers').value;
 
+            if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+                alert('Please enter a valid email address.');
+                return;
+            }
             if (!name || !phone || !checkIn || !checkOut) {
                 alert('Please fill in all required fields.');
                 return;
             }
 
+            bookingData.email = email;
             bookingData.fullName = name;
             bookingData.phone = phone;
             bookingData.checkIn = checkIn;
@@ -2771,6 +2781,11 @@ try {
                             <p style="font-size:0.85rem; color:#64748b;">We've sent the confirmation details to <b>${bookingData.email}</b></p>
                         </div>
                     `;
+                    footer.innerHTML = `
+                        <button class="btn-proceed" style="flex:1; background:#ff9800;" onclick="window.location.href='../User Account/profile.php?track=' + encodeURIComponent('${result.booking_number}')"><i class="fas fa-file-upload"></i> View My Booking</button>
+                        <button class="btn-proceed" style="flex:1; background:#1e293b;" onclick="closeModal()">Close & Return to Hotels</button>
+                    `;
+                    return;
                 } else {
                     throw new Error(result.message || 'Failed to save booking');
                 }

@@ -3049,7 +3049,6 @@ try {
         let gateTargetVisa = null;
 
         function showVisaGate(btnElement, title, price, duration) {
-            gateTargetVisa = { title, price, duration };
             document.getElementById('gateVisaTitle').innerText = title + ' Visa Application';
 
             // Description
@@ -3067,6 +3066,7 @@ try {
             // Requirements
             let reqsArray = [];
             try { reqsArray = JSON.parse(btnElement.getAttribute('data-reqs') || '[]'); } catch (e) { }
+            gateTargetVisa = { title, price, duration, requirements: reqsArray };
             const reqsContainer = document.getElementById('gateReqsContainer');
             reqsContainer.innerHTML = reqsArray.length
                 ? reqsArray.map(item => `<li>${item.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</li>`).join('')
@@ -3088,7 +3088,7 @@ try {
         function proceedToVisaBooking() {
             const v = gateTargetVisa;
             closeGateModal();
-            if (v) requireLogin('showVisaBooking', v.title, v.price, v.duration);
+            if (v) requireLogin('showVisaBooking', v.title, v.price, v.duration, v.requirements);
         }
 
         // Inject user info
@@ -3097,7 +3097,7 @@ try {
     </script>
 
     <script>
-        let currentVisa = null, visaBookingData = null, selectedPayment = null;
+        let currentVisa = null, visaBookingData = null, selectedPayment = null, visaDocumentFiles = [];
         function formatNumber(n) { return n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ","); }
         function escapeHtml(t) { if (!t) return ''; const d = document.createElement('div'); d.textContent = t; return d.innerHTML; }
         function copyToClipboard(text) { navigator.clipboard.writeText(text).then(() => { const btn = event.target; const orig = btn.textContent; btn.textContent = 'Copied!'; btn.style.background = '#28a745'; btn.style.color = 'white'; setTimeout(() => { btn.textContent = orig; btn.style.background = '#e0e0e0'; btn.style.color = ''; }, 1500); }); }
@@ -3112,12 +3112,13 @@ try {
             }
         }
 
-        function showVisaBooking(title, price, duration) {
-            currentVisa = { title, price, duration };
+        function showVisaBooking(title, price, duration, requirements) {
+            currentVisa = { title, price, duration, requirements: requirements || [] };
+            visaDocumentFiles = [];
             let modal = document.getElementById('visaBookingModal');
             if (!modal) {
                 modal = document.createElement('div'); modal.id = 'visaBookingModal'; modal.className = 'booking-modal';
-                modal.innerHTML = `<div class="booking-modal-content"><div class="booking-modal-header"><span class="close-modal" onclick="closeVisaBookingModal()">&times;</span><h2><i class="fas fa-passport"></i> Visa Application</h2><p>Complete your application</p></div><div class="booking-modal-body"><div class="booking-steps"><div class="step active" id="step1Indicator"><div class="step-number">1</div><div class="step-label">Details</div><div class="step-line" style="width: 100%;"></div></div><div class="step" id="step2Indicator"><div class="step-number">2</div><div class="step-label">Review</div><div class="step-line" style="width: 100%;"></div></div><div class="step" id="step3Indicator"><div class="step-number">3</div><div class="step-label">Confirmation</div></div></div><div id="step1Content" class="step-content active"></div><div id="step2Content" class="step-content"></div><div id="step3Content" class="step-content"></div></div></div>`;
+                modal.innerHTML = `<div class="booking-modal-content"><div class="booking-modal-header"><span class="close-modal" onclick="closeVisaBookingModal()">&times;</span><h2><i class="fas fa-passport"></i> Visa Application</h2><p>Complete your application</p></div><div class="booking-modal-body"><div class="booking-steps"><div class="step active" id="step1Indicator"><div class="step-number">1</div><div class="step-label">Details</div><div class="step-line" style="width: 100%;"></div></div><div class="step" id="step2Indicator"><div class="step-number">2</div><div class="step-label">Documents</div><div class="step-line" style="width: 100%;"></div></div><div class="step" id="step3Indicator"><div class="step-number">3</div><div class="step-label">Review</div><div class="step-line" style="width: 100%;"></div></div><div class="step" id="step4Indicator"><div class="step-number">4</div><div class="step-label">Confirmation</div></div></div><div id="step1Content" class="step-content active"></div><div id="step2Content" class="step-content"></div><div id="step3Content" class="step-content"></div><div id="step4Content" class="step-content"></div></div></div>`;
                 document.body.appendChild(modal);
                 modal.addEventListener('click', e => { if (e.target === modal) closeVisaBookingModal(); });
             }
@@ -3179,59 +3180,145 @@ try {
             document.querySelectorAll('.form-group input,.form-group select').forEach(f => f.classList.remove('error'));
             ['applicationEmail', 'fullName', 'phone', 'dob', 'passportNum', 'passportExpiry', 'address', 'destination'].forEach(id => { if (!fn(id)) document.getElementById(id)?.classList.add('error'); });
             if (errors.length > 0) { const e = document.getElementById('step1Errors'); e.style.display = 'flex'; e.innerHTML = `<i class="fas fa-exclamation-circle"></i><ul class="error-list">${errors.map(e => `<li>✗ ${e}</li>`).join('')}</ul>`; e.scrollIntoView({ behavior: 'smooth', block: 'center' }); return; }
-            goToVisaStep2();
+            renderVisaStep2Documents();
         }
 
-        function goToVisaStep2() {
+        function handleVisaDocSelect(event, index) {
+            const file = event.target.files[0];
+            const nameEl = document.getElementById(`visa-doc-name-${index}`);
+            if (!file) { if (nameEl) nameEl.textContent = 'No file selected'; return; }
+            const allowedTypes = ['application/pdf', 'image/jpeg', 'image/png', 'image/jpg', 'image/webp'];
+            if (!allowedTypes.includes(file.type)) {
+                alert('Please upload a PDF or image file (JPG, PNG, WEBP).');
+                event.target.value = '';
+                if (nameEl) nameEl.textContent = 'No file selected';
+                return;
+            }
+            if (file.size > 10 * 1024 * 1024) {
+                alert('File too large. Max 10MB.');
+                event.target.value = '';
+                if (nameEl) nameEl.textContent = 'No file selected';
+                return;
+            }
+            if (nameEl) nameEl.textContent = file.name;
+        }
+
+        function renderVisaStep2Documents() {
+            const reqs = (currentVisa.requirements && currentVisa.requirements.length > 0)
+                ? currentVisa.requirements
+                : ['Supporting Documents (optional)'];
+
+            const uploadBlocks = reqs.map((label, index) => `
+                <div class="form-group">
+                    <label>${escapeHtml(label)}</label>
+                    <div class="file-upload" onclick="document.getElementById('visaDoc${index}').click()">
+                        <i class="fas fa-cloud-upload-alt"></i>
+                        <p>Click to upload (PDF or image)</p>
+                        <p class="file-name" id="visa-doc-name-${index}">No file selected</p>
+                        <input type="file" id="visaDoc${index}" accept="application/pdf,image/*" style="display:none" onchange="handleVisaDocSelect(event, ${index})">
+                    </div>
+                </div>
+            `).join('');
+
+            document.getElementById('step2Content').innerHTML = `
+                <div class="booking-service-summary"><div class="service-icon-large"><i class="fas fa-passport"></i></div><div class="service-info"><h3>${currentVisa.title}</h3><p class="service-price">${escapeHtml(currentVisa.duration || '')}</p></div></div>
+                <div style="background: #e8f0fe; padding: 12px; border-radius: 10px; font-size: 0.8rem; color: #003580; margin-bottom: 15px;">
+                    <i class="fas fa-info-circle"></i> Uploading now is optional and helps speed up review — you can also add or update these later from My Bookings.
+                </div>
+                <form onsubmit="return false;">
+                    ${uploadBlocks}
+                </form>
+                <div class="action-buttons"><button type="button" class="btn-prev" onclick="goToVisaStep1()"><i class="fas fa-arrow-left"></i> Back</button><button type="button" class="btn-next" onclick="goToVisaStep3()">Continue to Review <i class="fas fa-arrow-right"></i></button></div>`;
+            updateVisaSteps(2);
+        }
+
+        function goToVisaStep3() {
+            const reqs = (currentVisa.requirements && currentVisa.requirements.length > 0)
+                ? currentVisa.requirements
+                : ['Supporting Documents (optional)'];
+            visaDocumentFiles = [];
+            reqs.forEach((label, index) => {
+                const input = document.getElementById(`visaDoc${index}`);
+                const file = input?.files?.[0];
+                if (file) visaDocumentFiles.push({ file, label });
+            });
+
             const gv = id => document.getElementById(id)?.value;
             const fullName = gv('fullName'), email = gv('applicationEmail'), phone = gv('phone'), dob = gv('dob'), passportNum = gv('passportNum'), passportExpiry = gv('passportExpiry'), address = gv('address'), destination = gv('destination'), embassy = gv('embassy'), travelDate = gv('travelDate'), processing = gv('processing'), occupation = gv('occupation'), travelHistory = gv('travelHistory'), applicants = parseInt(gv('applicants')) || 1;
             let addAmountPerPerson = 0, processingLabel = 'Regular';
             if (processing === 'urgent') { addAmountPerPerson = 3000; processingLabel = 'Urgent (3-5 days)'; } else if (processing === 'express') { addAmountPerPerson = 5000; processingLabel = 'Express (24h)'; }
             const total = (currentVisa.price + addAmountPerPerson) * applicants;
             visaBookingData = { fullName, email, phone, dob, passportNum, passportExpiry, address, destination, embassy, travelDate, processingLabel, occupation, travelHistory, total, applicants, addAmountPerPerson };
-            document.getElementById('step2Content').innerHTML = `
+            document.getElementById('step3Content').innerHTML = `
                 <div class="booking-service-summary"><div class="service-icon-large"><i class="fas fa-passport"></i></div><div class="service-info"><h3>${currentVisa.title}</h3><p class="service-price">₱${formatNumber(total)}</p></div></div>
                 <div class="review-details"><div class="review-section"><h4>Applicant Info</h4><div class="review-row"><div class="review-label">Name:</div><div class="review-value">${escapeHtml(fullName)}</div></div><div class="review-row"><div class="review-label">Applicants:</div><div class="review-value">${applicants} Person${applicants > 1 ? 's' : ''}</div></div><div class="review-row"><div class="review-label">Passport:</div><div class="review-value">${escapeHtml(passportNum)} (Exp: ${new Date(passportExpiry).toLocaleDateString()})</div></div><div class="review-row"><div class="review-label">Email:</div><div class="review-value">${escapeHtml(email)}</div></div><div class="review-row"><div class="review-label">Phone:</div><div class="review-value">${escapeHtml(phone)}</div></div></div>
                 <div class="review-section"><h4>Travel Details</h4><div class="review-row"><div class="review-label">Destination:</div><div class="review-value">${escapeHtml(destination)}</div></div><div class="review-row"><div class="review-label">Embassy:</div><div class="review-value">${embassy === 'manila' ? 'Manila' : embassy === 'cebu' ? 'Cebu' : 'Davao'}</div></div><div class="review-row"><div class="review-label">Travel Date:</div><div class="review-value">${travelDate ? new Date(travelDate).toLocaleDateString() : 'To be determined'}</div></div><div class="review-row"><div class="review-label">Processing:</div><div class="review-value">${processingLabel}</div></div></div>
+                <div class="review-section"><h4>Documents</h4><div class="review-row"><div class="review-label">Uploaded:</div><div class="review-value">${visaDocumentFiles.length} of ${reqs.length} document${reqs.length > 1 ? 's' : ''}</div></div></div>
                 <div class="review-section"><h4>Fee Summary</h4><div class="review-row"><div class="review-label">Visa Fee:</div><div class="review-value">₱${formatNumber(currentVisa.price)} x ${applicants}</div></div>${visaBookingData.addAmountPerPerson > 0 ? `<div class="review-row"><div class="review-label">Processing:</div><div class="review-value">+₱${formatNumber(visaBookingData.addAmountPerPerson)} x ${applicants}</div></div>` : ''}<div class="review-row"><div class="review-label">Total to Pay:</div><div class="review-value" style="color:#ff9800; font-weight:800;">₱${formatNumber(total)}</div></div></div>
                 <div style="background: #e8f0fe; padding: 12px; border-radius: 10px; font-size: 0.75rem; color: #003580; margin-top: 10px;">
-                    <i class="fas fa-info-circle"></i> After submitting, an agent will review your application and contact you for the payment process and document collection.
+                    <i class="fas fa-info-circle"></i> After submitting, an agent will review your application and contact you for the payment process and remaining document collection.
                 </div>
                 </div>
-                <div class="action-buttons"><button type="button" class="btn-prev" onclick="goToVisaStep1()"><i class="fas fa-arrow-left"></i> Back</button><button type="button" class="submit-booking-btn" onclick="submitVisaApplication()"><i class="fas fa-paper-plane"></i> Submit Application</button></div>`;
-            updateVisaSteps(2);
+                <div class="action-buttons"><button type="button" class="btn-prev" onclick="updateVisaSteps(2)"><i class="fas fa-arrow-left"></i> Back</button><button type="button" class="submit-booking-btn" onclick="submitVisaApplication()"><i class="fas fa-paper-plane"></i> Submit Application</button></div>`;
+            updateVisaSteps(3);
         }
 
         function goToVisaStep1() { updateVisaSteps(1); setTimeout(() => { if (visaBookingData) { ['fullName', 'phone', 'passportNum', 'destination', 'travelDate', 'applicationEmail'].forEach(id => { const el = document.getElementById(id); if (el) el.value = visaBookingData[id] || ''; }); } }, 50); }
 
+        function uploadVisaDocuments(bookingNumber) {
+            const uploads = visaDocumentFiles.map(({ file }) => {
+                const fd = new FormData();
+                fd.append('action', 'upload');
+                fd.append('booking_number', bookingNumber);
+                fd.append('document', file);
+                return fetch('../User Account/api/upload-api.php', { method: 'POST', body: fd })
+                    .catch(err => { console.error('Document upload failed:', err); });
+            });
+            return Promise.all(uploads);
+        }
+
         function submitVisaApplication() {
+            if (!currentVisa || !visaBookingData) {
+                alert('Your application session has expired or was reset. Please close this window and start over.');
+                return;
+            }
+
             const btn = event.currentTarget;
             const originalHtml = btn.innerHTML;
             btn.disabled = true;
             btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Submitting...';
 
-            fetch('../api/save-service-booking.php', {
-                method: 'POST', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    service_type: 'Visa Assistance', package_name: currentVisa.title,
-                    package_duration: visaBookingData.processingLabel, price_per_person: currentVisa.price,
-                    full_name: visaBookingData.fullName, email: visaBookingData.email, phone: visaBookingData.phone,
-                    travelers: visaBookingData.applicants,
-                    travel_date: visaBookingData.travelDate,
-                    special_requests: `Applicants: ${visaBookingData.applicants}, Passport: ${visaBookingData.passportNum}, DOB: ${visaBookingData.dob}, Address: ${visaBookingData.address}, Destination: ${visaBookingData.destination}, Embassy: ${visaBookingData.embassy}, Occupation: ${visaBookingData.occupation}, Travel History: ${visaBookingData.travelHistory}`,
-                    total_amount: visaBookingData.total, payment_method: 'Manual Agent Approval',
-                    payment_reference: 'PENDING_AGENT'
-                })
-            }).then(r => r.json()).then(data => {
-                if (data.success) {
-                    document.getElementById('step3Content').innerHTML = `<div class="success-message"><i class="fas fa-clock" style="color:#ff9800;"></i><h2>📄 Application Received!</h2><p>Your application is now being reviewed by our agents.</p><div class="booking-number">Application Reference: ${data.booking_number}</div><div class="details-card"><h4>📋 Next Steps:</h4><p>1. Our expert agents will review your details manually.</p><p>2. You will receive an email at <strong>${visaBookingData.email}</strong> once approved.</p><p>3. Upon approval, we will guide you through the document collection and final payment.</p></div><div class="payment-status-pending" style="background: #e8f4fd; color: #004085;"><i class="fas fa-user-tie"></i> Please wait for the confirmation of our agents to approve your application.</div><div class="action-buttons"><button class="submit-booking-btn btn-primary" onclick="closeVisaBookingModal();location.reload();"><i class="fas fa-check"></i> Understood</button></div></div>`;
-                    updateVisaSteps(3);
-                } else { btn.disabled = false; btn.innerHTML = originalHtml; alert('Error: ' + data.message); }
-            }).catch(() => { btn.disabled = false; btn.innerHTML = originalHtml; alert('Connection error. Please try again.'); });
+            try {
+                fetch('../api/save-service-booking.php', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        service_type: 'Visa Assistance', package_name: currentVisa.title,
+                        package_duration: visaBookingData.processingLabel, price_per_person: currentVisa.price,
+                        full_name: visaBookingData.fullName, email: visaBookingData.email, phone: visaBookingData.phone,
+                        travelers: visaBookingData.applicants,
+                        travel_date: visaBookingData.travelDate,
+                        special_requests: `Applicants: ${visaBookingData.applicants}, Passport: ${visaBookingData.passportNum}, DOB: ${visaBookingData.dob}, Address: ${visaBookingData.address}, Destination: ${visaBookingData.destination}, Embassy: ${visaBookingData.embassy}, Occupation: ${visaBookingData.occupation}, Travel History: ${visaBookingData.travelHistory}`,
+                        total_amount: visaBookingData.total, payment_method: 'Manual Agent Approval',
+                        payment_reference: 'PENDING_AGENT'
+                    })
+                }).then(r => r.json()).then(async data => {
+                    if (data.success) {
+                        if (visaDocumentFiles.length > 0) {
+                            await uploadVisaDocuments(data.booking_number);
+                        }
+                        document.getElementById('step4Content').innerHTML = `<div class="success-message"><i class="fas fa-clock" style="color:#ff9800;"></i><h2>📄 Application Received!</h2><p>Your application is now being reviewed by our agents.</p><div class="booking-number">Application Reference: ${data.booking_number}</div><div class="details-card"><h4>📋 Next Steps:</h4><p>1. Our expert agents will review your details manually.</p><p>2. You will receive an email at <strong>${visaBookingData.email}</strong> once approved.</p><p>3. Upon approval, we will guide you through the document collection and final payment.</p></div><div class="payment-status-pending" style="background: #e8f4fd; color: #004085;"><i class="fas fa-user-tie"></i> Please wait for the confirmation of our agents to approve your application.</div><div class="action-buttons"><button class="submit-booking-btn btn-primary" onclick="window.location.href='../User Account/profile.php?track=' + encodeURIComponent('${data.booking_number}')"><i class="fas fa-file-upload"></i> View My Application</button><button class="submit-booking-btn btn-secondary" onclick="closeVisaBookingModal();location.reload();"><i class="fas fa-check"></i> Understood</button></div></div>`;
+                        updateVisaSteps(4);
+                    } else { btn.disabled = false; btn.innerHTML = originalHtml; alert('Error: ' + data.message); }
+                }).catch(() => { btn.disabled = false; btn.innerHTML = originalHtml; alert('Connection error. Please try again.'); });
+            } catch (err) {
+                btn.disabled = false; btn.innerHTML = originalHtml;
+                console.error('Application submission error:', err);
+                alert('Something went wrong while submitting your application: ' + err.message + '. Please try again.');
+            }
         }
 
-        function updateVisaSteps(step) { for (let i = 1; i <= 3; i++) { const ind = document.getElementById(`step${i}Indicator`), cont = document.getElementById(`step${i}Content`); if (i < step) { ind.classList.add('completed'); ind.classList.remove('active'); } else if (i === step) { ind.classList.add('active'); ind.classList.remove('completed'); } else { ind.classList.remove('active', 'completed'); } if (i === step) cont.classList.add('active'); else cont.classList.remove('active'); } }
-        function closeVisaBookingModal() { const m = document.getElementById('visaBookingModal'); if (m) m.classList.remove('active'); visaBookingData = null; selectedPayment = null; }
+        function updateVisaSteps(step) { for (let i = 1; i <= 4; i++) { const ind = document.getElementById(`step${i}Indicator`), cont = document.getElementById(`step${i}Content`); if (i < step) { ind.classList.add('completed'); ind.classList.remove('active'); } else if (i === step) { ind.classList.add('active'); ind.classList.remove('completed'); } else { ind.classList.remove('active', 'completed'); } if (i === step) cont.classList.add('active'); else cont.classList.remove('active'); } }
+        function closeVisaBookingModal() { const m = document.getElementById('visaBookingModal'); if (m) m.classList.remove('active'); visaBookingData = null; selectedPayment = null; visaDocumentFiles = []; }
     </script>
     <script src="../js/auth-menu.js"></script>
     <script src="../js/main.js"></script>

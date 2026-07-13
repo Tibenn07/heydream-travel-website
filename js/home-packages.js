@@ -262,9 +262,17 @@ window.switchHomeTab = function (event, tabId) {
     }
 };
 
+// "View Tour Details" now navigates to the full package-details.php page.
+// The original modal-building logic is kept as showLocalPackagePopupModal —
+// used by package-details.php's "Book This Deal" button (via resumeHomeBooking)
+// to open the booking flow directly, without rebuilding it.
+window.showLocalPackagePopup = function (identifier) {
+    window.location.href = `package-details.php?type=local&id=${encodeURIComponent(identifier)}`;
+};
+
 // Show destination details directly - ONLY for local packages - UPDATED MODAL DESIGN
-window.showLocalPackagePopup = async function (identifier) {
-    console.log('=== showLocalPackagePopup called ===');
+window.showLocalPackagePopupModal = async function (identifier) {
+    console.log('=== showLocalPackagePopupModal called ===');
     console.log('Identifier:', identifier);
 
     let destination = null;
@@ -1137,8 +1145,8 @@ window.resumeHomeBooking = function (destKey, step) {
         goToHomeStep(step);
     } else {
         // Modal not open (likely after login redirect), load it first
-        if (typeof showLocalPackagePopup === 'function') {
-            showLocalPackagePopup(destKey);
+        if (typeof showLocalPackagePopupModal === 'function') {
+            showLocalPackagePopupModal(destKey);
             setTimeout(() => {
                 // Switch to booking view if needed
                 if (step > 1) {
