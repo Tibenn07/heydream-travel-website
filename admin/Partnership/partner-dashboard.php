@@ -2575,16 +2575,6 @@ if (($section ?? 'dashboard') === 'bookings') {
                                                             title="Details">
                                                             <i class="fas fa-eye"></i>
                                                         </button>
-                                                        <button type="button" class="edit-btn"
-                                                            onclick="openEditBookingModal(<?= htmlspecialchars(json_encode($booking)) ?>)"
-                                                            title="Edit Booking">
-                                                            <i class="fas fa-edit"></i>
-                                                        </button>
-                                                        <button type="button" class="delete-btn"
-                                                            onclick="confirmDeleteBooking(<?= $booking['id'] ?>)"
-                                                            title="Delete Booking">
-                                                            <i class="fas fa-trash"></i>
-                                                        </button>
                                                         <?php if ($bStatus === 'pending'): ?>
                                                         <form method="post" action="partner-dashboard.php?section=bookings" style="display:inline;" onsubmit="return confirm('Confirm this booking?');">
                                                             <input type="hidden" name="action" value="confirm_booking">
