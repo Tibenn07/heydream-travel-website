@@ -232,11 +232,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         $checkStmt = $pdo->prepare("SELECT id FROM bookings WHERE id = ? AND partner_id = ?");
         $checkStmt->execute([$bookingId, $partnerId]);
         if ($checkStmt->fetch()) {
-            $stmt = $pdo->prepare("UPDATE bookings SET booking_status = 'confirmed', payment_status = 'paid' WHERE id = ? AND partner_id = ?");
-            $stmt->execute([$bookingId, $partnerId]);
-            $successMessage = 'Booking #' . $bookingId . ' has been confirmed successfully!';
-        } else {
-            $errorMessage = 'You do not have permission to confirm this booking.';
+            $stmt = $pdo->prepare("UPDATE bookings SET booking_status = 'confirmed', payment_status = 'paid', partner_approved = 1 WHERE id = ? AND partner_id = ?");
         }
     }
 }
@@ -2576,13 +2572,10 @@ if (($section ?? 'dashboard') === 'bookings') {
                                                             <i class="fas fa-eye"></i>
                                                         </button>
                                                         <?php if ($bStatus === 'pending'): ?>
-                                                        <form method="post" action="partner-dashboard.php?section=bookings" style="display:inline;" onsubmit="return confirm('Confirm this booking?');">
-                                                            <input type="hidden" name="action" value="confirm_booking">
-                                                            <input type="hidden" name="booking_id" value="<?= $booking['id'] ?>">
-                                                            <button type="submit" class="approve-btn" title="Confirm Booking">
-                                                                <i class="fas fa-check"></i>
-                                                            </button>
-                                                        </form>
+                                                        <button type="button" class="approve-btn" title="Confirm Booking"
+                                                            onclick="openApprovalModal(<?= (int)$booking['id'] ?>, <?= htmlspecialchars(json_encode($booking['booking_number'] ?? '')) ?>, <?= htmlspecialchars(json_encode($displayPackage)) ?>)">
+                                                            <i class="fas fa-check"></i>
+                                                        </button>
                                                         <?php endif; ?>
                                                     </div>
                                                 </td>
@@ -2605,6 +2598,36 @@ if (($section ?? 'dashboard') === 'bookings') {
                             <?php endfor; ?>
                         </div>
                     <?php endif; ?>
+
+                    <!-- Booking Approval Modal -->
+                    <div id="bookingApprovalModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(15,23,42,0.7); backdrop-filter:blur(4px); z-index:11000; justify-content:center; align-items:center;">
+                        <div style="background:white; border-radius:20px; box-shadow:0 25px 50px rgba(0,0,0,0.25); max-width:460px; width:92%; overflow:hidden;">
+                            <div style="padding:26px 28px; border-bottom:1px solid #f1f5f9; display:flex; align-items:center; gap:14px;">
+                                <div style="width:44px;height:44px;border-radius:14px;background:#eff6ff;display:flex;align-items:center;justify-content:center;color:#2563eb;font-size:20px;">
+                                    <i class="fas fa-check-circle"></i>
+                                </div>
+                                <div>
+                                    <h3 style="margin:0;font-size:1.05rem;font-weight:800;color:#0f172a;">Approve Booking</h3>
+                                    <p style="margin:6px 0 0;color:#475569;font-size:0.95rem;">Confirm this booking so it becomes visible to the admin dashboard.</p>
+                                </div>
+                            </div>
+                            <div style="padding:20px 28px; color:#334155; line-height:1.7;">
+                                <p style="margin:0 0 14px;">Are you sure you want to approve booking <strong id="approval_booking_number">#...</strong> for <strong id="approval_booking_package">this package</strong>?</p>
+                                <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:14px;padding:14px;font-size:0.95rem;color:#1e293b;">
+                                    <div><strong>Booking Number:</strong> <span id="approval_booking_number_inner">—</span></div>
+                                    <div style="margin-top:8px;"><strong>Package:</strong> <span id="approval_booking_package_name">—</span></div>
+                                </div>
+                            </div>
+                            <div style="display:flex; justify-content:flex-end; gap:10px; padding:18px 28px; background:#ffffff;">
+                                <button type="button" onclick="closeApprovalModal()" style="height:40px;padding:0 20px;border-radius:12px;border:1px solid #cbd5e1;background:#f8fafc;color:#334155;font-weight:700;cursor:pointer;">Cancel</button>
+                                <button type="button" onclick="submitApprovalForm()" style="height:40px;padding:0 20px;border-radius:12px;border:none;background:#2563eb;color:white;font-weight:700;cursor:pointer;">Yes, approve booking</button>
+                            </div>
+                        </div>
+                        <form id="approvalForm" method="post" action="partner-dashboard.php?section=bookings" style="display:none;">
+                            <input type="hidden" name="action" value="confirm_booking">
+                            <input type="hidden" name="booking_id" id="approval_booking_id" value="">
+                        </form>
+                    </div>
 
                     <!-- Booking Detail Modal — matches admin dashboard "Booking and Customer Details" -->
                     <div id="bookingDetailModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(15,23,42,0.6); backdrop-filter:blur(8px); z-index:10000; justify-content:center; align-items:center;">
@@ -2831,10 +2854,42 @@ if (($section ?? 'dashboard') === 'bookings') {
                     document.addEventListener('keydown', function(e) {
                         if (e.key==='Escape') {
                             document.getElementById('bookingDetailModal').style.display='none';
+                            document.getElementById('bookingApprovalModal').style.display='none';
                             document.getElementById('editBookingModal').style.display='none';
                             document.body.style.overflow='';
                         }
                     });
+
+                    document.getElementById('bookingApprovalModal').addEventListener('click', function(e) {
+                        if (e.target === this) {
+                            closeApprovalModal();
+                        }
+                    });
+
+                    function openApprovalModal(id, bookingNumber, packageName) {
+                        const modal = document.getElementById('bookingApprovalModal');
+                        if (!modal) return;
+                        document.getElementById('approval_booking_id').value = id;
+                        document.getElementById('approval_booking_number').textContent = bookingNumber || id;
+                        document.getElementById('approval_booking_number_inner').textContent = bookingNumber || id;
+                        document.getElementById('approval_booking_package').textContent = packageName || 'the selected package';
+                        document.getElementById('approval_booking_package_name').textContent = packageName || 'N/A';
+                        modal.style.display = 'flex';
+                        document.body.style.overflow = 'hidden';
+                    }
+
+                    function closeApprovalModal() {
+                        const modal = document.getElementById('bookingApprovalModal');
+                        if (!modal) return;
+                        modal.style.display = 'none';
+                        document.body.style.overflow = '';
+                    }
+
+                    function submitApprovalForm() {
+                        const form = document.getElementById('approvalForm');
+                        if (!form) return;
+                        form.submit();
+                    }
 
                     // ── Edit Booking Modal ────────────────────────────────
                     function openEditBookingModal(b) {

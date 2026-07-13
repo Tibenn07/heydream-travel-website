@@ -621,7 +621,7 @@ EOF;
                 break;
             }
 
-            $stmt = $pdo->prepare("SELECT * FROM bookings WHERE email = ? AND booking_status IN ('completed', 'confirmed') ORDER BY created_at DESC");
+            $stmt = $pdo->prepare("SELECT * FROM bookings WHERE email = ? AND booking_status IN ('completed', 'confirmed') AND partner_approved = 1 ORDER BY created_at DESC");
             $stmt->execute([$email]);
             $history = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
@@ -657,7 +657,7 @@ EOF;
                 FROM bookings b
                 LEFT JOIN partner_applications pa ON b.partner_id = pa.id
                 LEFT JOIN partner_profiles pp ON b.partner_id = pp.partner_id
-                WHERE b.%s = ?
+                WHERE b.%s = ? AND b.partner_approved = 1
             ";
             if ($id === 0 && $booking_number_param !== '') {
                 $stmt = $pdo->prepare(sprintf($bookingWithPartnerSql, 'booking_number'));
@@ -798,10 +798,10 @@ EOF;
             // Get old status and booking details before update
             // For id=0 records, look up by booking_number
             if ($id === 0 && $booking_number_key !== '') {
-                $stmt = $pdo->prepare("SELECT booking_status, payment_status, email, full_name, booking_number, destination_name, travel_date, number_of_travelers, total_amount, travel_documents, ready_for_travel, package_name FROM bookings WHERE booking_number = ?");
+                $stmt = $pdo->prepare("SELECT booking_status, payment_status, email, full_name, booking_number, destination_name, travel_date, number_of_travelers, total_amount, travel_documents, ready_for_travel, package_name FROM bookings WHERE booking_number = ? AND partner_approved = 1");
                 $stmt->execute([$booking_number_key]);
             } else {
-                $stmt = $pdo->prepare("SELECT booking_status, payment_status, email, full_name, booking_number, destination_name, travel_date, number_of_travelers, total_amount, travel_documents, ready_for_travel, package_name FROM bookings WHERE id = ?");
+                $stmt = $pdo->prepare("SELECT booking_status, payment_status, email, full_name, booking_number, destination_name, travel_date, number_of_travelers, total_amount, travel_documents, ready_for_travel, package_name FROM bookings WHERE id = ? AND partner_approved = 1");
                 $stmt->execute([$id]);
             }
             $old_booking = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -838,7 +838,7 @@ EOF;
             // Update the booking
             // For id=0 records, update by booking_number
             if ($id === 0 && $booking_number_key !== '') {
-                $stmt = $pdo->prepare("UPDATE bookings SET booking_status = ?, payment_status = ?, admin_notes = ?, flight_details = ?, visa_status = ?, travel_documents = ?, ready_for_travel = ?, number_of_travelers = ?, total_amount = ?, price_per_person = ?{$statusActorClause} WHERE booking_number = ?");
+                $stmt = $pdo->prepare("UPDATE bookings SET booking_status = ?, payment_status = ?, admin_notes = ?, flight_details = ?, visa_status = ?, travel_documents = ?, ready_for_travel = ?, number_of_travelers = ?, total_amount = ?, price_per_person = ?{$statusActorClause} WHERE booking_number = ? AND partner_approved = 1");
                 $params = [$booking_status, $payment_status, $admin_notes, $flight_details, $visa_status, $travel_documents, $ready_for_travel, $number_of_travelers, $total_amount, $price_per_person];
                 if ($justConfirmed) { $params[] = $_SESSION['admin_id']; }
                 if ($justCompleted) { $params[] = $_SESSION['admin_id']; }
@@ -846,7 +846,7 @@ EOF;
                 $params[] = $booking_number_key;
                 $success = $stmt->execute($params);
             } else {
-                $stmt = $pdo->prepare("UPDATE bookings SET booking_status = ?, payment_status = ?, admin_notes = ?, flight_details = ?, visa_status = ?, travel_documents = ?, ready_for_travel = ?, number_of_travelers = ?, total_amount = ?, price_per_person = ?{$statusActorClause} WHERE id = ?");
+                $stmt = $pdo->prepare("UPDATE bookings SET booking_status = ?, payment_status = ?, admin_notes = ?, flight_details = ?, visa_status = ?, travel_documents = ?, ready_for_travel = ?, number_of_travelers = ?, total_amount = ?, price_per_person = ?{$statusActorClause} WHERE id = ? AND partner_approved = 1");
                 $params = [$booking_status, $payment_status, $admin_notes, $flight_details, $visa_status, $travel_documents, $ready_for_travel, $number_of_travelers, $total_amount, $price_per_person];
                 if ($justConfirmed) { $params[] = $_SESSION['admin_id']; }
                 if ($justCompleted) { $params[] = $_SESSION['admin_id']; }
@@ -1015,7 +1015,7 @@ EOF;
                 SELECT id, full_name, destination_name, travel_date, booking_number, booking_status,
                        payment_status, travel_documents, ready_for_travel, visa_status, package_name
                 FROM bookings
-                WHERE LOWER(booking_status) != 'cancelled' AND deleted_at IS NULL
+                WHERE LOWER(booking_status) != 'cancelled' AND deleted_at IS NULL AND partner_approved = 1
                 ORDER BY travel_date ASC
             ");
             $stmt->execute();
@@ -1067,6 +1067,7 @@ EOF;
                     AND booking_status IN ('confirmed', 'completed')
                     AND reminder_sent = 0
                     AND deleted_at IS NULL
+                    AND partner_approved = 1
                 ");
                 $remind_stmt->execute();
                 $to_remind = $remind_stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -1476,7 +1477,7 @@ EOF;
                 break;
             }
 
-            $stmt = $pdo->prepare("SELECT * FROM bookings ORDER BY created_at DESC");
+            $stmt = $pdo->prepare("SELECT * FROM bookings WHERE partner_approved = 1 ORDER BY created_at DESC");
             $stmt->execute();
             $bookings = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
@@ -1945,7 +1946,7 @@ EOF;
                 echo json_encode(['success' => false, 'message' => 'Permission denied']);
                 break;
             }
-            $stmt = $pdo->prepare("SELECT * FROM bookings WHERE destination_name = 'Visa Assistance' ORDER BY created_at DESC");
+            $stmt = $pdo->prepare("SELECT * FROM bookings WHERE destination_name = 'Visa Assistance' AND partner_approved = 1 ORDER BY created_at DESC");
             $stmt->execute();
             $bookings = $stmt->fetchAll(PDO::FETCH_ASSOC);
             echo json_encode(['success' => true, 'data' => $bookings]);
@@ -1958,7 +1959,7 @@ EOF;
                 break;
             }
             $id = intval($_GET['id'] ?? 0);
-            $stmt = $pdo->prepare("SELECT * FROM bookings WHERE id = ? AND destination_name = 'Visa Assistance'");
+            $stmt = $pdo->prepare("SELECT * FROM bookings WHERE id = ? AND destination_name = 'Visa Assistance' AND partner_approved = 1");
             $stmt->execute([$id]);
             $booking = $stmt->fetch(PDO::FETCH_ASSOC);
             if ($booking) {
@@ -2196,7 +2197,7 @@ EOF;
 
             if ($period === 'month') {
                 $currentYear = (int) date('Y');
-                $minYearRow = $pdo->query("SELECT MIN(YEAR(created_at)) as minY FROM bookings")->fetch();
+                $minYearRow = $pdo->query("SELECT MIN(YEAR(created_at)) as minY FROM bookings WHERE partner_approved = 1")->fetch();
                 $minYear = $minYearRow && $minYearRow['minY'] ? (int) $minYearRow['minY'] : $currentYear;
 
                 $requestedYear = (int) ($_GET['year'] ?? $currentYear);
@@ -2207,7 +2208,7 @@ EOF;
 
                 $stmt = $pdo->prepare("SELECT MONTH(created_at) as m, COUNT(*) as total
                     FROM bookings
-                    WHERE YEAR(created_at) = ? AND deleted_at IS NULL
+                    WHERE YEAR(created_at) = ? AND deleted_at IS NULL AND partner_approved = 1
                     GROUP BY MONTH(created_at)");
                 $stmt->execute([$requestedYear]);
                 $rawCounts = $stmt->fetchAll(PDO::FETCH_KEY_PAIR);
@@ -2264,7 +2265,7 @@ EOF;
 
             $stmt = $pdo->prepare("SELECT DATE(created_at) as booking_date, COUNT(*) as total
                 FROM bookings
-                WHERE DATE(created_at) BETWEEN ? AND ? AND deleted_at IS NULL
+                WHERE DATE(created_at) BETWEEN ? AND ? AND deleted_at IS NULL AND partner_approved = 1
                 GROUP BY DATE(created_at)");
             $stmt->execute([$startDate, $endDate]);
             $rawCounts = $stmt->fetchAll(PDO::FETCH_KEY_PAIR);

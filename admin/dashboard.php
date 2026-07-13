@@ -47,13 +47,13 @@ $pdo->prepare("UPDATE bookings SET travel_date = '2026-05-20' WHERE booking_numb
 // Get statistics
 // Trashed (soft-deleted) bookings are excluded from every stat below — they're
 // no longer "active" once moved to Trash, even though the row still exists.
-$totalBookings = $pdo->query("SELECT COUNT(*) FROM bookings WHERE deleted_at IS NULL")->fetchColumn();
-$pendingBookings = $pdo->query("SELECT COUNT(*) FROM bookings WHERE booking_status = 'pending' AND deleted_at IS NULL")->fetchColumn();
-$confirmedBookings = $pdo->query("SELECT COUNT(*) FROM bookings WHERE booking_status = 'confirmed' AND deleted_at IS NULL")->fetchColumn();
+$totalBookings = $pdo->query("SELECT COUNT(*) FROM bookings WHERE deleted_at IS NULL AND partner_approved = 1")->fetchColumn();
+$pendingBookings = $pdo->query("SELECT COUNT(*) FROM bookings WHERE booking_status = 'pending' AND deleted_at IS NULL AND partner_approved = 1")->fetchColumn();
+$confirmedBookings = $pdo->query("SELECT COUNT(*) FROM bookings WHERE booking_status = 'confirmed' AND deleted_at IS NULL AND partner_approved = 1")->fetchColumn();
 
 // Calculate Revenue (Foreign bookings as USD, others as Peso)
-$totalRevenueUSD = $pdo->query("SELECT SUM(total_amount) FROM bookings WHERE payment_status = 'paid' AND deleted_at IS NULL AND (booking_number LIKE 'FO-%' OR booking_number LIKE 'FOR-%')")->fetchColumn() ?: 0;
-$totalRevenuePeso = $pdo->query("SELECT SUM(total_amount) FROM bookings WHERE payment_status = 'paid' AND deleted_at IS NULL AND (booking_number NOT LIKE 'FO-%' AND booking_number NOT LIKE 'FOR-%')")->fetchColumn() ?: 0;
+$totalRevenueUSD = $pdo->query("SELECT SUM(total_amount) FROM bookings WHERE payment_status = 'paid' AND deleted_at IS NULL AND partner_approved = 1 AND (booking_number LIKE 'FO-%' OR booking_number LIKE 'FOR-%')")->fetchColumn() ?: 0;
+$totalRevenuePeso = $pdo->query("SELECT SUM(total_amount) FROM bookings WHERE payment_status = 'paid' AND deleted_at IS NULL AND partner_approved = 1 AND (booking_number NOT LIKE 'FO-%' AND booking_number NOT LIKE 'FOR-%')")->fetchColumn() ?: 0;
 
 $totalUsers = $pdo->query("SELECT COUNT(*) FROM users")->fetchColumn();
 $totalDestinations = $pdo->query("SELECT COUNT(*) FROM destinations")->fetchColumn();
@@ -71,7 +71,7 @@ $bookingsChartEndDate = date('Y-m-d', strtotime($bookingsChartStartDate . ' +13 
 
 $dailyBookingsRaw = $pdo->prepare("SELECT DATE(created_at) as booking_date, COUNT(*) as total
     FROM bookings
-    WHERE DATE(created_at) BETWEEN ? AND ? AND deleted_at IS NULL
+    WHERE DATE(created_at) BETWEEN ? AND ? AND deleted_at IS NULL AND partner_approved = 1
     GROUP BY DATE(created_at)");
 $dailyBookingsRaw->execute([$bookingsChartStartDate, $bookingsChartEndDate]);
 $dailyBookingsRaw = $dailyBookingsRaw->fetchAll(PDO::FETCH_KEY_PAIR);
@@ -96,7 +96,7 @@ $bookingsChartRangeLabel = date('M j', strtotime($bookingsChartStartDate)) . ' �
 
 // Year range for the "Month" view's year selector
 $bookingsChartCurrentYear = (int) date('Y');
-$bookingsChartMinYearRow = $pdo->query("SELECT MIN(YEAR(created_at)) as minY FROM bookings")->fetch();
+$bookingsChartMinYearRow = $pdo->query("SELECT MIN(YEAR(created_at)) as minY FROM bookings WHERE partner_approved = 1")->fetch();
 $bookingsChartMinYear = ($bookingsChartMinYearRow && $bookingsChartMinYearRow['minY']) ? (int) $bookingsChartMinYearRow['minY'] : $bookingsChartCurrentYear;
 
 // Get pending requests count for badge
@@ -117,7 +117,7 @@ try {
 }
 
 // Get pending inquiries count for marketing badge
-$stmtInqCount = $pdo->query("SELECT COUNT(*) FROM bookings WHERE payment_method = 'Inquiry Only' AND deleted_at IS NULL");
+$stmtInqCount = $pdo->query("SELECT COUNT(*) FROM bookings WHERE payment_method = 'Inquiry Only' AND deleted_at IS NULL AND partner_approved = 1");
 $pendingInquiriesCount = $stmtInqCount->fetchColumn();
 
 // Get active bookings count for sidebar badge — mirrors JS isFullyCompleted() logic exactly:
@@ -126,6 +126,7 @@ $stmtBookCount = $pdo->query("
     SELECT COUNT(*) FROM bookings
     WHERE booking_status != 'cancelled'
     AND deleted_at IS NULL
+    AND partner_approved = 1
     AND NOT (
         booking_status = 'completed'
         AND payment_status = 'paid'
@@ -2269,7 +2270,7 @@ $unreadMessagesCount = $stmtMessagesCount ? $stmtMessagesCount->fetchColumn() : 
                         </thead>
                         <tbody>
                             <?php
-                            $stmt = $pdo->prepare("SELECT * FROM bookings WHERE deleted_at IS NULL ORDER BY created_at DESC LIMIT 5");
+                            $stmt = $pdo->prepare("SELECT * FROM bookings WHERE deleted_at IS NULL AND partner_approved = 1 ORDER BY created_at DESC LIMIT 5");
                             $stmt->execute();
                             $recentBookings = $stmt->fetchAll();
                             foreach ($recentBookings as $booking):
@@ -6287,6 +6288,7 @@ $unreadMessagesCount = $stmtMessagesCount ? $stmtMessagesCount->fetchColumn() : 
             LEFT JOIN admin_users au ON b.confirmed_by = au.id
             LEFT JOIN admin_users cu ON b.completed_by = cu.id
             LEFT JOIN admin_users xu ON b.cancelled_by = xu.id
+            WHERE b.deleted_at IS NULL AND b.partner_approved = 1
             ORDER BY b.created_at DESC
         ");
         $stmt->execute();
