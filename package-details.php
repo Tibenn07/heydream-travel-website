@@ -660,9 +660,9 @@ function resolveImgSrc($path)
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
     <script src="js/auth-menu.js?v=2"></script>
     <script src="js/voucher-checkout.js"></script>
-    <script src="js/home-packages.js?v=3"></script>
-    <script src="js/foreign-packages.js?v=3"></script>
-    <script src="js/flash-deals.js?v=3"></script>
+    <script src="js/home-packages.js?v=4"></script>
+    <script src="js/foreign-packages.js?v=4"></script>
+    <script src="js/flash-deals.js?v=5"></script>
     <script src="js/saved.js"></script>
 </body>
 

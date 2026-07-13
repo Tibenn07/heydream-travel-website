@@ -23,8 +23,8 @@ window.selectFlashHotel = function (index, name, stars, price) {
     if (typeof updateFlashStepTotal === 'function') updateFlashStepTotal(basePrice);
     const dropdown = document.getElementById('flashHotelDropdown');
     if (dropdown) dropdown.style.display = 'none';
-    document.querySelectorAll('#flashHotelDropdown .hotel-option').forEach((el, i) => {
-        el.style.background = i === index ? '#fff3e0' : 'white';
+    document.querySelectorAll('#flashHotelDropdown .hotel-option').forEach((el) => {
+        el.style.background = Number(el.dataset.hotelIndex) === index ? '#fff3e0' : 'white';
     });
 };
 
@@ -402,14 +402,19 @@ window.showFlashDealPopupModal = async function (dealId) {
 
                 ${deal.hotels && deal.hotels.length > 0 ? `
                 <div class="form-group" style="margin-top:20px;">
-                    <label>Hotel</label>
+                    <label>Hotel <span style="font-weight:400; color:#94a3b8;">(optional)</span></label>
                     <div class="hotel-selection-item" onclick="toggleFlashHotelSelection()" style="cursor:pointer; border:1px solid #ddd; border-radius:8px; padding:12px 15px; display:flex; align-items:center; justify-content:space-between;">
-                        <span><i class="fas fa-hotel" style="color:#ff9800; margin-right:8px;"></i><span id="flashSelectedHotelName" style="font-weight:600;">${escapeHtmlFlash(deal.hotels[0].name)}${deal.hotels[0].stars ? ' ' + '⭐'.repeat(deal.hotels[0].stars) : ''}</span></span>
+                        <span><i class="fas fa-hotel" style="color:#ff9800; margin-right:8px;"></i><span id="flashSelectedHotelName" style="font-weight:600;">No hotel selected</span></span>
                         <i class="fas fa-chevron-down" style="font-size:0.8rem; color:#666;"></i>
                     </div>
                     <div id="flashHotelDropdown" class="hotel-dropdown" style="display:none; margin-top:8px; background: white; border: 1px solid #ddd; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+                        <div class="hotel-option active" data-hotel-index="-1" onclick="selectFlashHotel(-1, 'No hotel selected', 0, 0)" style="padding: 12px 15px; border-bottom: 1px solid #eee; cursor: pointer; transition: background 0.2s; background:#fff3e0;">
+                            <div style="display:flex; justify-content:space-between; align-items:center;">
+                                <span style="font-weight:500; color:#64748b;">No hotel <span style="font-size:0.8rem;">(I'll arrange my own)</span></span>
+                            </div>
+                        </div>
                         ${deal.hotels.map((h, i) => `
-                            <div class="hotel-option ${i === 0 ? 'active' : ''}" onclick="selectFlashHotel(${i}, '${escapeHtmlFlash(h.name).replace(/'/g, "\\'")}', ${h.stars || 0}, ${h.price})" style="padding: 12px 15px; border-bottom: 1px solid #eee; cursor: pointer; transition: background 0.2s;">
+                            <div class="hotel-option" data-hotel-index="${i}" onclick="selectFlashHotel(${i}, '${escapeHtmlFlash(h.name).replace(/'/g, "\\'")}', ${h.stars || 0}, ${h.price})" style="padding: 12px 15px; border-bottom: 1px solid #eee; cursor: pointer; transition: background 0.2s;">
                                 <div style="display:flex; justify-content:space-between; align-items:center;">
                                     <span style="font-weight:500;">${escapeHtmlFlash(h.name)} <span style="font-size:0.8rem;">${h.stars ? '⭐'.repeat(h.stars) : ''}</span></span>
                                     <span style="color:#4caf50; font-size:0.9rem;">${h.price > 0 ? `+${deal.currency || '₱'}${formatNumberFlash(h.price)}` : 'Included'}</span>
