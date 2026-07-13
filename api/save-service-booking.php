@@ -120,7 +120,8 @@ try {
         partner_company,
         partner_package_id,
         partner_package_name,
-        partner_source
+        partner_source,
+        partner_approved
     ) VALUES (
         :user_id, 
         :booking_number, 
@@ -145,7 +146,8 @@ try {
         :partner_company,
         :partner_package_id,
         :partner_package_name,
-        :partner_source
+        :partner_source,
+        :partner_approved
     )";
 
     $stmt = $pdo->prepare($sql);
@@ -172,7 +174,8 @@ try {
         ':partner_company' => $partnerMeta['partner_company'],
         ':partner_package_id' => $partnerMeta['partner_package_id'],
         ':partner_package_name' => $partnerMeta['partner_package_name'],
-        ':partner_source' => $partnerMeta['partner_source']
+        ':partner_source' => $partnerMeta['partner_source'],
+        ':partner_approved' => !empty($partnerMeta['partner_id']) ? 0 : 1
     ]);
 
     if ($result) {

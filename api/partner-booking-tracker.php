@@ -79,6 +79,7 @@ function ensurePartnerBookingTracking($pdo)
         ['partner_package_id', 'INT DEFAULT NULL'],
         ['partner_package_name', 'VARCHAR(255) DEFAULT NULL'],
         ['partner_source', 'VARCHAR(50) DEFAULT NULL'],
+        ['partner_approved', 'TINYINT(1) DEFAULT 1'],
         // Columns the admin and partner booking-edit/view screens depend on that
         // aren't guaranteed to exist on every legacy copy of this table's schema.
         ['address', 'TEXT DEFAULT NULL'],
