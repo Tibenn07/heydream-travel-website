@@ -30,7 +30,7 @@ function displaySavedItems() {
                 <i class="fas fa-times"></i>
             </button>
             <div class="saved-item-image">
-                <img src="${item.image || 'https://via.placeholder.com/300x200?text=No+Image'}" alt="${item.name}" onerror="this.src='https://via.placeholder.com/300x200?text=No+Image'">
+                <img src="${item.image || 'https://via.placeholder.com/300x200?text=No+Image'}" alt="${item.name}" onerror="this.onerror=null;this.src='https://via.placeholder.com/300x200?text=No+Image'">
             </div>
             <div class="saved-item-content">
                 <div class="saved-item-category">${item.category}</div>

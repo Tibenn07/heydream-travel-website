@@ -1750,24 +1750,24 @@ try {
                     collageHtml = `
                         <div class="collage-three">
                             <div class="collage-main">
-                                <img src="${images[0] || ''}" alt="${dest.name}" onerror="this.src='https://via.placeholder.com/250x180?text=${dest.name}'">
+                                <img src="${images[0] || ''}" alt="${dest.name}" onerror="this.onerror=null;this.src='https://via.placeholder.com/250x180?text=${dest.name}'">
                             </div>
                             <div class="collage-stack">
-                                <img src="${images[1] || ''}" alt="${dest.name}" onerror="this.src='https://via.placeholder.com/150x90?text=${dest.name}'">
-                                <img src="${images[2] || ''}" alt="${dest.name}" onerror="this.src='https://via.placeholder.com/150x90?text=${dest.name}'">
+                                <img src="${images[1] || ''}" alt="${dest.name}" onerror="this.onerror=null;this.src='https://via.placeholder.com/150x90?text=${dest.name}'">
+                                <img src="${images[2] || ''}" alt="${dest.name}" onerror="this.onerror=null;this.src='https://via.placeholder.com/150x90?text=${dest.name}'">
                             </div>
                         </div>
                     `;
                 } else if (collageType === 'half' && images.length >= 2) {
                     collageHtml = `
                         <div class="collage-half">
-                            <img src="${images[0] || ''}" alt="${dest.name}" onerror="this.src='https://via.placeholder.com/200x180?text=${dest.name}'">
-                            <img src="${images[1] || ''}" alt="${dest.name}" onerror="this.src='https://via.placeholder.com/200x180?text=${dest.name}'">
+                            <img src="${images[0] || ''}" alt="${dest.name}" onerror="this.onerror=null;this.src='https://via.placeholder.com/200x180?text=${dest.name}'">
+                            <img src="${images[1] || ''}" alt="${dest.name}" onerror="this.onerror=null;this.src='https://via.placeholder.com/200x180?text=${dest.name}'">
                         </div>
                     `;
                 } else {
                     const imgSrc = images[0] || 'https://via.placeholder.com/400x250?text=' + dest.name;
-                    collageHtml = `<img src="${imgSrc}" alt="${dest.name}" style="width:100%; height:100%; object-fit:cover;" onerror="this.src='https://via.placeholder.com/400x250?text=${dest.name}'">`;
+                    collageHtml = `<img src="${imgSrc}" alt="${dest.name}" style="width:100%; height:100%; object-fit:cover;" onerror="this.onerror=null;this.src='https://via.placeholder.com/400x250?text=${dest.name}'">`;
                 }
 
                 grid.innerHTML += `

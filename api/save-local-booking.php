@@ -17,13 +17,35 @@ if (session_status() === PHP_SESSION_NONE) {
 
 header('Content-Type: application/json');
 
-// Get JSON input
-$input = json_decode(file_get_contents('php://input'), true);
+// Get input from either JSON or POST (FormData, needed for file uploads)
+$is_form_data = !empty($_POST);
+if ($is_form_data) {
+    $input = $_POST;
+} else {
+    $input = json_decode(file_get_contents('php://input'), true);
+}
 error_log("Local booking request: " . json_encode($input));
 
 if (!$input) {
     echo json_encode(['success' => false, 'message' => 'Invalid input data']);
     exit;
+}
+
+// Handle Payment Proof File Upload
+$payment_proof_path = null;
+if (isset($_FILES['payment_proof']) && $_FILES['payment_proof']['error'] === UPLOAD_ERR_OK) {
+    $upload_dir = __DIR__ . '/../uploads/receipts/';
+    if (!is_dir($upload_dir)) {
+        mkdir($upload_dir, 0755, true);
+    }
+
+    $file_ext = strtolower(pathinfo($_FILES['payment_proof']['name'], PATHINFO_EXTENSION));
+    $new_filename = 'REC_' . uniqid() . '_' . date('Ymd') . '.' . $file_ext;
+    $target_file = $upload_dir . $new_filename;
+
+    if (move_uploaded_file($_FILES['payment_proof']['tmp_name'], $target_file)) {
+        $payment_proof_path = 'uploads/receipts/' . $new_filename;
+    }
 }
 
 // Validate required fields (email no longer required from frontend)
@@ -94,8 +116,9 @@ try {
         total_amount, 
         booking_status, 
         payment_status, 
-        payment_method, 
+        payment_method,
         payment_reference,
+        payment_proof,
         currency,
         partner_id,
         partner_company,
@@ -104,23 +127,24 @@ try {
         partner_source,
         partner_approved
     ) VALUES (
-        :user_id, 
-        :booking_number, 
-        :destination_name, 
-        :package_name, 
+        :user_id,
+        :booking_number,
+        :destination_name,
+        :package_name,
         :package_duration,
-        :price_per_person, 
-        :full_name, 
-        :email, 
-        :phone, 
+        :price_per_person,
+        :full_name,
+        :email,
+        :phone,
         :travel_date,
-        :number_of_travelers, 
-        :special_requests, 
-        :total_amount, 
-        'pending', 
-        :payment_status, 
-        :payment_method, 
+        :number_of_travelers,
+        :special_requests,
+        :total_amount,
+        'pending',
+        :payment_status,
+        :payment_method,
         :payment_reference,
+        :payment_proof,
         :currency,
         :partner_id,
         :partner_company,
@@ -148,6 +172,7 @@ try {
         ':payment_status' => $payment_status,
         ':payment_method' => $payment_method,
         ':payment_reference' => $payment_reference,
+        ':payment_proof' => $payment_proof_path,
         ':currency' => $input['currency'] ?? '₱',
         ':partner_id' => $partnerMeta['partner_id'],
         ':partner_company' => $partnerMeta['partner_company'],
