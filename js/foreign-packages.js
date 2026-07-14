@@ -633,9 +633,9 @@ window.showForeignPackagePopupModal = async function (destKey) {
                     </div>
                 </div>
                 
-                <div id="foreignStep3Errors" class="error-message" style="display: none;"></div>
+                <div id="foreignStep4Errors" class="error-message" style="display: none;"></div>
                 <div class="action-buttons">
-                    <button type="button" class="btn-prev" onclick="goToForeignStep(2)"><i class="fas fa-arrow-left"></i> Back</button>
+                    <button type="button" class="btn-prev" onclick="goToForeignStep(3)"><i class="fas fa-arrow-left"></i> Back</button>
                     <button type="button" class="btn-next" onclick="validateForeignPayment()">Complete Payment <i class="fas fa-check-circle"></i></button>
                 </div>
             </div>
@@ -1141,10 +1141,12 @@ function validateForeignPayment() {
     if (foreignSelectedPayment === 'gcash') {
         const ref = document.getElementById('foreignPaymentRefGcash')?.value.trim();
         if (!ref) errors.push('Please enter the GCash reference number');
+        if (!document.getElementById('foreignProofGcash')?.files[0]) errors.push('Please upload proof of payment');
     }
     if (foreignSelectedPayment === 'paymaya') {
         const ref = document.getElementById('foreignPaymentRefPaymaya')?.value.trim();
         if (!ref) errors.push('Please enter the PayMaya reference number');
+        if (!document.getElementById('foreignProofPaymaya')?.files[0]) errors.push('Please upload proof of payment');
     }
     if (foreignSelectedPayment === 'card') {
         if (!document.getElementById('foreignCardNumber')?.value.trim()) errors.push('Card Number is required');
@@ -1155,6 +1157,7 @@ function validateForeignPayment() {
     if (foreignSelectedPayment === 'bank') {
         const ref = document.getElementById('foreignBankRef')?.value.trim();
         if (!ref) errors.push('Reference Number is required');
+        if (!document.getElementById('foreignProofBank')?.files[0]) errors.push('Please upload proof of payment');
     }
 
     if (errors.length > 0) {
@@ -1181,33 +1184,40 @@ function validateForeignPayment() {
     const appliedVoucher = window._appliedVoucher && window._appliedVoucher['foreign'];
     const finalAmount = appliedVoucher ? appliedVoucher.finalTotal : totalAmount;
 
+    const formData = new FormData();
+    formData.append('destination_key', window.currentForeignDestKey || '');
+    formData.append('destination_name', window.currentForeignDest?.name || window.currentForeignDest?.title || 'Foreign Destination');
+    formData.append('package_duration', window.currentForeignDest?.duration || 'N/A');
+    formData.append('price_per_person', price);
+    formData.append('full_name', window.foreignBookingData.fullName);
+    formData.append('email', window.foreignBookingData.email);
+    formData.append('phone', window.foreignBookingData.phone);
+    formData.append('number_of_travelers', window.foreignBookingData.travelers);
+    formData.append('travel_date', window.foreignBookingData.travelDate);
+    formData.append('special_requests', window.foreignBookingData.specialRequests);
+    formData.append('total_amount', finalAmount);
+    formData.append('payment_method', foreignSelectedPayment);
+    if (paymentRef) formData.append('payment_reference', paymentRef);
+    formData.append('currency', window.currentForeignDestCurrency || '$');
+    if (window.currentForeignDest?.partner_id) {
+        formData.append('partner_id', window.currentForeignDest.partner_id);
+        if (window.currentForeignDest.partner_company) formData.append('partner_company', window.currentForeignDest.partner_company);
+        formData.append('partner_source', window.currentForeignDest?.partner_source ?? 'foreign_destination');
+        formData.append('partner_package_name', window.currentForeignDest?.name ?? '');
+    }
+    if (appliedVoucher) {
+        formData.append('voucher_id', appliedVoucher.id);
+        formData.append('voucher_discount', appliedVoucher.discountAmount);
+    }
+
+    const proofInput = document.getElementById(`foreignProof${foreignSelectedPayment.charAt(0).toUpperCase()}${foreignSelectedPayment.slice(1)}`);
+    if (proofInput && proofInput.files[0]) {
+        formData.append('payment_proof', proofInput.files[0]);
+    }
+
     fetch('api/save-foreign-booking.php', {
         method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-            destination_key: window.currentForeignDestKey || null,
-            destination_name: window.currentForeignDest?.name || window.currentForeignDest?.title || 'Foreign Destination',
-            package_duration: window.currentForeignDest?.duration || 'N/A',
-            price_per_person: price,
-            full_name: window.foreignBookingData.fullName,
-            email: window.foreignBookingData.email,
-            phone: window.foreignBookingData.phone,
-            number_of_travelers: window.foreignBookingData.travelers,
-            travel_date: window.foreignBookingData.travelDate,
-            special_requests: window.foreignBookingData.specialRequests,
-            total_amount: finalAmount,
-            payment_method: foreignSelectedPayment,
-            payment_reference: paymentRef || null,
-            currency: window.currentForeignDestCurrency || '$',
-            partner_id: window.currentForeignDest?.partner_id ?? null,
-            partner_company: window.currentForeignDest?.partner_company ?? null,
-            partner_source: window.currentForeignDest?.partner_source ?? 'foreign_destination',
-            partner_package_name: window.currentForeignDest?.name ?? null,
-            voucher_id: appliedVoucher?.id ?? null,
-            voucher_discount: appliedVoucher?.discountAmount ?? 0
-        })
+        body: formData
     })
         .then(res => res.json())
         .then(data => {
