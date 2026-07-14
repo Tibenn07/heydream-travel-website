@@ -107,7 +107,7 @@ function normalizePackage($row, $type)
         'id' => $row['id'],
         'identifier' => $type === 'foreign' ? ($row['dest_key'] ?? $row['id']) : $row['id'],
         'name' => $row['name'] ?? $row['title'] ?? 'Package',
-        'location' => $row['location_name'] ?? $row['location'] ?? $row['city'] ?? $row['country'] ?? '',
+        'location' => (!empty($row['location_name']) ? $row['location_name'] : null) ?? (!empty($row['location']) ? $row['location'] : null) ?? $row['city'] ?? $row['country'] ?? '',
         'country' => $row['country'] ?? '',
         'city' => $row['city'] ?? '',
         'description' => $row['description'] ?? '',
@@ -207,7 +207,14 @@ function resolveImgSrc($path)
 
         /* ---- Two-column body ---- */
         .pkgdet-body { display: grid; grid-template-columns: 1fr 340px; gap: 28px; align-items: start; }
-        @media (max-width: 900px) { .pkgdet-body { grid-template-columns: 1fr; } }
+        @media (max-width: 900px) {
+            .pkgdet-body { grid-template-columns: 1fr; }
+            /* Price/"Book This Deal" card is the second DOM child (after all
+               the itinerary/inclusions content), which would otherwise land
+               at the very bottom once the grid collapses to one column on
+               mobile -- pull it back up near the top instead. */
+            .pkgdet-sticky { order: -1; margin-bottom: 20px; position: static !important; }
+        }
 
         .pkgdet-card { background: #fff; border-radius: 16px; padding: 24px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); margin-bottom: 20px; }
         .pkgdet-card h2 { font-size: 1.2rem; font-weight: 800; color: #0f172a; margin: 0 0 14px; display: flex; align-items: center; gap: 8px; }
@@ -639,20 +646,12 @@ function resolveImgSrc($path)
             }
         }
 
-        // "Book This Deal" reuses the existing, proven modal booking flow —
-        // opens the same popup used elsewhere on the site, then jumps
-        // straight to its booking step instead of the details tab, since
-        // this page already shows the details.
+        // "Book This Deal" now goes to its own dedicated checkout page
+        // instead of opening the booking modal in place.
         function startPackageBooking() {
             const type = <?= json_encode($pkg['type'] ?? '') ?>;
             const identifier = <?= json_encode($pkg['identifier'] ?? '') ?>;
-            if (type === 'local' && typeof resumeHomeBooking === 'function') {
-                resumeHomeBooking(identifier, 1);
-            } else if (type === 'foreign' && typeof resumeForeignBooking === 'function') {
-                resumeForeignBooking(identifier, 1);
-            } else if (type === 'flash' && typeof resumeFlashBooking === 'function') {
-                resumeFlashBooking(identifier, 1);
-            }
+            window.location.href = 'package-book.php?type=' + encodeURIComponent(type) + '&id=' + encodeURIComponent(identifier);
         }
     </script>
     <script src="js/main.js?v=2"></script>

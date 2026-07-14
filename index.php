@@ -211,19 +211,21 @@ foreach ($home_local_destinations as &$dest) {
             transform: scale(1.05);
         }
 
-        .foreign-card-badge {
-            position: absolute;
-            top: 15px;
-            left: 15px;
+        /* Moved off the photo (was position:absolute over the image, blocking
+           it) into the card's details section instead. */
+        .foreign-card-badge-inline {
+            align-self: flex-start;
+            flex-shrink: 0;
+            display: inline-block;
             background: #ff9800;
             color: white;
             padding: 4px 10px;
             border-radius: 20px;
             font-size: 0.7rem;
-            font-weight: 600;
-            z-index: 2;
-            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
-            max-width: 140px;
+            font-weight: 700;
+            line-height: 1.4;
+            margin-bottom: 8px;
+            max-width: 100%;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
@@ -851,19 +853,23 @@ foreach ($home_local_destinations as &$dest) {
             }
         }
 
+        /* Moved off the photo (was position:absolute over the image, blocking
+           it) into the card's details section instead -- same treatment as
+           .foreign-card-badge-inline. */
         .card-badge {
-            position: absolute;
-            top: 15px;
-            left: 15px;
+            position: static;
+            align-self: flex-start;
+            flex-shrink: 0;
+            display: inline-block;
             background: #ff9800;
             color: white;
             padding: 4px 10px;
             border-radius: 20px;
             font-size: 0.7rem;
-            font-weight: 600;
-            z-index: 2;
-            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
-            max-width: 140px;
+            font-weight: 700;
+            line-height: 1.4;
+            margin-bottom: 8px;
+            max-width: 100%;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
@@ -1059,9 +1065,195 @@ foreach ($home_local_destinations as &$dest) {
             z-index: 4;
         }
 
+        /* ---- Hero search bar: destination + dates + travelers pill ---- */
+        .hd-searchbar {
+            display: flex;
+            align-items: stretch;
+            background: #fff;
+            border-radius: 60px;
+            box-shadow: 0 12px 34px rgba(0, 20, 60, 0.28);
+            padding: 6px;
+            max-width: 980px;
+            margin: 0 auto;
+            gap: 2px;
+        }
+
+        .hd-search-field {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 16px;
+            flex: 1 1 0;
+            min-width: 0;
+            border-radius: 40px;
+            position: relative;
+            transition: background 0.18s ease;
+        }
+
+        .hd-search-where { flex: 2 1 0; }
+
+        .hd-search-field:hover { background: #f3f6fb; }
+
+        .hd-search-field-icon {
+            color: #003580;
+            font-size: 1rem;
+            flex-shrink: 0;
+        }
+
+        .hd-search-field-text {
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+            text-align: left;
+        }
+
+        .hd-search-field-text label {
+            font-size: 0.68rem;
+            font-weight: 800;
+            color: #0f172a;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+            margin-bottom: 1px;
+        }
+
+        .hd-search-field-text input {
+            border: none;
+            outline: none;
+            background: transparent;
+            font-size: 0.9rem;
+            font-family: inherit;
+            color: #1e293b;
+            padding: 0;
+            width: 100%;
+            overflow: hidden;
+            white-space: nowrap;
+            text-overflow: ellipsis;
+        }
+
+        .hd-search-field-text input::placeholder { color: #94a3b8; }
+
+        .hd-search-field-text span {
+            font-size: 0.9rem;
+            color: #1e293b;
+        }
+
+        .hd-search-divider {
+            width: 1px;
+            background: #e2e8f0;
+            margin: 10px 0;
+            flex-shrink: 0;
+        }
+
+        .hd-search-submit {
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            background: linear-gradient(135deg, #ff9800, #f57c00);
+            color: #fff;
+            border: none;
+            border-radius: 46px;
+            padding: 0 22px;
+            font-weight: 700;
+            font-size: 0.92rem;
+            cursor: pointer;
+            box-shadow: 0 6px 16px rgba(255, 152, 0, 0.35);
+            transition: transform 0.15s ease, box-shadow 0.15s ease;
+        }
+
+        .hd-search-submit:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 8px 20px rgba(255, 152, 0, 0.45);
+        }
+
+        /* Visible close ("x") button injected into the hero date pickers */
+        .flatpickr-calendar .hd-fp-close {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            width: 26px;
+            height: 26px;
+            border-radius: 50%;
+            border: none;
+            background: #f1f5f9;
+            color: #64748b;
+            font-size: 0.75rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 5;
+            transition: background 0.15s ease, color 0.15s ease;
+        }
+
+        .flatpickr-calendar .hd-fp-close:hover {
+            background: #ff9800;
+            color: #fff;
+        }
+
+        /* Below 900px the hd-searchbar drops the single-row pill layout for a
+           stacked card (destination on its own row, dates side-by-side, full-
+           width search button). That card is taller than the compact desktop
+           pill, so the hero section -- which normally has a fixed height
+           tuned for the single-row pill -- needs to grow with it instead of
+           clipping it (it previously did, via `.hero { overflow:hidden }` /
+           a fixed min-height in css/hero.css). These rules load after that
+           stylesheet, so on an equal-specificity/!important tie they win. */
+        @media (max-width: 900px) {
+            .hero {
+                height: auto !important;
+                min-height: 360px !important;
+                padding-bottom: 28px !important;
+                overflow: visible !important;
+            }
+
+            .hd-searchbar {
+                flex-wrap: wrap;
+                border-radius: 20px;
+                padding: 8px;
+                gap: 0;
+                box-shadow: 0 16px 36px rgba(0, 20, 60, 0.32);
+            }
+            .hd-search-where {
+                flex: 1 1 100%;
+                padding: 13px 14px;
+                border-bottom: 1px solid #eef2f7;
+                border-radius: 14px 14px 0 0;
+            }
+            .hd-search-date {
+                flex: 1 1 50%;
+                padding: 12px 14px;
+            }
+            #heroCheckInField { border-right: 1px solid #eef2f7; }
+            .hd-search-divider { display: none; }
+            .hd-search-submit {
+                flex: 1 1 100%;
+                border-radius: 14px;
+                padding: 14px;
+                margin-top: 8px;
+                font-size: 0.95rem;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .hero {
+                min-height: 420px !important;
+                padding-top: 58px !important;
+            }
+            .hd-search-field-text label { font-size: 0.64rem; }
+            .hd-search-field-text input { font-size: 0.86rem; }
+        }
+
         /* Make sure navbar is at the absolute front */
         .navbar {
             z-index: 999999 !important;
+        }
+
+        /* SweetAlert2's default z-index (1060) sits well below the navbar's
+           999999, so toasts/alerts would render hidden behind it otherwise. */
+        .swal2-container {
+            z-index: 9999999 !important;
         }
 
 
@@ -1586,6 +1778,18 @@ foreach ($home_local_destinations as &$dest) {
             text-overflow: ellipsis;
         }
 
+        .autocomplete-section-header {
+            padding: 10px 20px 6px;
+            font-size: 0.72rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            color: #ff9800;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
         @keyframes flashPulse {
             0% {
                 transform: scale(1);
@@ -1647,7 +1851,8 @@ foreach ($home_local_destinations as &$dest) {
             <img src="images/Heydream Logo.png" alt="HeyDream Logo" class="logo"
                 onclick="window.location.href='index.php'">
             <div class="company-name">
-                <img src="images/Localista (1).png" alt="HeyDream Travel and Tours" class="company-logo-img"
+                <img src="images/Localista (1).png" alt="HeyDream Travel and Tours"
+                    class="company-logo-img"
                     onclick="window.location.href='index.php'">
             </div>
         </div>
@@ -1948,13 +2153,39 @@ foreach ($home_local_destinations as &$dest) {
             <h1 class="hero-main-title" id="rotating-title" style="pointer-events: none;">Your journey begins here</h1>
             <div class="transparent-search-wrapper" style="position: relative; z-index: 4; pointer-events: auto;">
                 <div class="search-container" style="position: relative; z-index: 5; pointer-events: auto;">
-                    <div class="transparent-search-container" style="pointer-events: auto;">
-                        <i class="fas fa-search search-icon"></i>
-                        <input type="text" id="globalSearchInput" placeholder="Dream Destination?"
-                            class="transparent-search-input" autocomplete="off"
-                            style="pointer-events: auto; cursor: text;">
-                        <button class="transparent-search-btn" id="globalSearchBtn"
-                            style="pointer-events: auto;">Search</button>
+                    <div class="hd-searchbar" style="pointer-events: auto;">
+                        <div class="hd-search-field hd-search-where">
+                            <i class="fas fa-map-marker-alt hd-search-field-icon"></i>
+                            <div class="hd-search-field-text">
+                                <label for="globalSearchInput">Where to?</label>
+                                <input type="text" id="globalSearchInput" placeholder="Search destinations, deals, visas..."
+                                    autocomplete="off" style="pointer-events: auto; cursor: text;">
+                            </div>
+                        </div>
+
+                        <div class="hd-search-divider"></div>
+
+                        <div class="hd-search-field hd-search-date" id="heroCheckInField">
+                            <i class="fas fa-calendar-alt hd-search-field-icon"></i>
+                            <div class="hd-search-field-text">
+                                <label for="heroCheckIn">Check-in</label>
+                                <input type="text" id="heroCheckIn" placeholder="Add date" autocomplete="off" readonly style="pointer-events: auto; cursor: pointer;">
+                            </div>
+                        </div>
+
+                        <div class="hd-search-divider"></div>
+
+                        <div class="hd-search-field hd-search-date" id="heroCheckOutField">
+                            <i class="fas fa-calendar-alt hd-search-field-icon"></i>
+                            <div class="hd-search-field-text">
+                                <label for="heroCheckOut">Check-out</label>
+                                <input type="text" id="heroCheckOut" placeholder="Add date" autocomplete="off" readonly style="pointer-events: auto; cursor: pointer;">
+                            </div>
+                        </div>
+
+                        <button class="hd-search-submit" id="globalSearchBtn" style="pointer-events: auto;" aria-label="Search">
+                            <i class="fas fa-search"></i><span class="hd-search-submit-label">Search</span>
+                        </button>
                     </div>
                 </div>
             </div>
@@ -2028,280 +2259,6 @@ foreach ($home_local_destinations as &$dest) {
             </div>
         </div>
     </section>
-
-    <!-- ==================== VOUCHER CENTER ==================== -->
-    <section class="voucher-center-section"
-        style="padding: 30px 0; background: #f8fafc; border-top: 1px solid #e2e8f0; border-bottom: 1px solid #e2e8f0; overflow: hidden;">
-        <div class="container">
-            <div class="section-header-wrapper"
-                style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                <div style="display: flex; align-items: center; gap: 12px;">
-                    <div
-                        style="background: linear-gradient(135deg, #003580, #0055c8); color: white; border-radius: 12px; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; font-size: 1.4rem; box-shadow: 0 4px 10px rgba(0, 53, 128, 0.2);">
-                        <i class="fas fa-gift"></i>
-                    </div>
-                    <div>
-                        <h1 class="section-title-popular animated-title-glow"
-                            style="margin: 0; font-size: 1.6rem; border-left: none; padding-left: 0; color: #003580; font-weight: 800; font-family: 'Outfit', sans-serif;">
-                            Exclusive Vouchers</h1>
-                    </div>
-                </div>
-                <a href="User Account/vouchers.php" class="view-all-link"
-                    style="color: #003580; font-weight: 700; font-size: 0.85rem; text-decoration: none; border: 1.5px solid #003580; padding: 6px 16px; border-radius: 50px; transition: all 0.3s ease; background: transparent;">
-                    View all <i class="fas fa-arrow-right"></i>
-                </a>
-            </div>
-
-            <div class="popular-scroll-container" style="margin-bottom: 0;">
-                <div id="homepageVouchersGrid"
-                    style="display: flex; gap: 20px; min-width: min-content; padding: 10px 5px;">
-                    <!-- Loading state -->
-                    <div class="loading-spinner" style="padding: 20px 0; margin: 0 auto;">
-                        <i class="fas fa-spinner fa-spin" style="color: #003580; font-size: 1.5rem;"></i>
-                        <p style="font-size: 0.8rem; color: #64748b; margin-top: 8px;">Finding deals for you...</p>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <style>
-        @keyframes colorShimmer {
-            0% {
-                color: #003580;
-                text-shadow: 0 0 0px rgba(0, 53, 128, 0);
-                transform: scale(1);
-            }
-
-            50% {
-                color: #0055c8;
-                text-shadow: 0 0 10px rgba(0, 85, 200, 0.4);
-                transform: scale(1.02);
-            }
-
-            100% {
-                color: #003580;
-                text-shadow: 0 0 0px rgba(0, 53, 128, 0);
-                transform: scale(1);
-            }
-        }
-
-        .animated-title-glow {
-            animation: colorShimmer 3s infinite alternate;
-            display: inline-block;
-        }
-
-        @keyframes fadeInUpVoucher {
-            from {
-                opacity: 0;
-                transform: translateY(20px);
-            }
-
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        @keyframes shineSweep {
-            0% {
-                left: -100%;
-            }
-
-            20% {
-                left: 200%;
-            }
-
-            100% {
-                left: 200%;
-            }
-        }
-
-        .home-voucher-card {
-            background: white;
-            border-radius: 16px;
-            overflow: hidden;
-            box-shadow: 0 4px 15px rgba(0, 53, 128, 0.06);
-            border: 1px solid #e2e8f0;
-            display: flex;
-            height: 120px;
-            width: 340px;
-            min-width: 340px;
-            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-            position: relative;
-            animation: fadeInUpVoucher 0.6s ease-out forwards;
-        }
-
-        .home-voucher-card::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: -100%;
-            width: 50%;
-            height: 100%;
-            background: linear-gradient(to right, rgba(255, 255, 255, 0) 0%, rgba(255, 255, 255, 0.6) 50%, rgba(255, 255, 255, 0) 100%);
-            transform: skewX(-25deg);
-            animation: shineSweep 4s infinite;
-            z-index: 10;
-            pointer-events: none;
-        }
-
-        .home-voucher-card:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 10px 25px rgba(0, 53, 128, 0.12);
-            border-color: #003580;
-        }
-
-        .home-voucher-left {
-            padding: 15px;
-            color: white;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            width: 120px;
-            text-align: center;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .home-voucher-left::after {
-            content: '';
-            position: absolute;
-            right: -25px;
-            top: -25px;
-            width: 60px;
-            height: 60px;
-            border-radius: 50%;
-            background: rgba(255, 255, 255, 0.1);
-        }
-
-        .home-voucher-val {
-            font-size: 1.4rem;
-            font-weight: 800;
-            line-height: 1.1;
-        }
-
-        .home-voucher-type {
-            font-size: 0.65rem;
-            opacity: 0.9;
-            font-weight: 600;
-            margin-top: 2px;
-            text-transform: uppercase;
-        }
-
-        .home-voucher-mid {
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
-            height: 100%;
-            background: #f1f5f9;
-            width: 14px;
-            position: relative;
-        }
-
-        .home-voucher-mid .semi-circle-top {
-            width: 14px;
-            height: 7px;
-            border-radius: 0 0 7px 7px;
-            background: #f8fafc;
-            /* Matches parent background */
-            border-bottom: 1px solid #e2e8f0;
-            position: absolute;
-            top: 0;
-            left: 0;
-        }
-
-        .home-voucher-mid .semi-circle-bottom {
-            width: 14px;
-            height: 7px;
-            border-radius: 7px 7px 0 0;
-            background: #f8fafc;
-            /* Matches parent background */
-            border-top: 1px solid #e2e8f0;
-            position: absolute;
-            bottom: 0;
-            left: 0;
-        }
-
-        .home-voucher-mid .dashed-line {
-            flex: 1;
-            border-left: 2px dashed #cbd5e1;
-            margin-left: 6px;
-            margin-top: 7px;
-            margin-bottom: 7px;
-        }
-
-        .home-voucher-right {
-            flex: 1;
-            padding: 12px 15px;
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
-            background: white;
-        }
-
-        .home-voucher-title {
-            font-size: 0.85rem;
-            font-weight: 700;
-            color: #1e293b;
-            line-height: 1.2;
-            margin: 0 0 3px 0;
-            display: -webkit-box;
-            -webkit-line-clamp: 1;
-            line-clamp: 1;
-            -webkit-box-orient: vertical;
-            overflow: hidden;
-        }
-
-        .home-voucher-desc {
-            font-size: 0.7rem;
-            color: #64748b;
-            margin: 0;
-            display: -webkit-box;
-            -webkit-line-clamp: 1;
-            line-clamp: 1;
-            -webkit-box-orient: vertical;
-            overflow: hidden;
-        }
-
-        .home-voucher-limit {
-            font-size: 0.65rem;
-            color: #94a3b8;
-            margin: 2px 0 0 0;
-        }
-
-        .home-voucher-action-row {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-top: auto;
-        }
-
-        .home-voucher-btn {
-            background: #003580;
-            color: white;
-            border: none;
-            padding: 5px 12px;
-            border-radius: 20px;
-            font-size: 0.72rem;
-            font-weight: 700;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-
-        .home-voucher-btn:hover {
-            background: #ff9800;
-            transform: scale(1.05);
-        }
-
-        .home-voucher-btn:disabled {
-            background: #e2e8f0;
-            color: #94a3b8;
-            cursor: not-allowed;
-            transform: none;
-        }
-    </style>
 
     <section class="favorites-section">
         <div class="container">
@@ -2586,16 +2543,16 @@ foreach ($home_local_destinations as &$dest) {
                 const currency = dest.currency || '₱';
                 const imagePath = dest.image_path ? dest.image_path : 'https://via.placeholder.com/400x200?text=' + dest.name;
 
-                const badgeHtml = badge ? `<div class="foreign-card-badge" style="position: absolute; top: 15px; left: 15px; background: rgba(0,0,0,0.7); color: white; padding: 5px 10px; border-radius: 5px; font-size: 0.8rem; z-index: 2; max-width: 120px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${escapeHtmlForHome(badge)}</div>` : '';
+                const badgeHtml = badge ? `<div class="foreign-card-badge-inline">${escapeHtmlForHome(badge)}</div>` : '';
 
                 grid.innerHTML += `
             <div class="foreign-card" data-destination="${dest.dest_key}" onclick="showForeignPackagePopup('${dest.dest_key}')">
                 <div class="foreign-card-image" style="position: relative;">
-                    ${badgeHtml}
                     <img src="${imagePath}" alt="${escapeHtmlForHome(dest.name)}" onerror="this.src='https://via.placeholder.com/400x200?text=${dest.name}'">
                     <h3 class="foreign-card-name">${escapeHtmlForHome(dest.name)}</h3>
                 </div>
                 <div class="foreign-card-content">
+                    ${badgeHtml}
                     <div class="foreign-card-location">
                         <i class="fas fa-map-marker-alt"></i> ${escapeHtmlForHome(displayLocation)}
                     </div>
@@ -2648,7 +2605,7 @@ foreach ($home_local_destinations as &$dest) {
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
     <script src="js/auth-menu.js?v=2"></script>
     <script src="js/voucher-checkout.js"></script>
-    <script src="js/home-packages.js?v=4"></script>
+    <script src="js/home-packages.js?v=5"></script>
     <script src="js/foreign-packages.js?v=4"></script>
     <script src="js/flash-deals.js?v=5"></script>
 
@@ -3109,6 +3066,25 @@ foreach ($home_local_destinations as &$dest) {
 
             let searchDebounceTimeout = null;
 
+            // Nudges the user to type a destination instead of silently doing
+            // nothing when Search is clicked/Enter is pressed with an empty field.
+            function notifyDestinationNeeded() {
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire({
+                        toast: true,
+                        position: 'top',
+                        icon: 'warning',
+                        title: 'Please enter a destination to search for',
+                        showConfirmButton: false,
+                        timer: 2500,
+                        timerProgressBar: true
+                    });
+                } else {
+                    alert('Please enter a destination to search for.');
+                }
+                searchInput?.focus();
+            }
+
             if (searchBtn) {
                 searchBtn.addEventListener('click', function () {
                     const searchTerm = searchInput?.value || '';
@@ -3116,7 +3092,81 @@ foreach ($home_local_destinations as &$dest) {
                         performGlobalSearch(searchTerm);
                     } else {
                         clearSearch();
+                        notifyDestinationNeeded();
                     }
+                });
+            }
+
+            // ── Hero search bar: check-in / check-out date pickers ──
+            // Dates aren't used to filter results (no per-day inventory exists
+            // for destinations/deals) -- they're captured so a chosen date can
+            // prefill the travel date once the traveler reaches a package's own
+            // booking flow, same as everywhere else on the site.
+            if (typeof flatpickr === 'function') {
+                const checkInEl = document.getElementById('heroCheckIn');
+                const checkOutEl = document.getElementById('heroCheckOut');
+
+                // Adds a visible "x" in the calendar's own corner so there's
+                // always an obvious way to dismiss it besides clicking away.
+                function addCalendarCloseButton(instance) {
+                    if (instance.calendarContainer.querySelector('.hd-fp-close')) return;
+                    const closeBtn = document.createElement('button');
+                    closeBtn.type = 'button';
+                    closeBtn.className = 'hd-fp-close';
+                    closeBtn.setAttribute('aria-label', 'Close calendar');
+                    closeBtn.innerHTML = '<i class="fas fa-times"></i>';
+                    closeBtn.addEventListener('click', function (e) {
+                        e.stopPropagation();
+                        instance.close();
+                    });
+                    instance.calendarContainer.appendChild(closeBtn);
+                }
+
+                const checkOutPicker = flatpickr(checkOutEl, {
+                    minDate: 'today',
+                    dateFormat: 'M j, Y',
+                    disableMobile: true,
+                    onReady: (sd, ds, instance) => addCalendarCloseButton(instance)
+                });
+
+                const checkInPicker = flatpickr(checkInEl, {
+                    minDate: 'today',
+                    dateFormat: 'M j, Y',
+                    disableMobile: true,
+                    onReady: (sd, ds, instance) => addCalendarCloseButton(instance),
+                    onChange: function (selectedDates) {
+                        if (selectedDates[0]) {
+                            const nextDay = new Date(selectedDates[0]);
+                            nextDay.setDate(nextDay.getDate() + 1);
+                            checkOutPicker.set('minDate', nextDay);
+                            if (checkOutPicker.selectedDates[0] && checkOutPicker.selectedDates[0] <= selectedDates[0]) {
+                                checkOutPicker.setDate(nextDay);
+                            }
+                        }
+                    }
+                });
+
+                document.getElementById('heroCheckInField')?.addEventListener('click', () => checkInPicker.open());
+                document.getElementById('heroCheckOutField')?.addEventListener('click', () => checkOutPicker.open());
+
+                // Belt-and-suspenders close handling: flatpickr's own
+                // click-outside detection wasn't reliably closing the calendar
+                // here (readonly input + wrapper-div open trigger seems to
+                // interfere with it), so close explicitly on outside click and
+                // on Escape too.
+                const heroPickers = [checkInPicker, checkOutPicker];
+                document.addEventListener('click', function (e) {
+                    heroPickers.forEach(picker => {
+                        if (!picker.isOpen) return;
+                        const fieldWrapper = picker.input.closest('.hd-search-field');
+                        if (fieldWrapper && fieldWrapper.contains(e.target)) return;
+                        if (picker.calendarContainer.contains(e.target)) return;
+                        picker.close();
+                    });
+                });
+                document.addEventListener('keydown', function (e) {
+                    if (e.key !== 'Escape') return;
+                    heroPickers.forEach(picker => { if (picker.isOpen) picker.close(); });
                 });
             }
 
@@ -3131,9 +3181,107 @@ foreach ($home_local_destinations as &$dest) {
                     dropdown.style.left = Math.max(0, (window.innerWidth - mobileWidth) / 2) + 'px';
                     dropdown.style.right = 'auto';
                 } else {
-                    dropdown.style.width = rect.width + 'px';
-                    dropdown.style.left = rect.left + 'px';
+                    // The "Where to?" field itself is fairly narrow now that
+                    // it shares the pill with date fields -- give the dropdown
+                    // a wider minimum so destination names/images aren't crushed.
+                    const desktopWidth = Math.max(rect.width, 360);
+                    dropdown.style.width = desktopWidth + 'px';
+                    dropdown.style.left = Math.min(rect.left, window.innerWidth - desktopWidth - 12) + 'px';
                 }
+            }
+
+            // Shared item template so trending suggestions and live search
+            // results render identically.
+            function renderAutocompleteItemHtml(item) {
+                let badge = '';
+                if (item.type === 'flash') badge = ' <span style="color:#ff9800;font-size:0.7em;">⚡ DEAL</span>';
+                if (item.type === 'foreign') badge = ' <span style="color:#17a2b8;font-size:0.7em;">🌍 INT</span>';
+                if (item.type === 'local') badge = ' <span style="color:#28a745;font-size:0.7em;">🏝️ PH</span>';
+                if (item.type === 'visa') badge = ' <span style="color:#6c757d;font-size:0.7em;">🛂 VISA</span>';
+
+                const identifier = item.type === 'foreign' ? item.dest_key : item.id;
+                const locText = item.type === 'visa' ? item.description : (item.location || item.city || item.country || '');
+                const isVisa = item.type === 'visa';
+                const visaFlag = isVisa ? getVisaFlagGlobal(item.name) : '';
+
+                return `
+                    <div class="autocomplete-item" onclick="handleSearchResultClick('${item.type}', '${identifier}'); document.getElementById('autocompleteDropdown').style.display='none';">
+                        ${isVisa ?
+                        `<div class="autocomplete-icon" style="background:#f0f2f5; display:flex; align-items:center; justify-content:center; font-size:1.5rem;">${visaFlag}</div>` :
+                        `<img src="${item.image_path || 'images/default.jpg'}" class="autocomplete-icon" onerror="this.src='https://via.placeholder.com/40'">`
+                    }
+                        <div class="autocomplete-details">
+                            <div class="autocomplete-title">${escapeSearchHtml(item.name)}${badge}</div>
+                            <div class="autocomplete-desc">${escapeSearchHtml(locText).substring(0, 50)}...</div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            // Trending destinations shown when the "Where to?" field is
+            // focused before the traveler has typed anything -- fetched once
+            // and cached for the rest of the page's life.
+            let trendingDestinationsCache = null;
+            async function loadTrendingDestinations() {
+                if (trendingDestinationsCache) return trendingDestinationsCache;
+                try {
+                    const response = await fetch('api/search-packages.php?trending=1');
+                    const data = await response.json();
+                    trendingDestinationsCache = (data.success && data.places) ? data.places : [];
+                } catch (error) {
+                    console.error('Trending destinations error:', error);
+                    trendingDestinationsCache = [];
+                }
+                return trendingDestinationsCache;
+            }
+
+            // Clicking a suggested place fills the field and runs a real
+            // search for it (results popup), rather than jumping to one
+            // specific package.
+            function selectTrendingPlace(city) {
+                searchInput.value = city;
+                const autoDropdown = document.getElementById('autocompleteDropdown');
+                if (autoDropdown) autoDropdown.style.display = 'none';
+                performGlobalSearch(city);
+            }
+            // Called from an inline onclick in the trending-place dropdown
+            // markup, which resolves in global scope -- this function is
+            // otherwise scoped inside the DOMContentLoaded callback.
+            window.selectTrendingPlace = selectTrendingPlace;
+
+            function renderTrendingPlaceHtml(place) {
+                const subtitle = place.count > 1 ? `${place.count} packages available` : (place.country || '');
+                return `
+                    <div class="autocomplete-item" onclick="selectTrendingPlace('${escapeSearchHtml(place.city).replace(/'/g, "\\'")}')">
+                        <img src="${place.image_path || 'images/default.jpg'}" class="autocomplete-icon" onerror="this.src='https://via.placeholder.com/40'">
+                        <div class="autocomplete-details">
+                            <div class="autocomplete-title"><i class="fas fa-map-marker-alt" style="color:#ff9800;font-size:0.8em;"></i> ${escapeSearchHtml(place.city)}</div>
+                            <div class="autocomplete-desc">${escapeSearchHtml(subtitle)}</div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            async function showTrendingDestinations() {
+                const autoDropdown = document.getElementById('autocompleteDropdown');
+                if (!autoDropdown) return;
+
+                autoDropdown.innerHTML = `<div style="padding:15px;color:#666;text-align:center;font-size:0.85rem;"><i class="fas fa-spinner fa-spin"></i> Loading popular destinations...</div>`;
+                autoDropdown.style.display = 'block';
+                positionAutocomplete(autoDropdown);
+
+                const places = await loadTrendingDestinations();
+                if (searchInput.value.trim().length > 0) return; // user started typing while this was loading
+
+                if (places.length === 0) {
+                    autoDropdown.style.display = 'none';
+                    return;
+                }
+
+                autoDropdown.innerHTML = `<div class="autocomplete-section-header"><i class="fas fa-fire"></i> Popular Destinations</div>`
+                    + places.map(renderTrendingPlaceHtml).join('');
+                autoDropdown.style.display = 'block';
+                positionAutocomplete(autoDropdown);
             }
 
             if (searchInput) {
@@ -3142,7 +3290,7 @@ foreach ($home_local_destinations as &$dest) {
                     const autoDropdown = document.getElementById('autocompleteDropdown');
 
                     if (!term) {
-                        if (autoDropdown) autoDropdown.style.display = 'none';
+                        showTrendingDestinations();
                         return;
                     }
 
@@ -3169,33 +3317,7 @@ foreach ($home_local_destinations as &$dest) {
                                 matchesHtml = `<div style="padding:15px;color:#666;text-align:center;font-size:0.85rem;">No matches found for "${term}"</div>`;
                             } else {
                                 // Limit to top 8 results for autocomplete
-                                const topResults = results.slice(0, 8);
-                                topResults.forEach(item => {
-                                    let badge = '';
-                                    if (item.type === 'flash') badge = ' <span style="color:#ff9800;font-size:0.7em;">⚡ DEAL</span>';
-                                    if (item.type === 'foreign') badge = ' <span style="color:#17a2b8;font-size:0.7em;">🌍 INT</span>';
-                                    if (item.type === 'local') badge = ' <span style="color:#28a745;font-size:0.7em;">🏝️ PH</span>';
-                                    if (item.type === 'visa') badge = ' <span style="color:#6c757d;font-size:0.7em;">🛂 VISA</span>';
-
-                                    const identifier = item.type === 'foreign' ? item.dest_key : item.id;
-                                    const locText = item.type === 'visa' ? item.description : (item.location || item.city || item.country || '');
-
-                                    const isVisa = item.type === 'visa';
-                                    const visaFlag = isVisa ? getVisaFlagGlobal(item.name) : '';
-
-                                    matchesHtml += `
-                                        <div class="autocomplete-item" onclick="handleSearchResultClick('${item.type}', '${identifier}'); document.getElementById('autocompleteDropdown').style.display='none';">
-                                            ${isVisa ?
-                                            `<div class="autocomplete-icon" style="background:#f0f2f5; display:flex; align-items:center; justify-content:center; font-size:1.5rem;">${visaFlag}</div>` :
-                                            `<img src="${item.image_path || 'images/default.jpg'}" class="autocomplete-icon" onerror="this.src='https://via.placeholder.com/40'">`
-                                        }
-                                            <div class="autocomplete-details">
-                                                <div class="autocomplete-title">${escapeSearchHtml(item.name)}${badge}</div>
-                                                <div class="autocomplete-desc">${escapeSearchHtml(locText).substring(0, 50)}...</div>
-                                            </div>
-                                        </div>
-                                    `;
-                                });
+                                matchesHtml = results.slice(0, 8).map(renderAutocompleteItemHtml).join('');
                             }
 
                             if (autoDropdown) {
@@ -3214,9 +3336,13 @@ foreach ($home_local_destinations as &$dest) {
 
                 searchInput.addEventListener('focus', function () {
                     const autoDropdown = document.getElementById('autocompleteDropdown');
-                    if (this.value.trim().length > 0 && autoDropdown && autoDropdown.innerHTML !== '') {
-                        autoDropdown.style.display = 'block';
-                        positionAutocomplete(autoDropdown);
+                    if (this.value.trim().length > 0) {
+                        if (autoDropdown && autoDropdown.innerHTML !== '') {
+                            autoDropdown.style.display = 'block';
+                            positionAutocomplete(autoDropdown);
+                        }
+                    } else {
+                        showTrendingDestinations();
                     }
                 });
 
@@ -3255,6 +3381,7 @@ foreach ($home_local_destinations as &$dest) {
                             if (autoDropdown) autoDropdown.style.display = 'none';
                         } else {
                             clearSearch();
+                            notifyDestinationNeeded();
                         }
                     }
                 });
@@ -3366,183 +3493,6 @@ foreach ($home_local_destinations as &$dest) {
                     setTimeout(() => toast.remove(), 400);
                 }, 3500);
             }
-        });
-    </script>
-
-    <!-- ==================== VOUCHER CENTER JS CONTROLLER ==================== -->
-    <script>
-        document.addEventListener('DOMContentLoaded', function () {
-            const IS_LOGGED_IN = <?php echo ($auth->isLoggedIn()) ? 'true' : 'false'; ?>;
-            const vouchersGrid = document.getElementById('homepageVouchersGrid');
-
-            if (!vouchersGrid) return;
-
-            // Fetch available vouchers
-            fetch('api/user_voucher_api.php?action=get_available_vouchers')
-                .then(response => response.json())
-                .then(res => {
-                    if (res.success && res.data && res.data.length > 0) {
-                        vouchersGrid.innerHTML = '';
-                        let hasDisplayableVoucher = false;
-
-                        res.data.forEach(voucher => {
-                            // Skip auto-available vouchers since they don't require manual collection/claim on homepage
-                            if (voucher.collection_method === 'auto_available') {
-                                return;
-                            }
-
-                            hasDisplayableVoucher = true;
-                            const card = document.createElement('div');
-                            card.className = 'home-voucher-card';
-
-                            // Parse values
-                            const discountVal = parseFloat(voucher.discount_value);
-                            let valStr = '';
-                            if (voucher.discount_type === 'percentage') {
-                                valStr = `${discountVal}%`;
-                            } else {
-                                valStr = `₱${Math.floor(discountVal)}`;
-                            }
-
-                            // Determine theme color based on discount or voucher settings
-                            const themeColor = voucher.color_theme || '#003580';
-
-                            // Target type display
-                            let targetText = 'All Bookings';
-                            if (voucher.targets && voucher.targets.length > 0) {
-                                const formattedTargets = voucher.targets.map(t => {
-                                    if (t === 'local_destinations') return 'Local';
-                                    if (t === 'foreign_destinations') return 'Foreign';
-                                    if (t === 'flights') return 'Flights';
-                                    if (t === 'visa_assistance') return 'Visa';
-                                    if (t === 'experiences') return 'Experiences';
-                                    if (t === 'cruises') return 'Cruises';
-                                    return t;
-                                });
-                                targetText = formattedTargets.join(', ') + ' Tours';
-                            }
-
-                            // Action button state
-                            let buttonHtml = '';
-                            if (voucher.already_claimed) {
-                                buttonHtml = `<button class="home-voucher-btn" disabled style="background: #cbd5e1; color: #64748b;">Claimed</button>`;
-                            } else {
-                                buttonHtml = `<button class="home-voucher-btn" onclick="requireLogin('claimHomeVoucher', ${voucher.id})">Claim</button>`;
-                            }
-
-                            const minSpend = parseFloat(voucher.minimum_spend);
-                            const minSpendText = minSpend > 0 ? `Min. Spend ₱${minSpend}` : 'No Min. Spend';
-
-                            card.innerHTML = `
-                                <div class="home-voucher-left" style="background: ${themeColor};">
-                                    <span class="home-voucher-val">${valStr}</span>
-                                    <span class="home-voucher-type">OFF</span>
-                                </div>
-                                <div class="home-voucher-mid">
-                                    <div class="semi-circle-top"></div>
-                                    <div class="dashed-line"></div>
-                                    <div class="semi-circle-bottom"></div>
-                                </div>
-                                <div class="home-voucher-right">
-                                    <div>
-                                        <h3 class="home-voucher-title">${escapeHTML(voucher.voucher_name)}</h3>
-                                        <p class="home-voucher-desc">${escapeHTML(voucher.voucher_code)} | ${targetText}</p>
-                                    </div>
-                                    <div class="home-voucher-action-row">
-                                        <span class="home-voucher-limit">${minSpendText}</span>
-                                        ${buttonHtml}
-                                    </div>
-                                </div>
-                            `;
-                            vouchersGrid.appendChild(card);
-                        });
-
-                        if (!hasDisplayableVoucher) {
-                            showEmptyVouchers();
-                        }
-                    } else {
-                        showEmptyVouchers();
-                    }
-                })
-                .catch(err => {
-                    console.error('Error fetching vouchers:', err);
-                    showEmptyVouchers();
-                });
-
-            function showEmptyVouchers() {
-                vouchersGrid.innerHTML = `
-                    <div style="text-align: center; width: 100%; padding: 20px 0; color: #64748b;">
-                        <i class="fas fa-percentage" style="font-size: 2rem; color: #cbd5e1; margin-bottom: 8px;"></i>
-                        <p style="font-size: 0.85rem; margin: 0;">No claimable vouchers available right now. Check back soon!</p>
-                    </div>
-                `;
-            }
-
-            // Helper to escape HTML safely
-            function escapeHTML(str) {
-                if (!str) return '';
-                return str.replace(/[&<>'"]/g,
-                    tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag)
-                );
-            }
-
-            // Global claiming handler
-            window.claimHomeVoucher = function (voucherId, btn) {
-                if (!IS_LOGGED_IN) {
-                    requireLogin('claimHomeVoucher', voucherId);
-                    return;
-                }
-
-                if (btn) {
-                    btn.disabled = true;
-                    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
-                }
-
-                const formData = new FormData();
-                formData.append('action', 'claim_voucher');
-                formData.append('voucher_id', voucherId);
-
-                fetch('api/user_voucher_api.php', {
-                    method: 'POST',
-                    body: formData
-                })
-                    .then(res => res.json())
-                    .then(data => {
-                        if (data.success) {
-                            Swal.fire({
-                                title: 'Voucher Claimed!',
-                                text: data.message || 'Voucher has been added to your wallet.',
-                                icon: 'success',
-                                confirmButtonColor: '#003580'
-                            });
-                            btn.className = 'home-voucher-btn';
-                            btn.style.background = '#cbd5e1';
-                            btn.style.color = '#64748b';
-                            btn.innerHTML = 'Claimed';
-                            btn.disabled = true;
-                        } else {
-                            Swal.fire({
-                                title: 'Claim Failed',
-                                text: data.message || 'Something went wrong.',
-                                icon: 'error',
-                                confirmButtonColor: '#003580'
-                            });
-                            btn.disabled = false;
-                            btn.innerHTML = 'Claim';
-                        }
-                    })
-                    .catch(err => {
-                        console.error('Error claiming voucher:', err);
-                        Swal.fire({
-                            title: 'Error',
-                            text: 'Unable to connect to server. Please try again.',
-                            icon: 'error',
-                            confirmButtonColor: '#003580'
-                        });
-                        btn.disabled = false;
-                        btn.innerHTML = 'Claim';
-                    });
-            };
         });
     </script>
 

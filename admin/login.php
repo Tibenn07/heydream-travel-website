@@ -23,6 +23,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && empty($error)) {
     $username = trim($_POST['username'] ?? '');
     $password = $_POST['password'] ?? '';
     
+    // Check if this is an AJAX request early
+    $isAjax = (strtolower($_SERVER['HTTP_X_REQUESTED_WITH'] ?? '') === 'xmlhttprequest') || (strpos($_SERVER['HTTP_ACCEPT'] ?? '', 'application/json') !== false);
+    
     if (empty($username)) {
         $error = 'Please enter username or email';
     } elseif (empty($password)) {
@@ -46,7 +49,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && empty($error)) {
                 // Send admin login notification
                 sendAdminLoginNotification($admin['id'], 'password');
 
-                $isAjax = (strtolower($_SERVER['HTTP_X_REQUESTED_WITH'] ?? '') === 'xmlhttprequest') || (strpos($_SERVER['HTTP_ACCEPT'] ?? '', 'application/json') !== false);
                 if ($isAjax) {
                     header('Content-Type: application/json');
                     echo json_encode(['success' => true, 'redirect' => 'dashboard.php', 'name' => $admin['full_name']]);
@@ -66,15 +68,36 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && empty($error)) {
                     } elseif (!$check['is_active']) {
                         $error = 'Your account has been deactivated.';
                     } else {
-                        $error = 'Invalid password';
+                        $error = 'Invalid password or email';
                     }
                 } else {
                     $error = 'Invalid username/email or password';
                 }
+                
+                // Return JSON error for AJAX requests
+                if ($isAjax) {
+                    header('Content-Type: application/json');
+                    echo json_encode(['success' => false, 'message' => $error]);
+                    exit;
+                }
             }
         } catch (PDOException $e) {
             $error = 'Database error. Please try again later.';
+            
+            // Return JSON error for AJAX requests
+            if ($isAjax) {
+                header('Content-Type: application/json');
+                echo json_encode(['success' => false, 'message' => $error]);
+                exit;
+            }
         }
+    }
+    
+    // Return JSON error for validation errors in AJAX requests
+    if ($isAjax && !empty($error)) {
+        header('Content-Type: application/json');
+        echo json_encode(['success' => false, 'message' => $error]);
+        exit;
     }
 }
 ?>
@@ -618,11 +641,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && empty($error)) {
         </div>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script>
-        // Intercept admin login form for AJAX flow. This was previously pasted
-        // inside a CSS rule in <style> by mistake, so it silently never ran —
-        // the form just fell back to a normal full-page POST submit instead.
+        // Show success message with welcome animation on successful login
         const adminForm = document.querySelector('form');
         if (adminForm) {
             adminForm.addEventListener('submit', function (e) {
@@ -633,17 +653,67 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && empty($error)) {
                     headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' },
                     body: fd
                 })
-                    .then(r => r.json())
+                    .then(r => {
+                        if (!r.ok) throw new Error('Network response error');
+                        return r.json();
+                    })
                     .then(data => {
                         if (data.success) {
-                            Swal.fire({ title: 'Welcome back', html: `<strong>${data.name || 'Admin'}</strong>`, icon: 'success', showConfirmButton: false, timer: 1200 })
-                                .then(() => { window.location.href = data.redirect || 'dashboard.php'; });
+                            // Show success message inline
+                            const errorDiv = document.querySelector('.error-message');
+                            const successDiv = document.createElement('div');
+                            successDiv.className = 'success-message';
+                            successDiv.innerHTML = `<i class="fas fa-check-circle"></i> Welcome back, ${data.name || 'Admin'}! Redirecting...`;
+                            
+                            if (errorDiv) {
+                                errorDiv.replaceWith(successDiv);
+                            } else {
+                                adminForm.parentElement.insertBefore(successDiv, adminForm);
+                            }
+                            
+                            // Redirect after brief delay
+                            setTimeout(() => {
+                                window.location.href = data.redirect || 'dashboard.php';
+                            }, 1200);
                         } else {
-                            Swal.fire({ icon: 'error', title: 'Login Failed', text: data.message || 'Invalid credentials' });
+                            // Display error message inline above the form
+                            let errorMessage = data.message || 'Invalid credentials. Please check your email/username and password.';
+                            
+                            // Customize message based on error type
+                            if (errorMessage.toLowerCase().includes('password')) {
+                                errorMessage = 'Your password is incorrect. Please try again.';
+                            } else if (errorMessage.toLowerCase().includes('username') || errorMessage.toLowerCase().includes('email')) {
+                                errorMessage = 'This email or username is not registered.';
+                            }
+                            
+                            const errorDiv = document.createElement('div');
+                            errorDiv.className = 'error-message';
+                            errorDiv.innerHTML = `<i class="fas fa-exclamation-circle"></i> ${errorMessage}`;
+                            
+                            // Remove existing error if present and add new one
+                            const existingError = document.querySelector('.error-message');
+                            if (existingError) {
+                                existingError.replaceWith(errorDiv);
+                            } else {
+                                adminForm.parentElement.insertBefore(errorDiv, adminForm);
+                            }
+                            
+                            // Scroll to error message
+                            errorDiv.scrollIntoView({ behavior: 'smooth', block: 'center' });
                         }
                     }).catch(err => {
-                        console.error(err);
-                        Swal.fire({ icon: 'error', title: 'Error', text: err.message });
+                        console.error('Login error:', err);
+                        const errorMessage = 'An unexpected error occurred. Please try again or contact support.';
+                        const errorDiv = document.createElement('div');
+                        errorDiv.className = 'error-message';
+                        errorDiv.innerHTML = `<i class="fas fa-exclamation-circle"></i> ${errorMessage}`;
+                        
+                        const existingError = document.querySelector('.error-message');
+                        if (existingError) {
+                            existingError.replaceWith(errorDiv);
+                        } else {
+                            adminForm.parentElement.insertBefore(errorDiv, adminForm);
+                        }
                     });
             });
         }

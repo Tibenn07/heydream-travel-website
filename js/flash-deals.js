@@ -451,10 +451,10 @@ window.showFlashDealPopupModal = async function (dealId) {
                 <div id="flashStep2VoucherArea" style="margin-bottom:18px;"></div>
 
                 <div class="form-row">
-                    <div class="form-group"><label>Full Name *</label><input type="text" id="flashStepFullName" placeholder="Enter your full name" value="${window.currentFullName || ''}"></div>
+                    <div class="form-group"><label>Full Name *</label><input type="text" id="flashStepFullName" autocomplete="name" placeholder="Enter your full name" value="${window.currentFullName || ''}"></div>
                 </div>
                 <div class="form-row">
-                    <div class="form-group"><label>Phone *</label><input type="tel" id="flashStepPhone" placeholder="+63 912 345 6789"></div>
+                    <div class="form-group"><label>Phone *</label><input type="tel" id="flashStepPhone" autocomplete="tel" placeholder="+63 912 345 6789"></div>
                     <div class="form-group"><label>Travelers *</label><input type="number" id="flashStepTravelers" min="1" value="1" onchange="updateFlashStepTotal(${deal.price})"></div>
                 </div>
                 <div id="flashStep2VoucherArea" style="margin-bottom:18px;"></div>
@@ -657,6 +657,9 @@ window.showFlashDealPopupModal = async function (dealId) {
         .filter(m => !isNaN(m));
 
     const parsedDuration = parseInt(deal.duration) || 1;
+    // Trip length shown on the calendar is controlled by the content
+    // manager's "highlight duration" setting, not parsed from the
+    // free-text duration label.
     const highlightDuration = parseInt(deal.highlight_duration) || parsedDuration;
 
     const flashDatePicker = flatpickr('#flashStepDate', {
@@ -1392,17 +1395,16 @@ function renderFlashDealsHome(deals) {
             <div class="flash-deal-card" onclick="showFlashDealPopup(${deal.id})">
                 <div class="flash-deal-image">
                     ${collageHtml}
-                    
-                    <div style="position: absolute; top: 12px; left: 12px; background: #ff9800; color: white; padding: 5px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: 600; z-index: 2; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">
-                        ${escapeHtmlFlash(badgeText).substring(0, 18)}${badgeText.length > 18 ? '...' : ''}
-                    </div>
-                    
+
                     <div style="position: absolute; bottom: 0; left: 0; right: 0; padding: 40px 15px 15px; background: linear-gradient(to top, rgba(10,30,60,0.95), transparent);">
                         <h3 style="color: white; margin: 0; font-size: 1.1rem; font-weight: 700; line-height: 1.3;">${escapeHtmlFlash(deal.title)}</h3>
                     </div>
                 </div>
-                
+
                 <div class="flash-deal-content" style="padding: 15px; display: flex; flex-direction: column; flex-grow: 1;">
+                    <div style="align-self: flex-start; background: #ff9800; color: white; padding: 4px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: 700; margin-bottom: 10px;">
+                        ${escapeHtmlFlash(badgeText).substring(0, 18)}${badgeText.length > 18 ? '...' : ''}
+                    </div>
                     <div style="color: #888; font-size: 0.7rem; text-transform: uppercase; margin-bottom: 8px; display: flex; align-items: center; gap: 6px; font-weight: 600;">
                         <i class="fas fa-map-marker-alt" style="color: #ff9800;"></i> ${escapeHtmlFlash(deal.location || 'Various Locations')}
                     </div>
@@ -2148,15 +2150,18 @@ function addFlashDealModalStyles() {
             .action-buttons {
                 display: flex;
                 gap: 15px;
-                justify-content: center;
+                justify-content: space-between;
+                align-items: center;
                 margin-top: 20px;
             }
-            
+
+            /* Ghost/outline style, deliberately quieter than .btn-next so the
+               two don't read as a matched pair of equally-weighted actions. */
             .btn-prev {
-                background: #6c757d;
-                color: white;
-                border: none;
-                padding: 10px 25px;
+                background: transparent;
+                color: #64748b;
+                border: 1.5px solid #e2e8f0;
+                padding: 9px 22px;
                 border-radius: 40px;
                 font-size: 0.85rem;
                 font-weight: 600;
@@ -2164,15 +2169,18 @@ function addFlashDealModalStyles() {
                 display: inline-flex;
                 align-items: center;
                 gap: 8px;
-                transition: all 0.3s ease;
+                transition: all 0.2s ease;
             }
-            
+
             .btn-prev:hover {
-                background: #5a6268;
-                transform: translateY(-2px);
+                background: #f1f5f9;
+                color: #334155;
+                border-color: #cbd5e1;
             }
-            
+
             .btn-next {
+                flex: 1;
+                justify-content: center;
                 background: linear-gradient(135deg, #ff9800, #f57c00);
                 color: white;
                 border: none;
@@ -2426,7 +2434,12 @@ function addFlashDealModalStyles() {
                     grid-template-columns: 1fr;
                 }
                 .action-buttons {
-                    flex-direction: column;
+                    flex-direction: column-reverse;
+                    gap: 14px;
+                }
+                .btn-prev, .btn-next {
+                    width: 100%;
+                    justify-content: center;
                 }
                 .review-row {
                     flex-direction: column;

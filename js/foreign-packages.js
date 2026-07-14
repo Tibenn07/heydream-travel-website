@@ -104,7 +104,7 @@ async function loadDestinationFromDatabase(destKey) {
             }
 
             // Set default values
-            dest.duration = dest.duration || '4D/3N';
+            dest.duration = dest.duration || '3D/2N';
             dest.groupSize = dest.group_size || '2-15 pax';
             dest.bestSeason = dest.best_season || 'Year Round';
             dest.activities = dest.activities_count || 0;
@@ -216,6 +216,7 @@ window.showForeignPackagePopupModal = async function (destKey) {
     window.currentForeignDestCurrency = destination.currency || '₱';
     window.foreignSelectedHotelSurcharge = 0; // Initialize surcharge
     window.currentForeignDest = destination;
+    window.currentForeignDestKey = destKey;
 
     const modalBody = document.getElementById('foreignPackageModalBody');
 
@@ -472,10 +473,13 @@ window.showForeignPackagePopupModal = async function (destKey) {
                 </div>
 
                 <div class="form-row">
-                    <div class="form-group"><label>Full Name *</label><input type="text" id="foreignStepFullName" placeholder="Enter your full name" value="${window.currentFullName || ''}"></div>
+                    <div class="form-group"><label>Full Name *</label><input type="text" id="foreignStepFullName" autocomplete="name" placeholder="Enter your full name" value="${window.currentFullName || ''}"></div>
                 </div>
                 <div class="form-row">
-                    <div class="form-group"><label>Phone *</label><input type="tel" id="foreignStepPhone" placeholder="+63 912 345 6789"></div>
+                    <div class="form-group"><label>Email ${window.currentUserEmail ? '(Your Account Email)' : '*'}</label><input type="email" id="foreignStepEmail" autocomplete="email" placeholder="your.email@example.com" value="${window.currentUserEmail || ''}" ${window.currentUserEmail ? 'readonly style="background-color:#f0f0f0;cursor:not-allowed;"' : ''}></div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group"><label>Phone *</label><input type="tel" id="foreignStepPhone" autocomplete="tel" placeholder="+63 912 345 6789"></div>
                     <div class="form-group"><label>Travelers *</label><input type="number" id="foreignStepTravelers" min="1" value="1" onchange="updateForeignStepTotal(${destination.price})"></div>
                 </div>
                 <!-- Voucher Section (Step 2) -->
@@ -683,6 +687,9 @@ window.showForeignPackagePopupModal = async function (destKey) {
         .filter(m => !isNaN(m));
 
     const parsedDuration = parseInt(destination.duration) || 1;
+    // Trip length shown on the calendar is controlled by the content
+    // manager's "highlight duration" setting, not parsed from the
+    // free-text duration label.
     const highlightDuration = parseInt(destination.highlight_duration) || parsedDuration;
 
     flatpickr('#foreignStepDate', {
@@ -1015,15 +1022,17 @@ window.resumeForeignBooking = async function (destKey, step) {
 function validateForeignStep2() {
     const errors = [];
     const fullName = document.getElementById('foreignStepFullName').value.trim();
+    const email = document.getElementById('foreignStepEmail').value.trim();
     const phone = document.getElementById('foreignStepPhone').value.trim();
     const travelDate = document.getElementById('foreignStepDate').value;
     const travelers = document.getElementById('foreignStepTravelers').value;
 
     if (!fullName) errors.push('Full Name is required');
 
-    // Use auto-detected email
-    const email = window.currentUserEmail || '';
-    if (!email) errors.push('Your account email could not be detected. Please log in again.');
+    // Validate email (either from logged-in user or form input)
+    if (!email) errors.push('Email address is required');
+    else if (!email.match(/^[^\s@]+@([^\s@]+\.)+[^\s@]+$/)) errors.push('Please enter a valid email address');
+    
     if (!phone) errors.push('Phone number is required');
     if (!travelers || travelers < 1) errors.push('At least 1 traveler is required');
 
@@ -1172,35 +1181,33 @@ function validateForeignPayment() {
     const appliedVoucher = window._appliedVoucher && window._appliedVoucher['foreign'];
     const finalAmount = appliedVoucher ? appliedVoucher.finalTotal : totalAmount;
 
-    const formData = new FormData();
-    formData.append('service_type', 'Foreign Destination');
-    formData.append('package_name', window.currentForeignDest.name || window.currentForeignDest.title);
-    formData.append('package_duration', window.currentForeignDest.duration);
-    formData.append('price_per_person', price);
-    formData.append('full_name', window.foreignBookingData.fullName);
-    formData.append('email', window.foreignBookingData.email);
-    formData.append('phone', window.foreignBookingData.phone);
-    formData.append('travelers', window.foreignBookingData.travelers);
-    formData.append('travel_date', window.foreignBookingData.travelDate);
-    formData.append('special_requests', window.foreignBookingData.specialRequests);
-    formData.append('total_amount', finalAmount);
-    formData.append('payment_method', foreignSelectedPayment);
-    formData.append('currency', window.currentForeignDestCurrency || '$');
-    if (paymentRef) formData.append('payment_reference', paymentRef);
-    if (appliedVoucher) {
-        formData.append('voucher_id', appliedVoucher.id);
-        formData.append('voucher_discount', appliedVoucher.discountAmount);
-    }
-
-    // Support file uploads for payment proof
-    const fileInput = document.getElementById(`foreignProof${foreignSelectedPayment.charAt(0).toUpperCase() + foreignSelectedPayment.slice(1)}`);
-    if (fileInput && fileInput.files[0]) {
-        formData.append('payment_proof', fileInput.files[0]);
-    }
-
-    fetch('api/save-service-booking.php', {
+    fetch('api/save-foreign-booking.php', {
         method: 'POST',
-        body: formData
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            destination_key: window.currentForeignDestKey || null,
+            destination_name: window.currentForeignDest?.name || window.currentForeignDest?.title || 'Foreign Destination',
+            package_duration: window.currentForeignDest?.duration || 'N/A',
+            price_per_person: price,
+            full_name: window.foreignBookingData.fullName,
+            email: window.foreignBookingData.email,
+            phone: window.foreignBookingData.phone,
+            number_of_travelers: window.foreignBookingData.travelers,
+            travel_date: window.foreignBookingData.travelDate,
+            special_requests: window.foreignBookingData.specialRequests,
+            total_amount: finalAmount,
+            payment_method: foreignSelectedPayment,
+            payment_reference: paymentRef || null,
+            currency: window.currentForeignDestCurrency || '$',
+            partner_id: window.currentForeignDest?.partner_id ?? null,
+            partner_company: window.currentForeignDest?.partner_company ?? null,
+            partner_source: window.currentForeignDest?.partner_source ?? 'foreign_destination',
+            partner_package_name: window.currentForeignDest?.name ?? null,
+            voucher_id: appliedVoucher?.id ?? null,
+            voucher_discount: appliedVoucher?.discountAmount ?? 0
+        })
     })
         .then(res => res.json())
         .then(data => {
@@ -1857,15 +1864,18 @@ function addForeignModalStyles() {
             .action-buttons {
                 display: flex;
                 gap: 15px;
-                justify-content: center;
+                justify-content: space-between;
+                align-items: center;
                 margin-top: 20px;
             }
-            
+
+            /* Ghost/outline style, deliberately quieter than .btn-next so the
+               two don't read as a matched pair of equally-weighted actions. */
             .btn-prev {
-                background: #6c757d;
-                color: white;
-                border: none;
-                padding: 10px 25px;
+                background: transparent;
+                color: #64748b;
+                border: 1.5px solid #e2e8f0;
+                padding: 9px 22px;
                 border-radius: 40px;
                 font-size: 0.85rem;
                 font-weight: 600;
@@ -1873,15 +1883,18 @@ function addForeignModalStyles() {
                 display: inline-flex;
                 align-items: center;
                 gap: 8px;
-                transition: all 0.3s ease;
+                transition: all 0.2s ease;
             }
-            
+
             .btn-prev:hover {
-                background: #5a6268;
-                transform: translateY(-2px);
+                background: #f1f5f9;
+                color: #334155;
+                border-color: #cbd5e1;
             }
-            
+
             .btn-next {
+                flex: 1;
+                justify-content: center;
                 background: linear-gradient(135deg, #ff9800, #f57c00);
                 color: white;
                 border: none;
@@ -1976,7 +1989,12 @@ function addForeignModalStyles() {
                     grid-template-columns: 1fr;
                 }
                 .action-buttons {
-                    flex-direction: column;
+                    flex-direction: column-reverse;
+                    gap: 14px;
+                }
+                .btn-prev, .btn-next {
+                    width: 100%;
+                    justify-content: center;
                 }
                 .review-row {
                     flex-direction: column;
