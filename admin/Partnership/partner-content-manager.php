@@ -8880,43 +8880,6 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
             evt.currentTarget.classList.add('active');
         }
 
-        function getSavedAdvancedCruiseTabs(d) {
-            const tabs = { general: false, ship: false, itinerary: false, pricing: false, schedule: false, policies: false, gallery: false };
-            if (d.title || d.cruise_code || d.short_description || d.category) tabs.general = true;
-            if (d.ship_name || d.cruise_line || d.departure_port || d.destination_type || d.destinations || d.ship_description || d.room_types || d.amenities) tabs.ship = true;
-            if (d.itinerary && d.itinerary.length > 0) tabs.itinerary = true;
-            if (parseFloat(d.base_price) > 0 || parseFloat(d.promo_price) > 0) tabs.pricing = true;
-            if (d.departure_date || d.return_date || d.duration) tabs.schedule = true;
-            if (d.travel_requirements || d.cancellation_policy || d.terms_conditions) tabs.policies = true;
-            const gallery = [];
-            if (d.featured_image) gallery.push(d.featured_image);
-            if (d.gallery) {
-                try {
-                    const parsed = typeof d.gallery === 'string' ? JSON.parse(d.gallery) : d.gallery;
-                    if (Array.isArray(parsed)) gallery.push(...parsed.filter(Boolean));
-                } catch (e) {}
-            }
-            if (gallery.length > 0) tabs.gallery = true;
-            return tabs;
-        }
-
-        function setAdvancedCruiseTabSavedState(tabs) {
-            document.querySelectorAll('#advancedCruiseModal .tab-btn').forEach(btn => {
-                const target = btn.getAttribute('onclick')?.match(/'([^']+)'/);
-                const t = target ? target[1] : null;
-                if (!t) return;
-                btn.classList.toggle('tab-saved',
-                    (t === 'tab-general' && tabs.general) ||
-                    (t === 'tab-ship' && tabs.ship) ||
-                    (t === 'tab-itinerary' && tabs.itinerary) ||
-                    (t === 'tab-pricing' && tabs.pricing) ||
-                    (t === 'tab-schedule' && tabs.schedule) ||
-                    (t === 'tab-policies' && tabs.policies) ||
-                    (t === 'tab-gallery' && tabs.gallery)
-                );
-            });
-        }
-
         function addItineraryDay(title = '', desc = '') {
             const list = document.getElementById('itinerary-list');
             const dayNum = list.children.length + 1;
@@ -9049,7 +9012,8 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
                             d.itinerary.forEach(it => addItineraryDay(it.title, it.description));
                         }
 
-                        setAdvancedCruiseTabSavedState(getSavedAdvancedCruiseTabs(d));
+                        document.querySelectorAll('#advancedCruiseModal .tab-btn').forEach(btn => btn.classList.remove('tab-saved'));
+                        PersistenceEngine.applySavedTabState('advancedCruiseForm', '#advancedCruiseModal');
                         document.getElementById('advancedCruiseModal').classList.add('active');
                         PersistenceEngine.checkDraft('advancedCruiseForm');
                     }
