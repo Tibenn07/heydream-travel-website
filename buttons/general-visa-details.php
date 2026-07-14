@@ -147,9 +147,9 @@ if (class_exists('Auth')) {
         /* ── Visa Drawer ── */
         .visa-drawer-overlay { position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(15,23,42,0.45); backdrop-filter:blur(4px); z-index:2000; opacity:0; visibility:hidden; transition:all 0.3s ease; }
         .visa-drawer-overlay.active { opacity:1; visibility:visible; }
-        .visa-drawer { position:fixed; top:0; right:-560px; width:550px; height:100%; background:rgba(255,255,255,0.97); box-shadow:-10px 0 30px rgba(0,0,0,0.12); z-index:2001; transition:right 0.4s cubic-bezier(0.4,0,0.2,1); display:flex; flex-direction:column; }
-        @media(max-width:600px){ .visa-drawer{ width:100%; right:-100%; } }
-        .visa-drawer.active { right:0; }
+        .visa-drawer { position:fixed; top:50%; left:50%; width:90%; max-width:600px; height:85vh; max-height:800px; transform:translate(-50%, -50%) scale(0.95); opacity:0; visibility:hidden; background:rgba(255,255,255,1); border-radius:16px; box-shadow:0 10px 40px rgba(0,0,0,0.2); z-index:2001; transition:all 0.3s cubic-bezier(0.4,0,0.2,1); display:flex; flex-direction:column; overflow:hidden; }
+        @media(max-width:600px){ .visa-drawer{ width:100%; height:100vh; max-height:none; border-radius:0; transform:translate(-50%, -50%) scale(1); } }
+        .visa-drawer.active { transform:translate(-50%, -50%) scale(1); opacity:1; visibility:visible; }
         .visa-drawer-header { background:linear-gradient(135deg,#6c5ce7,#8a7cff); color:white; padding:24px; display:flex; align-items:center; justify-content:space-between; box-shadow:0 4px 15px rgba(108,92,231,0.3); }
         .visa-drawer-header h2 { margin:0; font-size:1.3rem; font-weight:800; display:flex; align-items:center; gap:10px; }
         .visa-drawer-close { background:rgba(255,255,255,0.2); border:none; color:white; width:36px; height:36px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:1.1rem; cursor:pointer; transition:all 0.2s; flex-shrink:0; }
@@ -371,7 +371,7 @@ if (class_exists('Auth')) {
                     <div class="vd-form-group"><label>Purpose of Visit <span class="req">*</span></label><input type="text" id="vdPurpose" placeholder="e.g. Tourism, Work, Study"></div>
                 </div>
                 <div class="vd-section">
-                    <h4><i class="fas fa-file-upload"></i> Documents <span style="font-size:0.75rem;font-weight:400;color:#64748b;">(optional, max 10MB)</span></h4>
+                    <h4><i class="fas fa-file-upload"></i> Documents <span style="font-size:0.75rem;font-weight:400;color:#ef4444;">(Required, max 10MB)</span></h4>
                     <div class="vd-form-group">
                         <label>Passport Data Page</label>
                         <div class="vd-file-upload" onclick="document.getElementById('vdDocPassport').click()">
@@ -394,6 +394,14 @@ if (class_exists('Auth')) {
                             <i class="fas fa-cloud-upload-alt"></i><p>Click to upload (PDF or image)</p>
                             <div class="vd-file-name" id="vdNameSupport">No file selected</div>
                             <input type="file" id="vdDocSupport" style="display:none" accept="image/*,application/pdf" onchange="vdHandleFile(event,'vdNameSupport')">
+                        </div>
+                    </div>
+                    <div class="vd-form-group">
+                        <label>Additional Documents</label>
+                        <div class="vd-file-upload" onclick="document.getElementById('vdDocAdditional').click()">
+                            <i class="fas fa-cloud-upload-alt"></i><p>Click to upload (PDF or image)</p>
+                            <div class="vd-file-name" id="vdNameAdditional">No file selected</div>
+                            <input type="file" id="vdDocAdditional" style="display:none" accept="image/*,application/pdf" onchange="vdHandleFile(event,'vdNameAdditional')">
                         </div>
                     </div>
                 </div>
@@ -438,8 +446,8 @@ if (class_exists('Auth')) {
             document.getElementById('vdOverlay').classList.remove('active');
             document.getElementById('vdDrawer').classList.remove('active');
             document.body.style.overflow = '';
-            ['vdDocPassport','vdDocPhoto','vdDocSupport'].forEach(id => { const e=document.getElementById(id); if(e) e.value=''; });
-            ['vdNamePassport','vdNamePhoto','vdNameSupport'].forEach(id => { const e=document.getElementById(id); if(e) e.innerText='No file selected'; });
+            ['vdDocPassport','vdDocPhoto','vdDocSupport','vdDocAdditional'].forEach(id => { const e=document.getElementById(id); if(e) e.value=''; });
+            ['vdNamePassport','vdNamePhoto','vdNameSupport','vdNameAdditional'].forEach(id => { const e=document.getElementById(id); if(e) e.innerText='No file selected'; });
         }
 
         function vdHandleFile(e, labelId) {
@@ -463,12 +471,12 @@ if (class_exists('Auth')) {
             btn.disabled = true; const orig = btn.innerHTML; btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Submitting...';
             let special = `Nationality: ${document.getElementById('vdNationality').value}, DOB: ${document.getElementById('vdDob').value}, Passport: ${document.getElementById('vdPassportNum').value} (Exp: ${document.getElementById('vdPassportExpiry').value}, Issued: ${document.getElementById('vdPassportIssue').value}), Dest: ${document.getElementById('vdDestination').value}, Travel: ${document.getElementById('vdArrival').value} to ${document.getElementById('vdDeparture').value}, Purpose: ${document.getElementById('vdPurpose').value}`;
             if (isRenew) special += ` | RENEWAL - Current Visa: ${document.getElementById('vdCurrentVisaNum').value} (Exp: ${document.getElementById('vdCurrentVisaExpiry').value}), Reason: ${document.getElementById('vdRenewalReason').value}`;
-            const payload = { service_type: 'Visa Assistance', package_name: document.getElementById('vdVisaType').value, full_name: document.getElementById('vdName').value, email: document.getElementById('vdEmail').value, phone: document.getElementById('vdPhone').value, total_amount: 0, travel_date: document.getElementById('vdArrival').value, special_requests: special, payment_method: 'Manual Agent Approval', payment_reference: 'PENDING_AGENT' };
+            const payload = { service_type: 'Visa Assistance', package_name: document.getElementById('vdVisaType').value, full_name: document.getElementById('vdName').value, email: document.getElementById('vdEmail').value, phone: document.getElementById('vdPhone').value, total_amount: '0.00', travel_date: document.getElementById('vdArrival').value, special_requests: special, payment_method: 'Manual Agent Approval', payment_reference: 'PENDING_AGENT' };
             try {
                 const data = await fetch('../api/save-service-booking.php', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload) }).then(r => r.json());
                 if (data.success) {
                     const ref = data.booking_number, uploads = [];
-                    [['vdDocPassport','Passport Copy'],['vdDocPhoto','Passport Photo'],['vdDocSupport','Supporting Docs']].forEach(([id]) => {
+                    [['vdDocPassport','Passport Copy'],['vdDocPhoto','Passport Photo'],['vdDocSupport','Supporting Docs'],['vdDocAdditional','Additional Docs']].forEach(([id]) => {
                         const el = document.getElementById(id);
                         if (el && el.files.length > 0) {
                             const fd = new FormData(); fd.append('action','upload'); fd.append('booking_number',ref); fd.append('document',el.files[0]);
