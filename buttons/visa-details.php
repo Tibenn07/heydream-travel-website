@@ -75,7 +75,10 @@ $isFree = $visa && strtolower($visa['visa_status'] ?? '') === 'free';
         .visa-status-pill.required { background: #fff7ed; color: #c2410c; }
 
         .pkgdet-body { display: grid; grid-template-columns: 1fr 340px; gap: 28px; align-items: start; }
-        @media (max-width: 900px) { .pkgdet-body { grid-template-columns: 1fr; } }
+        @media (max-width: 900px) {
+            .pkgdet-body { grid-template-columns: 1fr; }
+            .pkgdet-sticky { order: -1; margin-bottom: 20px; position: static !important; }
+        }
 
         .pkgdet-card { background: #fff; border-radius: 16px; padding: 24px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); margin-bottom: 20px; }
         .pkgdet-card h2 { font-size: 1.2rem; font-weight: 800; color: #0f172a; margin: 0 0 14px; display: flex; align-items: center; gap: 8px; }

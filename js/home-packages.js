@@ -168,13 +168,13 @@ function renderLocalDestinationsGrid() {
 
         card.innerHTML = `
             <div class="home-card-image">
-                ${badgeHtml}
-                <img src="${imagePath}" 
-                     alt="${escapeHtml(dest.name)}" 
+                <img src="${imagePath}"
+                     alt="${escapeHtml(dest.name)}"
                      onerror="this.src='https://via.placeholder.com/400x250?text=' + encodeURIComponent('${escapeHtml(dest.name)}')">
                 <h3 class="home-card-name">${escapeHtml(dest.name)}</h3>
             </div>
             <div class="home-card-content">
+                ${badgeHtml}
                 <div class="home-card-location">
                     <i class="fas fa-map-marker-alt"></i> ${escapeHtml(dest.location)}
                 </div>
@@ -604,10 +604,10 @@ window.showLocalPackagePopupModal = async function (identifier) {
                 </div>
 
                 <div class="form-row">
-                    <div class="form-group"><label>Full Name *</label><input type="text" id="homeFullName" placeholder="Enter your full name" value="${window.currentFullName || ''}"></div>
+                    <div class="form-group"><label>Full Name *</label><input type="text" id="homeFullName" autocomplete="name" placeholder="Enter your full name" value="${window.currentFullName || ''}"></div>
                 </div>
                 <div class="form-row">
-                    <div class="form-group"><label>Phone *</label><input type="tel" id="homePhone" placeholder="+63 912 345 6789"></div>
+                    <div class="form-group"><label>Phone *</label><input type="tel" id="homePhone" autocomplete="tel" placeholder="+63 912 345 6789"></div>
                     <div class="form-group"><label>Travelers *</label><input type="number" id="homeTravelersCount" min="1" value="1" onchange="updateHomeTotalPrice(${destination.price})"></div>
                 </div>
                 <!-- Voucher Section (Step 2) -->
@@ -815,7 +815,14 @@ window.showLocalPackagePopupModal = async function (identifier) {
         .map(m => parseInt(m.trim()) - 1)
         .filter(m => !isNaN(m));
 
-    const highlightDuration = parseInt(destination.highlight_duration || 1);
+    // highlight_duration defaults to 1 in the DB for almost every row, so
+    // relying on it alone always highlighted a single day on the calendar no
+    // matter what the duration text said. Only trust highlight_duration as a
+    // deliberate override once it's > 1; otherwise derive the trip length
+    // from the human-readable duration text (e.g. "3D/2N" -> 3), which is
+    // what admins actually edit.
+    const parsedDuration = parseInt(destination.duration) || 1;
+    const highlightDuration = parseInt(destination.highlight_duration) > 1 ? parseInt(destination.highlight_duration) : parsedDuration;
 
     flatpickr('#homeTravelDate', {
         minDate: destination.promo_start && new Date(destination.promo_start) > new Date() ? destination.promo_start : 'today',
@@ -2442,15 +2449,18 @@ function addHomePackageModalStyles() {
             .action-buttons {
                 display: flex;
                 gap: 15px;
-                justify-content: center;
+                justify-content: space-between;
+                align-items: center;
                 margin-top: 20px;
             }
-            
+
+            /* Ghost/outline style, deliberately quieter than .btn-next so the
+               two don't read as a matched pair of equally-weighted actions. */
             .btn-prev {
-                background: #6c757d;
-                color: white;
-                border: none;
-                padding: 10px 25px;
+                background: transparent;
+                color: #64748b;
+                border: 1.5px solid #e2e8f0;
+                padding: 9px 22px;
                 border-radius: 40px;
                 font-size: 0.85rem;
                 font-weight: 600;
@@ -2458,15 +2468,18 @@ function addHomePackageModalStyles() {
                 display: inline-flex;
                 align-items: center;
                 gap: 8px;
-                transition: all 0.3s ease;
+                transition: all 0.2s ease;
             }
-            
+
             .btn-prev:hover {
-                background: #5a6268;
-                transform: translateY(-2px);
+                background: #f1f5f9;
+                color: #334155;
+                border-color: #cbd5e1;
             }
-            
+
             .btn-next {
+                flex: 1;
+                justify-content: center;
                 background: linear-gradient(135deg, #ff9800, #f57c00);
                 color: white;
                 border: none;
@@ -2576,7 +2589,12 @@ function addHomePackageModalStyles() {
                     grid-template-columns: 1fr;
                 }
                 .action-buttons {
-                    flex-direction: column;
+                    flex-direction: column-reverse;
+                    gap: 14px;
+                }
+                .btn-prev, .btn-next {
+                    width: 100%;
+                    justify-content: center;
                 }
                 .review-row {
                     flex-direction: column;

@@ -195,19 +195,21 @@ foreach ($home_local_destinations as &$dest) {
             transform: scale(1.05);
         }
 
-        .foreign-card-badge {
-            position: absolute;
-            top: 15px;
-            left: 15px;
+        /* Moved off the photo (was position:absolute over the image, blocking
+           it) into the card's details section instead. */
+        .foreign-card-badge-inline {
+            align-self: flex-start;
+            flex-shrink: 0;
+            display: inline-block;
             background: #ff9800;
             color: white;
             padding: 4px 10px;
             border-radius: 20px;
             font-size: 0.7rem;
-            font-weight: 600;
-            z-index: 2;
-            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
-            max-width: 140px;
+            font-weight: 700;
+            line-height: 1.4;
+            margin-bottom: 8px;
+            max-width: 100%;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
@@ -835,19 +837,23 @@ foreach ($home_local_destinations as &$dest) {
             }
         }
 
+        /* Moved off the photo (was position:absolute over the image, blocking
+           it) into the card's details section instead -- same treatment as
+           .foreign-card-badge-inline. */
         .card-badge {
-            position: absolute;
-            top: 15px;
-            left: 15px;
+            position: static;
+            align-self: flex-start;
+            flex-shrink: 0;
+            display: inline-block;
             background: #ff9800;
             color: white;
             padding: 4px 10px;
             border-radius: 20px;
             font-size: 0.7rem;
-            font-weight: 600;
-            z-index: 2;
-            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
-            max-width: 140px;
+            font-weight: 700;
+            line-height: 1.4;
+            margin-bottom: 8px;
+            max-width: 100%;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
@@ -1043,9 +1049,195 @@ foreach ($home_local_destinations as &$dest) {
             z-index: 4;
         }
 
+        /* ---- Hero search bar: destination + dates + travelers pill ---- */
+        .hd-searchbar {
+            display: flex;
+            align-items: stretch;
+            background: #fff;
+            border-radius: 60px;
+            box-shadow: 0 12px 34px rgba(0, 20, 60, 0.28);
+            padding: 6px;
+            max-width: 980px;
+            margin: 0 auto;
+            gap: 2px;
+        }
+
+        .hd-search-field {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 16px;
+            flex: 1 1 0;
+            min-width: 0;
+            border-radius: 40px;
+            position: relative;
+            transition: background 0.18s ease;
+        }
+
+        .hd-search-where { flex: 2 1 0; }
+
+        .hd-search-field:hover { background: #f3f6fb; }
+
+        .hd-search-field-icon {
+            color: #003580;
+            font-size: 1rem;
+            flex-shrink: 0;
+        }
+
+        .hd-search-field-text {
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+            text-align: left;
+        }
+
+        .hd-search-field-text label {
+            font-size: 0.68rem;
+            font-weight: 800;
+            color: #0f172a;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+            margin-bottom: 1px;
+        }
+
+        .hd-search-field-text input {
+            border: none;
+            outline: none;
+            background: transparent;
+            font-size: 0.9rem;
+            font-family: inherit;
+            color: #1e293b;
+            padding: 0;
+            width: 100%;
+            overflow: hidden;
+            white-space: nowrap;
+            text-overflow: ellipsis;
+        }
+
+        .hd-search-field-text input::placeholder { color: #94a3b8; }
+
+        .hd-search-field-text span {
+            font-size: 0.9rem;
+            color: #1e293b;
+        }
+
+        .hd-search-divider {
+            width: 1px;
+            background: #e2e8f0;
+            margin: 10px 0;
+            flex-shrink: 0;
+        }
+
+        .hd-search-submit {
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            background: linear-gradient(135deg, #ff9800, #f57c00);
+            color: #fff;
+            border: none;
+            border-radius: 46px;
+            padding: 0 22px;
+            font-weight: 700;
+            font-size: 0.92rem;
+            cursor: pointer;
+            box-shadow: 0 6px 16px rgba(255, 152, 0, 0.35);
+            transition: transform 0.15s ease, box-shadow 0.15s ease;
+        }
+
+        .hd-search-submit:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 8px 20px rgba(255, 152, 0, 0.45);
+        }
+
+        /* Visible close ("x") button injected into the hero date pickers */
+        .flatpickr-calendar .hd-fp-close {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            width: 26px;
+            height: 26px;
+            border-radius: 50%;
+            border: none;
+            background: #f1f5f9;
+            color: #64748b;
+            font-size: 0.75rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 5;
+            transition: background 0.15s ease, color 0.15s ease;
+        }
+
+        .flatpickr-calendar .hd-fp-close:hover {
+            background: #ff9800;
+            color: #fff;
+        }
+
+        /* Below 900px the hd-searchbar drops the single-row pill layout for a
+           stacked card (destination on its own row, dates side-by-side, full-
+           width search button). That card is taller than the compact desktop
+           pill, so the hero section -- which normally has a fixed height
+           tuned for the single-row pill -- needs to grow with it instead of
+           clipping it (it previously did, via `.hero { overflow:hidden }` /
+           a fixed min-height in css/hero.css). These rules load after that
+           stylesheet, so on an equal-specificity/!important tie they win. */
+        @media (max-width: 900px) {
+            .hero {
+                height: auto !important;
+                min-height: 360px !important;
+                padding-bottom: 28px !important;
+                overflow: visible !important;
+            }
+
+            .hd-searchbar {
+                flex-wrap: wrap;
+                border-radius: 20px;
+                padding: 8px;
+                gap: 0;
+                box-shadow: 0 16px 36px rgba(0, 20, 60, 0.32);
+            }
+            .hd-search-where {
+                flex: 1 1 100%;
+                padding: 13px 14px;
+                border-bottom: 1px solid #eef2f7;
+                border-radius: 14px 14px 0 0;
+            }
+            .hd-search-date {
+                flex: 1 1 50%;
+                padding: 12px 14px;
+            }
+            #heroCheckInField { border-right: 1px solid #eef2f7; }
+            .hd-search-divider { display: none; }
+            .hd-search-submit {
+                flex: 1 1 100%;
+                border-radius: 14px;
+                padding: 14px;
+                margin-top: 8px;
+                font-size: 0.95rem;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .hero {
+                min-height: 420px !important;
+                padding-top: 58px !important;
+            }
+            .hd-search-field-text label { font-size: 0.64rem; }
+            .hd-search-field-text input { font-size: 0.86rem; }
+        }
+
         /* Make sure navbar is at the absolute front */
         .navbar {
             z-index: 999999 !important;
+        }
+
+        /* SweetAlert2's default z-index (1060) sits well below the navbar's
+           999999, so toasts/alerts would render hidden behind it otherwise. */
+        .swal2-container {
+            z-index: 9999999 !important;
         }
 
 
@@ -1570,6 +1762,18 @@ foreach ($home_local_destinations as &$dest) {
             text-overflow: ellipsis;
         }
 
+        .autocomplete-section-header {
+            padding: 10px 20px 6px;
+            font-size: 0.72rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            color: #ff9800;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
         @keyframes flashPulse {
             0% {
                 transform: scale(1);
@@ -1933,13 +2137,39 @@ foreach ($home_local_destinations as &$dest) {
             <h1 class="hero-main-title" id="rotating-title" style="pointer-events: none;">Your journey begins here</h1>
             <div class="transparent-search-wrapper" style="position: relative; z-index: 4; pointer-events: auto;">
                 <div class="search-container" style="position: relative; z-index: 5; pointer-events: auto;">
-                    <div class="transparent-search-container" style="pointer-events: auto;">
-                        <i class="fas fa-search search-icon"></i>
-                        <input type="text" id="globalSearchInput" placeholder="Dream Destination?"
-                            class="transparent-search-input" autocomplete="off"
-                            style="pointer-events: auto; cursor: text;">
-                        <button class="transparent-search-btn" id="globalSearchBtn"
-                            style="pointer-events: auto;">Search</button>
+                    <div class="hd-searchbar" style="pointer-events: auto;">
+                        <div class="hd-search-field hd-search-where">
+                            <i class="fas fa-map-marker-alt hd-search-field-icon"></i>
+                            <div class="hd-search-field-text">
+                                <label for="globalSearchInput">Where to?</label>
+                                <input type="text" id="globalSearchInput" placeholder="Search destinations, deals, visas..."
+                                    autocomplete="off" style="pointer-events: auto; cursor: text;">
+                            </div>
+                        </div>
+
+                        <div class="hd-search-divider"></div>
+
+                        <div class="hd-search-field hd-search-date" id="heroCheckInField">
+                            <i class="fas fa-calendar-alt hd-search-field-icon"></i>
+                            <div class="hd-search-field-text">
+                                <label for="heroCheckIn">Check-in</label>
+                                <input type="text" id="heroCheckIn" placeholder="Add date" autocomplete="off" readonly style="pointer-events: auto; cursor: pointer;">
+                            </div>
+                        </div>
+
+                        <div class="hd-search-divider"></div>
+
+                        <div class="hd-search-field hd-search-date" id="heroCheckOutField">
+                            <i class="fas fa-calendar-alt hd-search-field-icon"></i>
+                            <div class="hd-search-field-text">
+                                <label for="heroCheckOut">Check-out</label>
+                                <input type="text" id="heroCheckOut" placeholder="Add date" autocomplete="off" readonly style="pointer-events: auto; cursor: pointer;">
+                            </div>
+                        </div>
+
+                        <button class="hd-search-submit" id="globalSearchBtn" style="pointer-events: auto;" aria-label="Search">
+                            <i class="fas fa-search"></i><span class="hd-search-submit-label">Search</span>
+                        </button>
                     </div>
                 </div>
             </div>
@@ -2511,16 +2741,16 @@ foreach ($home_local_destinations as &$dest) {
                 const currency = dest.currency || '₱';
                 const imagePath = dest.image_path ? dest.image_path : 'https://via.placeholder.com/400x200?text=' + dest.name;
 
-                const badgeHtml = badge ? `<div class="foreign-card-badge" style="position: absolute; top: 15px; left: 15px; background: rgba(0,0,0,0.7); color: white; padding: 5px 10px; border-radius: 5px; font-size: 0.8rem; z-index: 2; max-width: 120px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${escapeHtmlForHome(badge)}</div>` : '';
+                const badgeHtml = badge ? `<div class="foreign-card-badge-inline">${escapeHtmlForHome(badge)}</div>` : '';
 
                 grid.innerHTML += `
             <div class="foreign-card" data-destination="${dest.dest_key}" onclick="showForeignPackagePopup('${dest.dest_key}')">
                 <div class="foreign-card-image" style="position: relative;">
-                    ${badgeHtml}
                     <img src="${imagePath}" alt="${escapeHtmlForHome(dest.name)}" onerror="this.src='https://via.placeholder.com/400x200?text=${dest.name}'">
                     <h3 class="foreign-card-name">${escapeHtmlForHome(dest.name)}</h3>
                 </div>
                 <div class="foreign-card-content">
+                    ${badgeHtml}
                     <div class="foreign-card-location">
                         <i class="fas fa-map-marker-alt"></i> ${escapeHtmlForHome(displayLocation)}
                     </div>
@@ -2573,7 +2803,7 @@ foreach ($home_local_destinations as &$dest) {
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
     <script src="js/auth-menu.js?v=2"></script>
     <script src="js/voucher-checkout.js"></script>
-    <script src="js/home-packages.js?v=4"></script>
+    <script src="js/home-packages.js?v=5"></script>
     <script src="js/foreign-packages.js?v=4"></script>
     <script src="js/flash-deals.js?v=5"></script>
 
@@ -3034,6 +3264,25 @@ foreach ($home_local_destinations as &$dest) {
 
             let searchDebounceTimeout = null;
 
+            // Nudges the user to type a destination instead of silently doing
+            // nothing when Search is clicked/Enter is pressed with an empty field.
+            function notifyDestinationNeeded() {
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire({
+                        toast: true,
+                        position: 'top',
+                        icon: 'warning',
+                        title: 'Please enter a destination to search for',
+                        showConfirmButton: false,
+                        timer: 2500,
+                        timerProgressBar: true
+                    });
+                } else {
+                    alert('Please enter a destination to search for.');
+                }
+                searchInput?.focus();
+            }
+
             if (searchBtn) {
                 searchBtn.addEventListener('click', function () {
                     const searchTerm = searchInput?.value || '';
@@ -3041,7 +3290,81 @@ foreach ($home_local_destinations as &$dest) {
                         performGlobalSearch(searchTerm);
                     } else {
                         clearSearch();
+                        notifyDestinationNeeded();
                     }
+                });
+            }
+
+            // ── Hero search bar: check-in / check-out date pickers ──
+            // Dates aren't used to filter results (no per-day inventory exists
+            // for destinations/deals) -- they're captured so a chosen date can
+            // prefill the travel date once the traveler reaches a package's own
+            // booking flow, same as everywhere else on the site.
+            if (typeof flatpickr === 'function') {
+                const checkInEl = document.getElementById('heroCheckIn');
+                const checkOutEl = document.getElementById('heroCheckOut');
+
+                // Adds a visible "x" in the calendar's own corner so there's
+                // always an obvious way to dismiss it besides clicking away.
+                function addCalendarCloseButton(instance) {
+                    if (instance.calendarContainer.querySelector('.hd-fp-close')) return;
+                    const closeBtn = document.createElement('button');
+                    closeBtn.type = 'button';
+                    closeBtn.className = 'hd-fp-close';
+                    closeBtn.setAttribute('aria-label', 'Close calendar');
+                    closeBtn.innerHTML = '<i class="fas fa-times"></i>';
+                    closeBtn.addEventListener('click', function (e) {
+                        e.stopPropagation();
+                        instance.close();
+                    });
+                    instance.calendarContainer.appendChild(closeBtn);
+                }
+
+                const checkOutPicker = flatpickr(checkOutEl, {
+                    minDate: 'today',
+                    dateFormat: 'M j, Y',
+                    disableMobile: true,
+                    onReady: (sd, ds, instance) => addCalendarCloseButton(instance)
+                });
+
+                const checkInPicker = flatpickr(checkInEl, {
+                    minDate: 'today',
+                    dateFormat: 'M j, Y',
+                    disableMobile: true,
+                    onReady: (sd, ds, instance) => addCalendarCloseButton(instance),
+                    onChange: function (selectedDates) {
+                        if (selectedDates[0]) {
+                            const nextDay = new Date(selectedDates[0]);
+                            nextDay.setDate(nextDay.getDate() + 1);
+                            checkOutPicker.set('minDate', nextDay);
+                            if (checkOutPicker.selectedDates[0] && checkOutPicker.selectedDates[0] <= selectedDates[0]) {
+                                checkOutPicker.setDate(nextDay);
+                            }
+                        }
+                    }
+                });
+
+                document.getElementById('heroCheckInField')?.addEventListener('click', () => checkInPicker.open());
+                document.getElementById('heroCheckOutField')?.addEventListener('click', () => checkOutPicker.open());
+
+                // Belt-and-suspenders close handling: flatpickr's own
+                // click-outside detection wasn't reliably closing the calendar
+                // here (readonly input + wrapper-div open trigger seems to
+                // interfere with it), so close explicitly on outside click and
+                // on Escape too.
+                const heroPickers = [checkInPicker, checkOutPicker];
+                document.addEventListener('click', function (e) {
+                    heroPickers.forEach(picker => {
+                        if (!picker.isOpen) return;
+                        const fieldWrapper = picker.input.closest('.hd-search-field');
+                        if (fieldWrapper && fieldWrapper.contains(e.target)) return;
+                        if (picker.calendarContainer.contains(e.target)) return;
+                        picker.close();
+                    });
+                });
+                document.addEventListener('keydown', function (e) {
+                    if (e.key !== 'Escape') return;
+                    heroPickers.forEach(picker => { if (picker.isOpen) picker.close(); });
                 });
             }
 
@@ -3056,9 +3379,107 @@ foreach ($home_local_destinations as &$dest) {
                     dropdown.style.left = Math.max(0, (window.innerWidth - mobileWidth) / 2) + 'px';
                     dropdown.style.right = 'auto';
                 } else {
-                    dropdown.style.width = rect.width + 'px';
-                    dropdown.style.left = rect.left + 'px';
+                    // The "Where to?" field itself is fairly narrow now that
+                    // it shares the pill with date fields -- give the dropdown
+                    // a wider minimum so destination names/images aren't crushed.
+                    const desktopWidth = Math.max(rect.width, 360);
+                    dropdown.style.width = desktopWidth + 'px';
+                    dropdown.style.left = Math.min(rect.left, window.innerWidth - desktopWidth - 12) + 'px';
                 }
+            }
+
+            // Shared item template so trending suggestions and live search
+            // results render identically.
+            function renderAutocompleteItemHtml(item) {
+                let badge = '';
+                if (item.type === 'flash') badge = ' <span style="color:#ff9800;font-size:0.7em;">⚡ DEAL</span>';
+                if (item.type === 'foreign') badge = ' <span style="color:#17a2b8;font-size:0.7em;">🌍 INT</span>';
+                if (item.type === 'local') badge = ' <span style="color:#28a745;font-size:0.7em;">🏝️ PH</span>';
+                if (item.type === 'visa') badge = ' <span style="color:#6c757d;font-size:0.7em;">🛂 VISA</span>';
+
+                const identifier = item.type === 'foreign' ? item.dest_key : item.id;
+                const locText = item.type === 'visa' ? item.description : (item.location || item.city || item.country || '');
+                const isVisa = item.type === 'visa';
+                const visaFlag = isVisa ? getVisaFlagGlobal(item.name) : '';
+
+                return `
+                    <div class="autocomplete-item" onclick="handleSearchResultClick('${item.type}', '${identifier}'); document.getElementById('autocompleteDropdown').style.display='none';">
+                        ${isVisa ?
+                        `<div class="autocomplete-icon" style="background:#f0f2f5; display:flex; align-items:center; justify-content:center; font-size:1.5rem;">${visaFlag}</div>` :
+                        `<img src="${item.image_path || 'images/default.jpg'}" class="autocomplete-icon" onerror="this.src='https://via.placeholder.com/40'">`
+                    }
+                        <div class="autocomplete-details">
+                            <div class="autocomplete-title">${escapeSearchHtml(item.name)}${badge}</div>
+                            <div class="autocomplete-desc">${escapeSearchHtml(locText).substring(0, 50)}...</div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            // Trending destinations shown when the "Where to?" field is
+            // focused before the traveler has typed anything -- fetched once
+            // and cached for the rest of the page's life.
+            let trendingDestinationsCache = null;
+            async function loadTrendingDestinations() {
+                if (trendingDestinationsCache) return trendingDestinationsCache;
+                try {
+                    const response = await fetch('api/search-packages.php?trending=1');
+                    const data = await response.json();
+                    trendingDestinationsCache = (data.success && data.places) ? data.places : [];
+                } catch (error) {
+                    console.error('Trending destinations error:', error);
+                    trendingDestinationsCache = [];
+                }
+                return trendingDestinationsCache;
+            }
+
+            // Clicking a suggested place fills the field and runs a real
+            // search for it (results popup), rather than jumping to one
+            // specific package.
+            function selectTrendingPlace(city) {
+                searchInput.value = city;
+                const autoDropdown = document.getElementById('autocompleteDropdown');
+                if (autoDropdown) autoDropdown.style.display = 'none';
+                performGlobalSearch(city);
+            }
+            // Called from an inline onclick in the trending-place dropdown
+            // markup, which resolves in global scope -- this function is
+            // otherwise scoped inside the DOMContentLoaded callback.
+            window.selectTrendingPlace = selectTrendingPlace;
+
+            function renderTrendingPlaceHtml(place) {
+                const subtitle = place.count > 1 ? `${place.count} packages available` : (place.country || '');
+                return `
+                    <div class="autocomplete-item" onclick="selectTrendingPlace('${escapeSearchHtml(place.city).replace(/'/g, "\\'")}')">
+                        <img src="${place.image_path || 'images/default.jpg'}" class="autocomplete-icon" onerror="this.src='https://via.placeholder.com/40'">
+                        <div class="autocomplete-details">
+                            <div class="autocomplete-title"><i class="fas fa-map-marker-alt" style="color:#ff9800;font-size:0.8em;"></i> ${escapeSearchHtml(place.city)}</div>
+                            <div class="autocomplete-desc">${escapeSearchHtml(subtitle)}</div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            async function showTrendingDestinations() {
+                const autoDropdown = document.getElementById('autocompleteDropdown');
+                if (!autoDropdown) return;
+
+                autoDropdown.innerHTML = `<div style="padding:15px;color:#666;text-align:center;font-size:0.85rem;"><i class="fas fa-spinner fa-spin"></i> Loading popular destinations...</div>`;
+                autoDropdown.style.display = 'block';
+                positionAutocomplete(autoDropdown);
+
+                const places = await loadTrendingDestinations();
+                if (searchInput.value.trim().length > 0) return; // user started typing while this was loading
+
+                if (places.length === 0) {
+                    autoDropdown.style.display = 'none';
+                    return;
+                }
+
+                autoDropdown.innerHTML = `<div class="autocomplete-section-header"><i class="fas fa-fire"></i> Popular Destinations</div>`
+                    + places.map(renderTrendingPlaceHtml).join('');
+                autoDropdown.style.display = 'block';
+                positionAutocomplete(autoDropdown);
             }
 
             if (searchInput) {
@@ -3067,7 +3488,7 @@ foreach ($home_local_destinations as &$dest) {
                     const autoDropdown = document.getElementById('autocompleteDropdown');
 
                     if (!term) {
-                        if (autoDropdown) autoDropdown.style.display = 'none';
+                        showTrendingDestinations();
                         return;
                     }
 
@@ -3094,33 +3515,7 @@ foreach ($home_local_destinations as &$dest) {
                                 matchesHtml = `<div style="padding:15px;color:#666;text-align:center;font-size:0.85rem;">No matches found for "${term}"</div>`;
                             } else {
                                 // Limit to top 8 results for autocomplete
-                                const topResults = results.slice(0, 8);
-                                topResults.forEach(item => {
-                                    let badge = '';
-                                    if (item.type === 'flash') badge = ' <span style="color:#ff9800;font-size:0.7em;">⚡ DEAL</span>';
-                                    if (item.type === 'foreign') badge = ' <span style="color:#17a2b8;font-size:0.7em;">🌍 INT</span>';
-                                    if (item.type === 'local') badge = ' <span style="color:#28a745;font-size:0.7em;">🏝️ PH</span>';
-                                    if (item.type === 'visa') badge = ' <span style="color:#6c757d;font-size:0.7em;">🛂 VISA</span>';
-
-                                    const identifier = item.type === 'foreign' ? item.dest_key : item.id;
-                                    const locText = item.type === 'visa' ? item.description : (item.location || item.city || item.country || '');
-
-                                    const isVisa = item.type === 'visa';
-                                    const visaFlag = isVisa ? getVisaFlagGlobal(item.name) : '';
-
-                                    matchesHtml += `
-                                        <div class="autocomplete-item" onclick="handleSearchResultClick('${item.type}', '${identifier}'); document.getElementById('autocompleteDropdown').style.display='none';">
-                                            ${isVisa ?
-                                            `<div class="autocomplete-icon" style="background:#f0f2f5; display:flex; align-items:center; justify-content:center; font-size:1.5rem;">${visaFlag}</div>` :
-                                            `<img src="${item.image_path || 'images/default.jpg'}" class="autocomplete-icon" onerror="this.src='https://via.placeholder.com/40'">`
-                                        }
-                                            <div class="autocomplete-details">
-                                                <div class="autocomplete-title">${escapeSearchHtml(item.name)}${badge}</div>
-                                                <div class="autocomplete-desc">${escapeSearchHtml(locText).substring(0, 50)}...</div>
-                                            </div>
-                                        </div>
-                                    `;
-                                });
+                                matchesHtml = results.slice(0, 8).map(renderAutocompleteItemHtml).join('');
                             }
 
                             if (autoDropdown) {
@@ -3139,9 +3534,13 @@ foreach ($home_local_destinations as &$dest) {
 
                 searchInput.addEventListener('focus', function () {
                     const autoDropdown = document.getElementById('autocompleteDropdown');
-                    if (this.value.trim().length > 0 && autoDropdown && autoDropdown.innerHTML !== '') {
-                        autoDropdown.style.display = 'block';
-                        positionAutocomplete(autoDropdown);
+                    if (this.value.trim().length > 0) {
+                        if (autoDropdown && autoDropdown.innerHTML !== '') {
+                            autoDropdown.style.display = 'block';
+                            positionAutocomplete(autoDropdown);
+                        }
+                    } else {
+                        showTrendingDestinations();
                     }
                 });
 
@@ -3180,6 +3579,7 @@ foreach ($home_local_destinations as &$dest) {
                             if (autoDropdown) autoDropdown.style.display = 'none';
                         } else {
                             clearSearch();
+                            notifyDestinationNeeded();
                         }
                     }
                 });
