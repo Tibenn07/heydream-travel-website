@@ -2033,6 +2033,64 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit;
     }
 
+    // Save Visa Service
+    elseif ($action === 'save_visa') {
+        try {
+            $id = intval($_POST['id'] ?? 0);
+            $title = trim($_POST['title'] ?? '');
+            $category = trim($_POST['category'] ?? 'Global');
+            $description = trim($_POST['description'] ?? '');
+            $price = floatval($_POST['price'] ?? 0);
+            $currency = trim($_POST['currency'] ?? '₱');
+            $processing_time = trim($_POST['processing_time'] ?? '');
+            $is_active = isset($_POST['is_active']) ? 1 : 0;
+            $display_order = intval($_POST['display_order'] ?? 0);
+            $disclaimer = trim($_POST['disclaimer'] ?? '');
+            $important_notes = trim($_POST['important_notes'] ?? '');
+
+            // Process requirements (one per line → JSON array)
+            $req_raw = trim($_POST['requirements'] ?? '');
+            $req_array = array_values(array_filter(array_map('trim', explode("\n", $req_raw))));
+            $requirements_json = json_encode($req_array);
+
+            // Handle icon
+            $icon_type = trim($_POST['icon_type'] ?? 'image');
+            $icon_value = trim($_POST['icon_value'] ?? '');
+
+            if ($icon_type === 'upload' && isset($_FILES['icon_upload']) && $_FILES['icon_upload']['error'] === UPLOAD_ERR_OK) {
+                $upload = uploadImage($_FILES['icon_upload'], $_POST['old_icon_value'] ?? null);
+                if ($upload['success']) {
+                    $icon_value = $upload['path'];
+                }
+            }
+
+            // Ensure important_notes column exists
+            try { $pdo->exec("ALTER TABLE visas ADD COLUMN important_notes TEXT"); } catch (PDOException $e) {}
+
+            if ($id > 0) {
+                $stmt = $pdo->prepare("UPDATE visas SET title=?, category=?, description=?, price=?, currency=?, processing_time=?, requirements=?, disclaimer=?, important_notes=?, icon_type=?, icon_value=?, is_active=?, display_order=? WHERE id=?");
+                $stmt->execute([$title, $category, $description, $price, $currency, $processing_time, $requirements_json, $disclaimer, $important_notes, $icon_type, $icon_value, $is_active, $display_order, $id]);
+                echo json_encode(['success' => true, 'message' => 'Visa service updated successfully!']);
+            } else {
+                $stmt = $pdo->prepare("INSERT INTO visas (title, category, description, price, currency, processing_time, requirements, disclaimer, important_notes, icon_type, icon_value, is_active, display_order) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+                $stmt->execute([$title, $category, $description, $price, $currency, $processing_time, $requirements_json, $disclaimer, $important_notes, $icon_type, $icon_value, $is_active, $display_order]);
+                echo json_encode(['success' => true, 'message' => 'Visa service added successfully!']);
+            }
+            exit;
+        } catch (PDOException $e) {
+            echo json_encode(['success' => false, 'message' => 'Database error: ' . $e->getMessage()]);
+            exit;
+        }
+    }
+
+    // Delete Visa
+    elseif ($action === 'delete_visa') {
+        $id = intval($_POST['id']);
+        $pdo->prepare("DELETE FROM visas WHERE id = ?")->execute([$id]);
+        echo json_encode(['success' => true, 'message' => 'Visa service deleted successfully!']);
+        exit;
+    }
+
     // Advanced Cruise Handlers
     elseif ($action === 'save_advanced_cruise') {
         $id = intval($_POST['id'] ?? 0);
@@ -2220,7 +2278,7 @@ try {
 }
 
 try {
-    $visas = $pdo->query("SELECT * FROM visas WHERE (partner_id IS NULL OR partner_id = 0) ORDER BY display_order, id DESC")->fetchAll();
+    $visas = $pdo->query("SELECT * FROM visas ORDER BY display_order, id DESC")->fetchAll();
 } catch (PDOException $e) {
     $visas = [];
 }
@@ -6202,6 +6260,8 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
                                         <option value="Europe">Europe</option>
                                         <option value="Australia">Australia</option>
                                         <option value="International">International</option>
+                                        <option value="Applying">Applying</option>
+                                        <option value="Renewal">Renewal</option>
                                     </select>
                                 </div>
                             </div>

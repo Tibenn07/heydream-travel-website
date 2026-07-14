@@ -1,7 +1,7 @@
 <?php
 // ========================================
 // FILE: buttons/general-visa-details.php
-// DESCRIPTION: Details page for the 6 general visa types
+// DESCRIPTION: Details page for the 6 general visa types (DB-driven)
 // ========================================
 require_once __DIR__ . '/../config/database.php';
 
@@ -9,69 +9,84 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
-$type = isset($_GET['type']) ? $_GET['type'] : '';
+$type = isset($_GET['type']) ? trim($_GET['type']) : '';
 $mode = (strpos($type, 'Renewal') !== false) ? 'Renew' : 'Apply';
 
-$visa = [
-    'title'          => '',
-    'description'    => '',
-    'processing_time'=> 'Standard Processing',
-    'category'       => 'Global',
-    'important_notes'=> 'Please ensure all submitted documents are clear, legible, and valid. Processing times may vary depending on embassy workload.',
-    'disclaimer'     => 'Visa approval is solely at the discretion of the respective embassy or consulate. HeyDream Travel acts only as an application facilitator. Application service fees are non-refundable once processing has commenced.',
-    'icon_value'     => 'fas fa-passport',
-];
+$visa = null;
+$requirements = [];
 
-$requirements = [
-    'Valid Passport (at least 6 months validity)',
-    'Completed Application Form',
-    '2x2 Passport-size Photo (white background)',
-    'Proof of Financial Capacity (Bank Statement)',
-    'Travel Itinerary (Flight & Hotel Booking)',
-];
+// Try to load visa from database first
+if ($pdo && !empty($type)) {
+    try {
+        $stmt = $pdo->prepare("SELECT * FROM visas WHERE title = ? LIMIT 1");
+        $stmt->execute([$type]);
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        if ($row) {
+            $visa = [
+                'title'           => $row['title'],
+                'description'     => $row['description'] ?? '',
+                'price'           => floatval($row['price'] ?? 0),
+                'processing_time' => $row['processing_time'] ?? 'Standard Processing',
+                'category'        => $row['category'] ?? 'Global',
+                'important_notes' => $row['important_notes'] ?? '',
+                'disclaimer'      => $row['disclaimer'] ?? '',
+                'icon_value'      => ($row['icon_type'] === 'icon' || $row['icon_type'] === '') ? ($row['icon_value'] ?? 'fas fa-passport') : 'fas fa-passport',
+            ];
+            $req_raw = $row['requirements'] ?? '[]';
+            $decoded = json_decode($req_raw, true);
+            $requirements = is_array($decoded) ? $decoded : [];
+        }
+    } catch (PDOException $e) {
+        // Fallback to hardcoded data below
+    }
+}
 
-switch ($type) {
-    case 'Tourist Visa':
-        $visa['title']       = 'Tourist Visa';
-        $visa['description'] = "Apply for a short-term travel permit for leisure, sightseeing, and recreation. Our team streamlines the documentation and submission process so you can focus on planning your adventure.";
-        $visa['icon_value']  = 'fas fa-umbrella-beach';
-        break;
-    case 'Resident Visa':
-        $visa['title']       = 'Resident Visa';
-        $visa['description'] = "Secure a long-term residency permit for those planning to live abroad. We guide you through the complex documentation and legal requirements to make your international move smooth and stress-free.";
-        $visa['icon_value']  = 'fas fa-home';
-        $requirements[]      = 'Police Clearance / NBI Clearance';
-        $requirements[]      = 'Medical Certificate';
-        $requirements[]      = 'Proof of Means of Livelihood';
-        break;
-    case 'Work Visa':
-        $visa['title']       = 'Work Visa';
-        $visa['description'] = "Obtain a permit for employment or business activities in a foreign country. We coordinate with your employer and ensure all paperwork is compliant with the destination country's requirements.";
-        $visa['icon_value']  = 'fas fa-briefcase';
-        $requirements[]      = 'Employment Contract / Job Offer Letter';
-        $requirements[]      = 'Company Invitation Letter';
-        $requirements[]      = 'Educational Certificates & Credentials';
-        break;
-    case 'Tourist Visa Renewal':
-        $visa['title']       = 'Tourist Visa Renewal';
-        $visa['description'] = "Extend your tourist stay and continue exploring your destination. We handle the extension paperwork so you don't have to cut your trip short.";
-        $visa['icon_value']  = 'fas fa-umbrella-beach';
-        $requirements        = ['Current Visa Copy', 'Valid Passport', 'Proof of Accommodation', 'Letter of Intent for Extension', 'Financial Proof'];
-        break;
-    case 'Resident Visa Renewal':
-        $visa['title']       = 'Resident Visa Renewal';
-        $visa['description'] = "Renew your residency permit before it expires to maintain your legal status abroad without interruption.";
-        $visa['icon_value']  = 'fas fa-home';
-        $requirements        = ['Current Resident Visa', 'Valid Passport', 'Proof of Address', 'Proof of Continued Livelihood', 'Recent ID Photos'];
-        break;
-    case 'Work Visa Renewal':
-        $visa['title']       = 'Work Visa Renewal';
-        $visa['description'] = "Keep your career abroad running smoothly. Renew your work permit in time and avoid employment disruptions.";
-        $visa['icon_value']  = 'fas fa-briefcase';
-        $requirements        = ['Current Work Visa', 'Valid Passport', 'Updated Employment Certificate', 'Employer Endorsement Letter'];
-        break;
-    default:
-        $visa = null;
+// Fallback: hardcoded data if DB lookup failed
+if (!$visa) {
+    $defaults = [
+        'description'     => '',
+        'price'           => 0,
+        'processing_time' => 'Standard Processing',
+        'category'        => 'Global',
+        'important_notes' => 'Please ensure all submitted documents are clear, legible, and valid. Processing times may vary depending on embassy workload.',
+        'disclaimer'      => 'Visa approval is solely at the discretion of the respective embassy or consulate. HeyDream Travel acts only as an application facilitator. Application service fees are non-refundable once processing has commenced.',
+        'icon_value'      => 'fas fa-passport',
+    ];
+    $baseReqs = [
+        'Valid Passport (at least 6 months validity)',
+        'Completed Application Form',
+        '2x2 Passport-size Photo (white background)',
+        'Proof of Financial Capacity (Bank Statement)',
+        'Travel Itinerary (Flight & Hotel Booking)',
+    ];
+    switch ($type) {
+        case 'Tourist Visa':
+            $visa = array_merge($defaults, ['title' => 'Tourist Visa', 'description' => "Apply for a short-term travel permit for leisure, sightseeing, and recreation. Our team streamlines the documentation and submission process so you can focus on planning your adventure.", 'icon_value' => 'fas fa-umbrella-beach']);
+            $requirements = $baseReqs;
+            break;
+        case 'Resident Visa':
+            $visa = array_merge($defaults, ['title' => 'Resident Visa', 'description' => "Secure a long-term residency permit for those planning to live abroad. We guide you through the complex documentation and legal requirements to make your international move smooth and stress-free.", 'icon_value' => 'fas fa-home']);
+            $requirements = array_merge($baseReqs, ['Police Clearance / NBI Clearance', 'Medical Certificate', 'Proof of Means of Livelihood']);
+            break;
+        case 'Work Visa':
+            $visa = array_merge($defaults, ['title' => 'Work Visa', 'description' => "Obtain a permit for employment or business activities in a foreign country. We coordinate with your employer and ensure all paperwork is compliant with the destination country's requirements.", 'icon_value' => 'fas fa-briefcase']);
+            $requirements = array_merge($baseReqs, ['Employment Contract / Job Offer Letter', 'Company Invitation Letter', 'Educational Certificates & Credentials']);
+            break;
+        case 'Tourist Visa Renewal':
+            $visa = array_merge($defaults, ['title' => 'Tourist Visa Renewal', 'description' => "Extend your tourist stay and continue exploring your destination. We handle the extension paperwork so you don't have to cut your trip short.", 'icon_value' => 'fas fa-umbrella-beach']);
+            $requirements = ['Current Visa Copy', 'Valid Passport', 'Proof of Accommodation', 'Letter of Intent for Extension', 'Financial Proof'];
+            break;
+        case 'Resident Visa Renewal':
+            $visa = array_merge($defaults, ['title' => 'Resident Visa Renewal', 'description' => "Renew your residency permit before it expires to maintain your legal status abroad without interruption.", 'icon_value' => 'fas fa-home']);
+            $requirements = ['Current Resident Visa', 'Valid Passport', 'Proof of Address', 'Proof of Continued Livelihood', 'Recent ID Photos'];
+            break;
+        case 'Work Visa Renewal':
+            $visa = array_merge($defaults, ['title' => 'Work Visa Renewal', 'description' => "Keep your career abroad running smoothly. Renew your work permit in time and avoid employment disruptions.", 'icon_value' => 'fas fa-briefcase']);
+            $requirements = ['Current Work Visa', 'Valid Passport', 'Updated Employment Certificate', 'Employer Endorsement Letter'];
+            break;
+        default:
+            $visa = null;
+    }
 }
 
 // Auth context
@@ -265,8 +280,13 @@ if (class_exists('Auth')) {
 
                     <div class="pkgdet-sticky">
                         <div class="pkgdet-price-card">
-                            <span class="pkgdet-price-now">Assessment Required</span>
-                            <div class="pkgdet-price-per">Fee varies by destination & embassy</div>
+                            <?php if ($visa['price'] > 0): ?>
+                                <span class="pkgdet-price-now">₱<?= number_format($visa['price']) ?></span>
+                                <div class="pkgdet-price-per">Application Fee</div>
+                            <?php else: ?>
+                                <span class="pkgdet-price-now">Assessment Required</span>
+                                <div class="pkgdet-price-per">Fee varies by destination & embassy</div>
+                            <?php endif; ?>
                             <button class="pkgdet-book-btn" onclick="openVisaDrawer('<?= htmlspecialchars($visa['title']) ?>', '<?= $mode ?>')">
                                 <i class="fas fa-bolt"></i>
                                 <?= $mode === 'Renew' ? 'Renew Now' : 'Apply Now' ?>
@@ -402,6 +422,39 @@ if (class_exists('Auth')) {
                             <i class="fas fa-cloud-upload-alt"></i><p>Click to upload (PDF or image)</p>
                             <div class="vd-file-name" id="vdNameAdditional">No file selected</div>
                             <input type="file" id="vdDocAdditional" style="display:none" accept="image/*,application/pdf" onchange="vdHandleFile(event,'vdNameAdditional')">
+                    </div>
+                </div>
+                <div class="vd-section">
+                    <h4><i class="fas fa-credit-card"></i> Payment Method</h4>
+                    <p style="font-size:0.85rem; color:#64748b; margin-bottom:12px;">Select how you wish to handle the payment.</p>
+                    <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:15px;">
+                        <label style="flex:1; border:1px solid #cbd5e1; border-radius:10px; padding:12px; cursor:pointer; display:flex; align-items:center; gap:8px;" onclick="document.getElementById('vdGcashDetails').style.display='block';">
+                            <input type="radio" name="vdPaymentMethod" value="GCash" checked>
+                            <i class="fas fa-mobile-alt" style="color:#003580;"></i> GCash
+                        </label>
+                        <label style="flex:1; border:1px solid #cbd5e1; border-radius:10px; padding:12px; cursor:pointer; display:flex; align-items:center; gap:8px;" onclick="document.getElementById('vdGcashDetails').style.display='none';">
+                            <input type="radio" name="vdPaymentMethod" value="Manual Agent Approval">
+                            <i class="fas fa-user-tie" style="color:#003580;"></i> Pay Later / Agent
+                        </label>
+                    </div>
+
+                    <div id="vdGcashDetails" class="vd-pay-details" style="display:block; background:#f8fafc; border:1px dashed #cbd5e1; border-radius:10px; padding:15px; margin-bottom:15px;">
+                        <div style="text-align:center; margin-bottom:15px;">
+                            <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=09457764140" alt="GCash QR Code" style="border:1px solid #ccc; border-radius:8px; padding:5px; background:white; width:120px; height:120px; margin-bottom:10px;">
+                            <p style="margin:0; font-weight:700; color:#0f172a;">HeyDream Travel & Tours</p>
+                            <p style="margin:0; font-size:0.9rem; color:#64748b;">0945 776 4140</p>
+                        </div>
+                        <div class="vd-form-group">
+                            <label>GCash Reference Number <span class="req">*</span></label>
+                            <input type="text" id="vdPaymentRef" placeholder="e.g. 1234567890123">
+                        </div>
+                        <div class="vd-form-group" style="margin-bottom:0;">
+                            <label>Upload Payment Proof <span class="req">*</span></label>
+                            <div class="vd-file-upload" onclick="document.getElementById('vdDocPayment').click()">
+                                <i class="fas fa-receipt"></i><p>Click to upload receipt</p>
+                                <div class="vd-file-name" id="vdNamePayment">No file selected</div>
+                                <input type="file" id="vdDocPayment" style="display:none" accept="image/*,application/pdf" onchange="vdHandleFile(event,'vdNamePayment')">
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -446,8 +499,11 @@ if (class_exists('Auth')) {
             document.getElementById('vdOverlay').classList.remove('active');
             document.getElementById('vdDrawer').classList.remove('active');
             document.body.style.overflow = '';
-            ['vdDocPassport','vdDocPhoto','vdDocSupport','vdDocAdditional'].forEach(id => { const e=document.getElementById(id); if(e) e.value=''; });
-            ['vdNamePassport','vdNamePhoto','vdNameSupport','vdNameAdditional'].forEach(id => { const e=document.getElementById(id); if(e) e.innerText='No file selected'; });
+            ['vdDocPassport','vdDocPhoto','vdDocSupport','vdDocAdditional','vdDocPayment'].forEach(id => { const e=document.getElementById(id); if(e) e.value=''; });
+            ['vdNamePassport','vdNamePhoto','vdNameSupport','vdNameAdditional','vdNamePayment'].forEach(id => { const e=document.getElementById(id); if(e) e.innerText='No file selected'; });
+            const pRef = document.getElementById('vdPaymentRef'); if(pRef) pRef.value = '';
+            document.querySelector('input[name="vdPaymentMethod"][value="GCash"]').checked = true;
+            document.getElementById('vdGcashDetails').style.display = 'block';
         }
 
         function vdHandleFile(e, labelId) {
@@ -465,18 +521,26 @@ if (class_exists('Auth')) {
             const reqIds = ['vdEmail','vdName','vdDob','vdNationality','vdPhone','vdPassportNum','vdPassportExpiry','vdPassportIssue','vdDestination','vdArrival','vdDeparture','vdPurpose'];
             const isRenew = document.getElementById('vdRenewalSection').style.display === 'block';
             if (isRenew) reqIds.push('vdCurrentVisaNum','vdCurrentVisaExpiry');
+            let selectedPayment = document.querySelector('input[name="vdPaymentMethod"]:checked').value;
             let hasError = false;
             reqIds.forEach(id => { const el=document.getElementById(id); if (!el || !el.value.trim()) { if(el) el.classList.add('vd-err'); hasError=true; } });
+            
+            if (selectedPayment === 'GCash') {
+                const refEl = document.getElementById('vdPaymentRef');
+                const proofEl = document.getElementById('vdDocPayment');
+                if (!refEl.value.trim()) { refEl.classList.add('vd-err'); hasError = true; }
+                if (!proofEl.files.length) { errDiv.innerHTML='<i class="fas fa-exclamation-triangle"></i> Please upload payment proof.'; errDiv.style.display='block'; return; }
+            }
             if (hasError) { errDiv.innerHTML='<i class="fas fa-exclamation-triangle"></i> Please fill in all required fields.'; errDiv.style.display='block'; document.getElementById('vdBody').scrollTop=0; return; }
             btn.disabled = true; const orig = btn.innerHTML; btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Submitting...';
             let special = `Nationality: ${document.getElementById('vdNationality').value}, DOB: ${document.getElementById('vdDob').value}, Passport: ${document.getElementById('vdPassportNum').value} (Exp: ${document.getElementById('vdPassportExpiry').value}, Issued: ${document.getElementById('vdPassportIssue').value}), Dest: ${document.getElementById('vdDestination').value}, Travel: ${document.getElementById('vdArrival').value} to ${document.getElementById('vdDeparture').value}, Purpose: ${document.getElementById('vdPurpose').value}`;
             if (isRenew) special += ` | RENEWAL - Current Visa: ${document.getElementById('vdCurrentVisaNum').value} (Exp: ${document.getElementById('vdCurrentVisaExpiry').value}), Reason: ${document.getElementById('vdRenewalReason').value}`;
-            const payload = { service_type: 'Visa Assistance', package_name: document.getElementById('vdVisaType').value, full_name: document.getElementById('vdName').value, email: document.getElementById('vdEmail').value, phone: document.getElementById('vdPhone').value, total_amount: '0.00', travel_date: document.getElementById('vdArrival').value, special_requests: special, payment_method: 'Manual Agent Approval', payment_reference: 'PENDING_AGENT' };
+            const payload = { service_type: 'Visa Assistance', package_name: document.getElementById('vdVisaType').value, full_name: document.getElementById('vdName').value, email: document.getElementById('vdEmail').value, phone: document.getElementById('vdPhone').value, total_amount: '<?= $visa['price'] > 0 ? $visa['price'] : "0.00" ?>', travel_date: document.getElementById('vdArrival').value, special_requests: special, payment_method: selectedPayment, payment_reference: selectedPayment === 'GCash' ? document.getElementById('vdPaymentRef').value : 'PENDING_AGENT' };
             try {
                 const data = await fetch('../api/save-service-booking.php', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload) }).then(r => r.json());
                 if (data.success) {
                     const ref = data.booking_number, uploads = [];
-                    [['vdDocPassport','Passport Copy'],['vdDocPhoto','Passport Photo'],['vdDocSupport','Supporting Docs'],['vdDocAdditional','Additional Docs']].forEach(([id]) => {
+                    [['vdDocPassport','Passport Copy'],['vdDocPhoto','Passport Photo'],['vdDocSupport','Supporting Docs'],['vdDocAdditional','Additional Docs'],['vdDocPayment','Payment Proof']].forEach(([id, title]) => {
                         const el = document.getElementById(id);
                         if (el && el.files.length > 0) {
                             const fd = new FormData(); fd.append('action','upload'); fd.append('booking_number',ref); fd.append('document',el.files[0]);
