@@ -2260,6 +2260,191 @@ foreach ($home_local_destinations as &$dest) {
         </div>
     </section>
 
+    <style>
+        @keyframes colorShimmer {
+            0% { color: #003580; text-shadow: 0 0 0px rgba(0,53,128,0); transform: scale(1); }
+            50% { color: #0055c8; text-shadow: 0 0 10px rgba(0,85,200,0.4); transform: scale(1.02); }
+            100% { color: #003580; text-shadow: 0 0 0px rgba(0,53,128,0); transform: scale(1); }
+        }
+        .animated-title-glow {
+            animation: colorShimmer 3s infinite alternate;
+            display: inline-block;
+        }
+
+        @keyframes fadeInUpVoucher {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes shineSweep {
+            0% { left: -100%; }
+            20% { left: 200%; }
+            100% { left: 200%; }
+        }
+
+        .home-voucher-card {
+            background: white;
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 4px 15px rgba(0, 53, 128, 0.06);
+            border: 1px solid #e2e8f0;
+            display: flex;
+            height: 120px;
+            width: 340px;
+            min-width: 340px;
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            position: relative;
+            animation: fadeInUpVoucher 0.6s ease-out forwards;
+        }
+        .home-voucher-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: -100%;
+            width: 50%; height: 100%;
+            background: linear-gradient(to right, rgba(255,255,255,0) 0%, rgba(255,255,255,0.6) 50%, rgba(255,255,255,0) 100%);
+            transform: skewX(-25deg);
+            animation: shineSweep 4s infinite;
+            z-index: 10;
+            pointer-events: none;
+        }
+        .home-voucher-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 25px rgba(0, 53, 128, 0.12);
+            border-color: #003580;
+        }
+        .home-voucher-left {
+            padding: 15px;
+            color: white;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            width: 120px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+        .home-voucher-left::after {
+            content: '';
+            position: absolute;
+            right: -25px;
+            top: -25px;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.1);
+        }
+        .home-voucher-val {
+            font-size: 1.4rem;
+            font-weight: 800;
+            line-height: 1.1;
+        }
+        .home-voucher-type {
+            font-size: 0.65rem;
+            opacity: 0.9;
+            font-weight: 600;
+            margin-top: 2px;
+            text-transform: uppercase;
+        }
+        .home-voucher-mid {
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            height: 100%;
+            background: #f1f5f9;
+            width: 14px;
+            position: relative;
+        }
+        .home-voucher-mid .semi-circle-top {
+            width: 14px;
+            height: 7px;
+            border-radius: 0 0 7px 7px;
+            background: #f8fafc; /* Matches parent background */
+            border-bottom: 1px solid #e2e8f0;
+            position: absolute;
+            top: 0;
+            left: 0;
+        }
+        .home-voucher-mid .semi-circle-bottom {
+            width: 14px;
+            height: 7px;
+            border-radius: 7px 7px 0 0;
+            background: #f8fafc; /* Matches parent background */
+            border-top: 1px solid #e2e8f0;
+            position: absolute;
+            bottom: 0;
+            left: 0;
+        }
+        .home-voucher-mid .dashed-line {
+            flex: 1;
+            border-left: 2px dashed #cbd5e1;
+            margin-left: 6px;
+            margin-top: 7px;
+            margin-bottom: 7px;
+        }
+        .home-voucher-right {
+            flex: 1;
+            padding: 12px 15px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            background: white;
+        }
+        .home-voucher-title {
+            font-size: 0.85rem;
+            font-weight: 700;
+            color: #1e293b;
+            line-height: 1.2;
+            margin: 0 0 3px 0;
+            display: -webkit-box;
+            -webkit-line-clamp: 1;
+            line-clamp: 1;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+        .home-voucher-desc {
+            font-size: 0.7rem;
+            color: #64748b;
+            margin: 0;
+            display: -webkit-box;
+            -webkit-line-clamp: 1;
+            line-clamp: 1;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+        .home-voucher-limit {
+            font-size: 0.65rem;
+            color: #94a3b8;
+            margin: 2px 0 0 0;
+        }
+        .home-voucher-action-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: auto;
+        }
+        .home-voucher-btn {
+            background: #003580;
+            color: white;
+            border: none;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 0.72rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .home-voucher-btn:hover {
+            background: #ff9800;
+            transform: scale(1.05);
+        }
+        .home-voucher-btn:disabled {
+            background: #e2e8f0;
+            color: #94a3b8;
+            cursor: not-allowed;
+            transform: none;
+        }
+    </style>
+
     <section class="favorites-section">
         <div class="container">
             <div class="destinations-grid-section">
@@ -3495,6 +3680,8 @@ foreach ($home_local_destinations as &$dest) {
             }
         });
     </script>
+
+
 
     <!-- ===== HEYDREAM AI CHATBOT WIDGET (same design as inquire.php) ===== -->
     <?php include_once 'chatbot_widget.php'; ?>

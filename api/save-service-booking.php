@@ -91,6 +91,20 @@ try {
     $payment_method = $input['payment_method'] ?? null;
     $payment_reference = $input['payment_reference'] ?? null;
     $partnerMeta = resolvePartnerBookingMeta($pdo, $input);
+    
+    // If resolution failed but frontend provided partner data, use that as fallback
+    if (empty($partnerMeta['partner_id']) && !empty($input['partner_id'])) {
+        $partnerMeta['partner_id'] = $input['partner_id'];
+    }
+    if (empty($partnerMeta['partner_company']) && !empty($input['partner_company'])) {
+        $partnerMeta['partner_company'] = $input['partner_company'];
+    }
+    if (empty($partnerMeta['partner_source']) && !empty($input['partner_source'])) {
+        $partnerMeta['partner_source'] = $input['partner_source'];
+    }
+    if (empty($partnerMeta['partner_package_name']) && !empty($input['partner_package_name'])) {
+        $partnerMeta['partner_package_name'] = $input['partner_package_name'];
+    }
 
     // Status stays 'unpaid' until admin verifies reference
     error_log("Service booking: method=$payment_method, ref=$payment_reference, status=unpaid");
