@@ -2733,7 +2733,7 @@ foreach ($home_local_destinations as &$dest) {
                 grid.innerHTML += `
             <div class="foreign-card" data-destination="${dest.dest_key}" onclick="showForeignPackagePopup('${dest.dest_key}')">
                 <div class="foreign-card-image" style="position: relative;">
-                    <img src="${imagePath}" alt="${escapeHtmlForHome(dest.name)}" onerror="this.src='https://via.placeholder.com/400x200?text=${dest.name}'">
+                    <img src="${imagePath}" alt="${escapeHtmlForHome(dest.name)}" onerror="this.onerror=null;this.src='https://via.placeholder.com/400x200?text=${dest.name}'">
                     <h3 class="foreign-card-name">${escapeHtmlForHome(dest.name)}</h3>
                 </div>
                 <div class="foreign-card-content">
@@ -2742,7 +2742,7 @@ foreach ($home_local_destinations as &$dest) {
                         <i class="fas fa-map-marker-alt"></i> ${escapeHtmlForHome(displayLocation)}
                     </div>
                     <p class="foreign-card-desc">${escapeHtmlForHome(description)}</p>
-                    ${dest.partner_id ? `<div style="font-size: 0.8rem; color: #64748b; margin-top: 5px; margin-bottom: 5px;">Provided by: <a href="view-partner-profile.php?id=${dest.partner_id}" style="color: #003580; font-weight: 500; text-decoration: none;" onclick="event.stopPropagation();">${escapeHtmlForHome(dest.partner_company || 'Partner')}</a></div>` : ''}
+                    ${dest.partner_id ? `<div style="font-size: 0.8rem; color: #64748b; margin-top: 5px; margin-bottom: 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;" title="${escapeHtmlForHome(dest.partner_company || 'Partner')}">Provided by: <a href="view-partner-profile.php?id=${dest.partner_id}" style="color: #003580; font-weight: 500; text-decoration: none;" onclick="event.stopPropagation();">${escapeHtmlForHome(dest.partner_company || 'Partner')}</a></div>` : ''}
                     <div class="foreign-card-footer">
                         <div class="foreign-card-price">
                             From ${currency}${formatNumberHome(dest.price)}
@@ -2950,7 +2950,7 @@ foreach ($home_local_destinations as &$dest) {
                             resultsHtml += `
                                 <div class="search-result-item flash-deal" onclick="handleSearchResultClick('flash', '${item.id}')">
                                     <div class="search-result-image">
-                                        <img src="${item.image_path || 'images/default.jpg'}" alt="${escapeSearchHtml(item.name)}" onerror="this.src='https://via.placeholder.com/90x90?text=Deal'">
+                                        <img src="${item.image_path || 'images/default.jpg'}" alt="${escapeSearchHtml(item.name)}" onerror="this.onerror=null;this.src='https://via.placeholder.com/90x90?text=Deal'">
                                     </div>
                                     <div class="search-result-info">
                                         <div class="search-result-title">${escapeSearchHtml(item.name)}<span class="flash-deal-badge-small">⚡ DEAL</span></div>
@@ -2977,7 +2977,7 @@ foreach ($home_local_destinations as &$dest) {
                             resultsHtml += `
                                 <div class="search-result-item" onclick="handleSearchResultClick('foreign', '${item.dest_key}')">
                                     <div class="search-result-image">
-                                        <img src="${item.image_path || 'images/default.jpg'}" alt="${escapeSearchHtml(item.name)}" onerror="this.src='https://via.placeholder.com/90x90?text=Dest'">
+                                        <img src="${item.image_path || 'images/default.jpg'}" alt="${escapeSearchHtml(item.name)}" onerror="this.onerror=null;this.src='https://via.placeholder.com/90x90?text=Dest'">
                                     </div>
                                     <div class="search-result-info">
                                         <div class="search-result-title">${escapeSearchHtml(item.name)}</div>
@@ -3004,7 +3004,7 @@ foreach ($home_local_destinations as &$dest) {
                             resultsHtml += `
                                 <div class="search-result-item" onclick="handleSearchResultClick('local', '${item.id}')">
                                     <div class="search-result-image">
-                                        <img src="${item.image_path || 'images/default.jpg'}" alt="${escapeSearchHtml(item.name)}" onerror="this.src='https://via.placeholder.com/90x90?text=PH'">
+                                        <img src="${item.image_path || 'images/default.jpg'}" alt="${escapeSearchHtml(item.name)}" onerror="this.onerror=null;this.src='https://via.placeholder.com/90x90?text=PH'">
                                     </div>
                                     <div class="search-result-info">
                                         <div class="search-result-title">${escapeSearchHtml(item.name)}</div>
@@ -3393,7 +3393,7 @@ foreach ($home_local_destinations as &$dest) {
                     <div class="autocomplete-item" onclick="handleSearchResultClick('${item.type}', '${identifier}'); document.getElementById('autocompleteDropdown').style.display='none';">
                         ${isVisa ?
                         `<div class="autocomplete-icon" style="background:#f0f2f5; display:flex; align-items:center; justify-content:center; font-size:1.5rem;">${visaFlag}</div>` :
-                        `<img src="${item.image_path || 'images/default.jpg'}" class="autocomplete-icon" onerror="this.src='https://via.placeholder.com/40'">`
+                        `<img src="${item.image_path || 'images/default.jpg'}" class="autocomplete-icon" onerror="this.onerror=null;this.src='https://via.placeholder.com/40'">`
                     }
                         <div class="autocomplete-details">
                             <div class="autocomplete-title">${escapeSearchHtml(item.name)}${badge}</div>
@@ -3438,7 +3438,7 @@ foreach ($home_local_destinations as &$dest) {
                 const subtitle = place.count > 1 ? `${place.count} packages available` : (place.country || '');
                 return `
                     <div class="autocomplete-item" onclick="selectTrendingPlace('${escapeSearchHtml(place.city).replace(/'/g, "\\'")}')">
-                        <img src="${place.image_path || 'images/default.jpg'}" class="autocomplete-icon" onerror="this.src='https://via.placeholder.com/40'">
+                        <img src="${place.image_path || 'images/default.jpg'}" class="autocomplete-icon" onerror="this.onerror=null;this.src='https://via.placeholder.com/40'">
                         <div class="autocomplete-details">
                             <div class="autocomplete-title"><i class="fas fa-map-marker-alt" style="color:#ff9800;font-size:0.8em;"></i> ${escapeSearchHtml(place.city)}</div>
                             <div class="autocomplete-desc">${escapeSearchHtml(subtitle)}</div>

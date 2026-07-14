@@ -1112,10 +1112,12 @@ window.validateFlashPayment = function () {
     if (window.flashSelectedPayment === 'gcash') {
         const ref = document.getElementById('flashPaymentRefGcash')?.value.trim();
         if (!ref) errors.push('Please enter the GCash reference number');
+        if (!document.getElementById('flashProofGcash')?.files[0]) errors.push('Please upload proof of payment');
     }
     if (window.flashSelectedPayment === 'paymaya') {
         const ref = document.getElementById('flashPaymentRefPaymaya')?.value.trim();
         if (!ref) errors.push('Please enter the PayMaya reference number');
+        if (!document.getElementById('flashProofPaymaya')?.files[0]) errors.push('Please upload proof of payment');
     }
     if (window.flashSelectedPayment === 'card') {
         if (!document.getElementById('flashCardNumber')?.value.trim()) errors.push('Card Number is required');
@@ -1126,6 +1128,7 @@ window.validateFlashPayment = function () {
     if (window.flashSelectedPayment === 'bank') {
         const ref = document.getElementById('flashBankRef')?.value.trim();
         if (!ref) errors.push('Reference Number is required');
+        if (!document.getElementById('flashProofBank')?.files[0]) errors.push('Please upload proof of payment');
     }
 
     if (errors.length > 0) {
@@ -1157,6 +1160,18 @@ window.validateFlashPayment = function () {
     formData.append('package_name', window.currentFlashDeal.title);
     formData.append('package_duration', window.currentFlashDeal.duration || '3D/2N');
     formData.append('price_per_person', window.currentFlashDeal.price);
+    // Attribute this booking to the partner who owns the flash deal (if any),
+    // the same way home-packages.js / foreign-packages.js do for their types --
+    // otherwise the booking never links back to the partner's dashboard table.
+    if (window.currentFlashDeal.partner_id) {
+        formData.append('partner_id', window.currentFlashDeal.partner_id);
+        if (window.currentFlashDeal.partner_company) {
+            formData.append('partner_company', window.currentFlashDeal.partner_company);
+        }
+        formData.append('partner_source', 'flash_deal');
+        formData.append('partner_package_id', window.currentFlashDeal.id);
+        formData.append('partner_package_name', window.currentFlashDeal.title);
+    }
     formData.append('full_name', window.flashBookingData.fullName);
     formData.append('email', window.flashBookingData.email);
     formData.append('phone', window.flashBookingData.phone);
@@ -1261,11 +1276,11 @@ function renderFlashDealCollage(deal) {
             <div class="image-collage">
                 <div class="collage-three">
                     <div class="collage-main">
-                        <img src="${images[0] || ''}" alt="${escapeHtmlFlash(deal.title)}" onerror="this.src='https://via.placeholder.com/250x180?text=${deal.title}'">
+                        <img src="${images[0] || ''}" alt="${escapeHtmlFlash(deal.title)}" onerror="this.onerror=null;this.src='https://via.placeholder.com/250x180?text=${deal.title}'">
                     </div>
                     <div class="collage-stack">
-                        <img src="${images[1] || ''}" alt="${escapeHtmlFlash(deal.title)}" onerror="this.src='https://via.placeholder.com/150x90?text=${deal.title}'">
-                        <img src="${images[2] || ''}" alt="${escapeHtmlFlash(deal.title)}" onerror="this.src='https://via.placeholder.com/150x90?text=${deal.title}'">
+                        <img src="${images[1] || ''}" alt="${escapeHtmlFlash(deal.title)}" onerror="this.onerror=null;this.src='https://via.placeholder.com/150x90?text=${deal.title}'">
+                        <img src="${images[2] || ''}" alt="${escapeHtmlFlash(deal.title)}" onerror="this.onerror=null;this.src='https://via.placeholder.com/150x90?text=${deal.title}'">
                     </div>
                 </div>
             </div>
@@ -1274,8 +1289,8 @@ function renderFlashDealCollage(deal) {
         return `
             <div class="image-collage">
                 <div class="collage-half">
-                    <img src="${images[0] || ''}" alt="${escapeHtmlFlash(deal.title)}" onerror="this.src='https://via.placeholder.com/200x180?text=${deal.title}'">
-                    <img src="${images[1] || ''}" alt="${escapeHtmlFlash(deal.title)}" onerror="this.src='https://via.placeholder.com/200x180?text=${deal.title}'">
+                    <img src="${images[0] || ''}" alt="${escapeHtmlFlash(deal.title)}" onerror="this.onerror=null;this.src='https://via.placeholder.com/200x180?text=${deal.title}'">
+                    <img src="${images[1] || ''}" alt="${escapeHtmlFlash(deal.title)}" onerror="this.onerror=null;this.src='https://via.placeholder.com/200x180?text=${deal.title}'">
                 </div>
             </div>
         `;
@@ -1283,7 +1298,7 @@ function renderFlashDealCollage(deal) {
         const imgSrc = images[0] || 'https://via.placeholder.com/400x250?text=' + encodeURIComponent(deal.title);
         return `
             <div class="image-collage">
-                <img src="${imgSrc}" alt="${escapeHtmlFlash(deal.title)}" style="width:100%; height:100%; object-fit:cover;" onerror="this.src='https://via.placeholder.com/400x250?text=${encodeURIComponent(deal.title)}'">
+                <img src="${imgSrc}" alt="${escapeHtmlFlash(deal.title)}" style="width:100%; height:100%; object-fit:cover;" onerror="this.onerror=null;this.src='https://via.placeholder.com/400x250?text=${encodeURIComponent(deal.title)}'">
             </div>
         `;
     }
@@ -1412,7 +1427,7 @@ function renderFlashDealsHome(deals) {
                     <p style="color: #666; font-size: 0.85rem; line-height: 1.4; margin-bottom: 15px; flex-grow: 1;">
                         ${escapeHtmlFlash(deal.description || 'Grab this amazing travel deal before it expires!')}
                     </p>
-                    ${deal.partner_id ? `<div style="font-size: 0.8rem; color: #64748b; margin-top: 5px; margin-bottom: 10px;">Provided by: <a href="view-partner-profile.php?id=${deal.partner_id}" style="color: #003580; font-weight: 500; text-decoration: none;" onclick="event.stopPropagation();">${escapeHtmlFlash(deal.partner_company || 'Partner')}</a></div>` : ''}
+                    ${deal.partner_id ? `<div style="font-size: 0.8rem; color: #64748b; margin-top: 5px; margin-bottom: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;" title="${escapeHtmlFlash(deal.partner_company || 'Partner')}">Provided by: <a href="view-partner-profile.php?id=${deal.partner_id}" style="color: #003580; font-weight: 500; text-decoration: none;" onclick="event.stopPropagation();">${escapeHtmlFlash(deal.partner_company || 'Partner')}</a></div>` : ''}
                     
                     <div style="margin-bottom: 15px;">
                         <div style="font-size: 0.85rem; color: #888; margin-bottom: 8px;">
@@ -1454,7 +1469,7 @@ function addFlashDealModalStyles() {
                 animation: fadeInUp 0.4s ease;
                 display: flex;
                 flex-direction: column;
-                height: 100%;
+                height: auto;
                 min-height: 400px;
                 width: 100%;
             }
@@ -1476,7 +1491,7 @@ function addFlashDealModalStyles() {
             @media (min-width: 992px) {
                 .flash-deal-card {
                     flex-direction: row !important;
-                    height: 230px !important;
+                    height: auto !important;
                     min-height: 230px !important;
                     width: 450px !important;
                     min-width: 450px !important;
@@ -1484,7 +1499,9 @@ function addFlashDealModalStyles() {
                 }
                 .flash-deal-image {
                     width: 45%;
-                    height: 100% !important;
+                    align-self: stretch;
+                    height: auto !important;
+                    min-height: 230px;
                     border-radius: 16px 0 0 16px !important;
                 }
             }

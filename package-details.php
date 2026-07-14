@@ -498,6 +498,17 @@ function resolveImgSrc($path)
                                 </div>
                             </div>
                         </div>
+                        <?php else: ?>
+                        <div class="pkgdet-card">
+                            <h2><i class="fas fa-handshake"></i> Provided By</h2>
+                            <div class="pkgdet-partner-box">
+                                <div class="icon"><i class="fas fa-plane"></i></div>
+                                <div>
+                                    <span style="color:#003580; font-weight:700;">Made by HeyDream</span>
+                                    <p style="margin:2px 0 0; color:#64748b; font-size:0.82rem;">This package is curated and offered directly by HeyDream Travel and Tours.</p>
+                                </div>
+                            </div>
+                        </div>
                         <?php endif; ?>
 
                         <?php if ($pkg['remarks'] || $pkg['blocked_months'] || $pkg['blocked_dates'] || $pkg['promo_start'] || $pkg['promo_end']): ?>

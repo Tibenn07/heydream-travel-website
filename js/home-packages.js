@@ -170,7 +170,7 @@ function renderLocalDestinationsGrid() {
             <div class="home-card-image">
                 <img src="${imagePath}"
                      alt="${escapeHtml(dest.name)}"
-                     onerror="this.src='https://via.placeholder.com/400x250?text=' + encodeURIComponent('${escapeHtml(dest.name)}')">
+                     onerror="this.onerror=null;this.src='https://via.placeholder.com/400x250?text=' + encodeURIComponent('${escapeHtml(dest.name)}')">
                 <h3 class="home-card-name">${escapeHtml(dest.name)}</h3>
             </div>
             <div class="home-card-content">
@@ -179,7 +179,7 @@ function renderLocalDestinationsGrid() {
                     <i class="fas fa-map-marker-alt"></i> ${escapeHtml(dest.location)}
                 </div>
                 <p class="home-card-desc">${escapeHtml(dest.description)}</p>
-                ${dest.partner_id ? `<div style="font-size: 0.8rem; color: #64748b; margin-top: 5px; margin-bottom: 5px;">Provided by: <a href="view-partner-profile.php?id=${dest.partner_id}" style="color: #003580; font-weight: 500; text-decoration: none;" onclick="event.stopPropagation();">${escapeHtml(dest.partner_company || 'Partner')}</a></div>` : ''}
+                ${dest.partner_id ? `<div style="font-size: 0.8rem; color: #64748b; margin-top: 5px; margin-bottom: 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;" title="${escapeHtml(dest.partner_company || 'Partner')}">Provided by: <a href="view-partner-profile.php?id=${dest.partner_id}" style="color: #003580; font-weight: 500; text-decoration: none;" onclick="event.stopPropagation();">${escapeHtml(dest.partner_company || 'Partner')}</a></div>` : ''}
                 <div class="home-card-footer">
                     <div class="home-card-price">
                         From ${dest.currency}${formatNumber(dest.price)}
@@ -1278,10 +1278,12 @@ function validateHomePayment() {
     if (homeSelectedPayment === 'gcash') {
         const ref = document.getElementById('homePaymentRefGcash')?.value.trim();
         if (!ref) errors.push('Please enter the GCash reference number');
+        if (!document.getElementById('homeProofGcash')?.files[0]) errors.push('Please upload proof of payment');
     }
     if (homeSelectedPayment === 'paymaya') {
         const ref = document.getElementById('homePaymentRefPaymaya')?.value.trim();
         if (!ref) errors.push('Please enter the PayMaya reference number');
+        if (!document.getElementById('homeProofPaymaya')?.files[0]) errors.push('Please upload proof of payment');
     }
     if (homeSelectedPayment === 'card') {
         if (!document.getElementById('homeCardNumber')?.value.trim()) errors.push('Card Number is required');
@@ -1292,6 +1294,7 @@ function validateHomePayment() {
     if (homeSelectedPayment === 'bank') {
         const ref = document.getElementById('homeBankRef')?.value.trim();
         if (!ref) errors.push('Reference Number is required');
+        if (!document.getElementById('homeProofBank')?.files[0]) errors.push('Please upload proof of payment');
     }
 
     if (errors.length > 0) {
@@ -1361,33 +1364,40 @@ function sendHomeBookingToServer(btn, originalText, paymentMethodName, paymentRe
     const appliedVoucher = window._appliedVoucher && window._appliedVoucher['home'];
     const finalAmount = appliedVoucher ? appliedVoucher.finalTotal : homeBookingData.totalAmount;
 
+    const formData = new FormData();
+    formData.append('destination_name', homeBookingData.destinationName);
+    formData.append('destination_id', homeBookingData.destinationId);
+    formData.append('package_duration', homeBookingData.duration);
+    formData.append('price_per_person', homeBookingData.price);
+    formData.append('full_name', homeBookingData.fullName);
+    formData.append('email', homeBookingData.email);
+    formData.append('phone', homeBookingData.phone);
+    formData.append('travel_date', homeBookingData.travelDate);
+    formData.append('number_of_travelers', homeBookingData.travelers);
+    formData.append('special_requests', homeBookingData.specialRequests);
+    formData.append('total_amount', finalAmount);
+    formData.append('currency', window.currentHomeDestCurrency || '₱');
+    formData.append('payment_method', homeSelectedPayment);
+    if (paymentRef) formData.append('payment_reference', paymentRef);
+    if (window.currentHomeDest?.partner_id) {
+        formData.append('partner_id', window.currentHomeDest.partner_id);
+        if (window.currentHomeDest.partner_company) formData.append('partner_company', window.currentHomeDest.partner_company);
+        formData.append('partner_source', window.currentHomeDest?.partner_source ?? 'local_destination');
+        formData.append('partner_package_name', window.currentHomeDest?.name ?? '');
+    }
+    if (appliedVoucher) {
+        formData.append('voucher_id', appliedVoucher.id);
+        formData.append('voucher_discount', appliedVoucher.discountAmount);
+    }
+
+    const proofInput = document.getElementById(`homeProof${homeSelectedPayment.charAt(0).toUpperCase()}${homeSelectedPayment.slice(1)}`);
+    if (proofInput && proofInput.files[0]) {
+        formData.append('payment_proof', proofInput.files[0]);
+    }
+
     fetch('api/save-local-booking.php', {
         method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-            destination_name: homeBookingData.destinationName,
-            destination_id: homeBookingData.destinationId,
-            package_duration: homeBookingData.duration,
-            price_per_person: homeBookingData.price,
-            full_name: homeBookingData.fullName,
-            email: homeBookingData.email,
-            phone: homeBookingData.phone,
-            travel_date: homeBookingData.travelDate,
-            number_of_travelers: homeBookingData.travelers,
-            special_requests: homeBookingData.specialRequests,
-            total_amount: finalAmount,
-            currency: window.currentHomeDestCurrency || '₱',
-            payment_method: homeSelectedPayment,
-            payment_reference: paymentRef || null,
-            partner_id: window.currentHomeDest?.partner_id ?? null,
-            partner_company: window.currentHomeDest?.partner_company ?? null,
-            partner_source: window.currentHomeDest?.partner_source ?? 'local_destination',
-            partner_package_name: window.currentHomeDest?.name ?? null,
-            voucher_id: appliedVoucher?.id ?? null,
-            voucher_discount: appliedVoucher?.discountAmount ?? 0
-        })
+        body: formData
     })
         .then(response => response.json())
         .then(data => {

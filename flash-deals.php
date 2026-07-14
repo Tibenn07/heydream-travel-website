@@ -2082,24 +2082,24 @@ try {
                                     <div class="image-collage">
                                         <div class="collage-three">
                                             <div class="collage-main"><img src="<?= htmlspecialchars($images[0]) ?>" alt=""
-                                                    onerror="this.src='<?= $placeholder ?>'"></div>
+                                                    onerror="this.onerror=null;this.src='<?= $placeholder ?>'"></div>
                                             <div class="collage-stack"><img src="<?= htmlspecialchars($images[1]) ?>" alt=""
-                                                    onerror="this.src='<?= $placeholder ?>'"><img
+                                                    onerror="this.onerror=null;this.src='<?= $placeholder ?>'"><img
                                                     src="<?= htmlspecialchars($images[2]) ?>" alt=""
-                                                    onerror="this.src='<?= $placeholder ?>'"></div>
+                                                    onerror="this.onerror=null;this.src='<?= $placeholder ?>'"></div>
                                         </div>
                                     </div>
                                 <?php elseif ($collageType === 'half' && count($images) >= 2): ?>
                                     <div class="image-collage">
                                         <div class="collage-half"><img src="<?= htmlspecialchars($images[0]) ?>" alt=""
-                                                onerror="this.src='<?= $placeholder ?>'"><img
+                                                onerror="this.onerror=null;this.src='<?= $placeholder ?>'"><img
                                                 src="<?= htmlspecialchars($images[1]) ?>" alt=""
-                                                onerror="this.src='<?= $placeholder ?>'"></div>
+                                                onerror="this.onerror=null;this.src='<?= $placeholder ?>'"></div>
                                     </div>
                                 <?php else: ?>
                                     <div class="image-collage"><img src="<?= htmlspecialchars($images[0] ?? $placeholder) ?>" alt=""
                                             style="width:100%;height:100%;object-fit:cover;"
-                                            onerror="this.src='<?= $placeholder ?>'"></div>
+                                            onerror="this.onerror=null;this.src='<?= $placeholder ?>'"></div>
                                 <?php endif;
                                 ?>
                                 <?php if ($deal['discount_percent']): ?>

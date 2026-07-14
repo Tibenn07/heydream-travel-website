@@ -330,7 +330,7 @@ $pkgDetailsUrl = $pkg ? ('package-details.php?type=' . urlencode($pkg['type']) .
 
                     <aside class="pkgbook-summary">
                         <div class="pkgbook-summary-card">
-                            <img class="pkgbook-summary-img" src="<?= htmlspecialchars(resolveBookImgSrc($pkg['images'][0] ?? '') ?: ('https://via.placeholder.com/400x200?text=' . urlencode($pkg['name']))) ?>" alt="<?= htmlspecialchars($pkg['name']) ?>" onerror="this.src='https://via.placeholder.com/400x200?text=<?= urlencode($pkg['name']) ?>'">
+                            <img class="pkgbook-summary-img" src="<?= htmlspecialchars(resolveBookImgSrc($pkg['images'][0] ?? '') ?: ('https://via.placeholder.com/400x200?text=' . urlencode($pkg['name']))) ?>" alt="<?= htmlspecialchars($pkg['name']) ?>" onerror="this.onerror=null;this.src='https://via.placeholder.com/400x200?text=<?= urlencode($pkg['name']) ?>'">
                             <div class="pkgbook-summary-body">
                                 <h3><?= htmlspecialchars($pkg['name']) ?></h3>
                                 <div class="pkgbook-summary-loc"><i class="fas fa-map-marker-alt"></i><?= htmlspecialchars($pkg['location']) ?></div>
