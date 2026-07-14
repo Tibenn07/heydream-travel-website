@@ -12,6 +12,22 @@ if (session_status() === PHP_SESSION_NONE) {
 
 require_once __DIR__ . '/config/database.php';
 
+// Self-healing: ensure partner_id column exists in destinations table
+try {
+    $cols = [];
+    foreach ($pdo->query("SHOW COLUMNS FROM destinations") as $row) {
+        $cols[$row['Field']] = true;
+    }
+    if (!isset($cols['partner_id'])) {
+        $pdo->exec("ALTER TABLE destinations ADD COLUMN partner_id INT DEFAULT NULL");
+    }
+    if (!isset($cols['partner_company'])) {
+        $pdo->exec("ALTER TABLE destinations ADD COLUMN partner_company VARCHAR(255) DEFAULT NULL");
+    }
+} catch (Throwable $e) {
+    // Fail silently — table may not exist yet or already has the column
+}
+
 // Fetch local destinations from database for home page
 $stmt = $pdo->prepare("
     SELECT 
