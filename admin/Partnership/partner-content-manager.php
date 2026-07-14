@@ -1923,7 +1923,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             echo json_encode(['success' => false, 'message' => 'Failed to save cruise: ' . $e->getMessage()]);
             exit;
         }
-        echo json_encode(['success' => true, 'message' => 'Cruise saved successfully!']);
+
+        $stmt = $pdo->prepare("SELECT * FROM cruises WHERE id = ?");
+        $stmt->execute([$cruise_id]);
+        $savedCruise = $stmt->fetch(PDO::FETCH_ASSOC);
+        $it_stmt = $pdo->prepare("SELECT * FROM cruise_itinerary WHERE cruise_id = ? ORDER BY day_number");
+        $it_stmt->execute([$cruise_id]);
+        $savedCruise['itinerary'] = $it_stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        echo json_encode(['success' => true, 'message' => 'Cruise saved successfully!', 'data' => $savedCruise]);
         exit;
     } elseif ($action === 'delete_advanced_cruise') {
         $id = intval($_POST['id']);
@@ -3596,7 +3604,7 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
                                             Actions</th>
                                     </tr>
                                 </thead>
-                                <tbody>
+                                <tbody id="cruiseTableBody">
                                     <?php if (empty($cruises)): ?>
                                         <tr>
                                             <td colspan="6" style="padding: 40px; text-align: center; color: #64748b;">No cruise
@@ -3604,7 +3612,7 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
                                         </tr>
                                     <?php else: ?>
                                         <?php foreach ($cruises as $cruise): ?>
-                                            <tr style="border-bottom: 1px solid #f1f5f9;">
+                                            <tr data-item-id="<?= $cruise['id'] ?>" style="border-bottom: 1px solid #f1f5f9;">
                                                 <td style="padding: 15px 20px;">
                                                     <?php if (!empty($cruise['featured_image'])): ?>
                                                         <img src="<?= assetUrl($cruise['featured_image']) ?>"
@@ -6473,6 +6481,9 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
                 const saved = this.getSavedTabs(formId);
                 const idElement = this.getIdElement(formId);
                 const currentId = idElement ? idElement.value : '0';
+                document.querySelectorAll(modalSelector + ' .tab-btn').forEach(btn => {
+                    btn.classList.remove('tab-saved');
+                });
                 if (!saved || saved.editingId !== currentId || !saved.tabs) return;
 
                 document.querySelectorAll(modalSelector + ' .tab-btn').forEach(btn => {
@@ -8636,15 +8647,13 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
                             s.itinerary.forEach(it => addServiceItineraryDay(it.title, it.description));
                         }
 
-                        // Mark saved sections based on loaded data
-                        setServiceTabSavedState(getSavedServiceTabs(s));
-
                         // Reset tabs
                         const firstTab = document.querySelector('#serviceModal .tab-btn');
                         if (firstTab) firstTab.click();
 
                         document.getElementById('serviceModal').classList.add('active');
                         PersistenceEngine.checkDraft('serviceForm');
+                        PersistenceEngine.applySavedTabState('serviceForm', '#serviceModal');
                     }
                 });
         }
@@ -8917,6 +8926,95 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
             });
         }
 
+        function buildCruiseRow(cruise) {
+            const row = document.createElement('tr');
+            row.dataset.itemId = cruise.id;
+            row.style.borderBottom = '1px solid #f1f5f9';
+
+            const imageCell = document.createElement('td');
+            imageCell.style.padding = '15px 20px';
+            if (cruise.featured_image) {
+                const img = document.createElement('img');
+                img.src = PersistenceEngine.normalizeAssetPath(cruise.featured_image);
+                img.style.width = '60px';
+                img.style.height = '60px';
+                img.style.borderRadius = '8px';
+                img.style.objectFit = 'cover';
+                img.style.border = '1px solid #e2e8f0';
+                imageCell.appendChild(img);
+            } else {
+                const placeholder = document.createElement('div');
+                placeholder.style.width = '60px';
+                placeholder.style.height = '60px';
+                placeholder.style.borderRadius = '8px';
+                placeholder.style.background = '#e0f2fe';
+                placeholder.style.display = 'flex';
+                placeholder.style.alignItems = 'center';
+                placeholder.style.justifyContent = 'center';
+                placeholder.style.color = '#0369a1';
+                placeholder.innerHTML = '<i class="fas fa-ship"></i>';
+                imageCell.appendChild(placeholder);
+            }
+            row.appendChild(imageCell);
+
+            const detailsCell = document.createElement('td');
+            detailsCell.style.padding = '15px 20px';
+            detailsCell.innerHTML = `<div style="font-weight: 700; color: #0f172a;">${escapeHtml(cruise.title || '')}</div>
+                <div style="font-size: 0.75rem; color: #64748b;">Code: ${escapeHtml(cruise.cruise_code || '')} | ${escapeHtml(cruise.ship_name || '')}</div>`;
+            row.appendChild(detailsCell);
+
+            const scheduleCell = document.createElement('td');
+            scheduleCell.style.padding = '15px 20px';
+            scheduleCell.innerHTML = `<div style="font-size: 0.85rem; color: #0f172a;"><i class="far fa-calendar-alt"></i> ${escapeHtml(cruise.departure_date || 'N/A')}</div>
+                <div style="font-size: 0.75rem; color: #64748b;">${escapeHtml(cruise.duration || '')}</div>`;
+            row.appendChild(scheduleCell);
+
+            const priceCell = document.createElement('td');
+            priceCell.style.padding = '15px 20px';
+            let priceHtml = `<div style="font-weight: 700; color: #003580;">₱ ${Number(cruise.base_price || 0).toFixed(2)}</div>`;
+            if (parseFloat(cruise.promo_price) > 0) {
+                priceHtml += `<div style="font-size: 0.75rem; color: #dc2626; font-weight: 600;">Promo: ₱ ${Number(cruise.promo_price).toFixed(2)}</div>`;
+            }
+            priceCell.innerHTML = priceHtml;
+            row.appendChild(priceCell);
+
+            const statusCell = document.createElement('td');
+            statusCell.style.padding = '15px 20px';
+            const status = cruise.status || 'Unknown';
+            const statusStyle = status === 'Available' ? 'background: #dcfce7; color: #16a34a;' : (status === 'Full' ? 'background: #fee2e2; color: #dc2626;' : 'background: #f1f5f9; color: #64748b;');
+            statusCell.innerHTML = `<span class="status-badge" style="padding: 4px 10px; border-radius: 20px; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; ${statusStyle}">${escapeHtml(status)}</span>`;
+            row.appendChild(statusCell);
+
+            const actionsCell = document.createElement('td');
+            actionsCell.style.padding = '15px 20px';
+            actionsCell.innerHTML = `<div style="display: flex; gap: 8px;">
+                    <button class="edit-btn" style="width: 32px; height: 32px; border-radius: 8px; border: none; background: #fef3c7; color: #d97706; cursor: pointer; display: flex; align-items: center; justify-content: center;"><i class="fas fa-edit"></i></button>
+                    <button class="delete-btn" style="width: 32px; height: 32px; border-radius: 8px; border: none; background: #fee2e2; color: #dc2626; cursor: pointer; display: flex; align-items: center; justify-content: center;"><i class="fas fa-trash"></i></button>
+                </div>`;
+            const editBtn = actionsCell.querySelector('.edit-btn');
+            const deleteBtn = actionsCell.querySelector('.delete-btn');
+            editBtn.addEventListener('click', () => editAdvancedCruise(cruise.id));
+            deleteBtn.addEventListener('click', () => deleteAdvancedCruise(cruise.id, cruise.title || 'Cruise'));
+            row.appendChild(actionsCell);
+
+            return row;
+        }
+
+        function refreshCruiseTableRow(cruise) {
+            if (!cruise || !cruise.id) return;
+            const tbody = document.getElementById('cruiseTableBody');
+            if (!tbody) return;
+            const existingRow = tbody.querySelector(`tr[data-item-id="${cruise.id}"]`);
+            const newRow = buildCruiseRow(cruise);
+            if (existingRow) {
+                existingRow.replaceWith(newRow);
+            } else {
+                const emptyMessage = tbody.querySelector('tr td[colspan]');
+                if (emptyMessage) tbody.innerHTML = '';
+                tbody.prepend(newRow);
+            }
+        }
+
         function addItineraryDay(title = '', desc = '') {
             const list = document.getElementById('itinerary-list');
             const dayNum = list.children.length + 1;
@@ -9049,9 +9147,9 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
                             d.itinerary.forEach(it => addItineraryDay(it.title, it.description));
                         }
 
-                        setAdvancedCruiseTabSavedState(getSavedAdvancedCruiseTabs(d));
                         document.getElementById('advancedCruiseModal').classList.add('active');
                         PersistenceEngine.checkDraft('advancedCruiseForm');
+                        PersistenceEngine.applySavedTabState('advancedCruiseForm', '#advancedCruiseModal');
                     }
                 });
         }
@@ -9117,8 +9215,15 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
                         return;
                     }
                     if (res.success) {
+                        if (res.data && res.data.id) {
+                            document.getElementById('advanced_cruise_id').value = res.data.id;
+                        }
+                        if (activeCruiseTab) {
+                            PersistenceEngine.setSavedTabState('advancedCruiseForm', activeCruiseTab);
+                        }
                         PersistenceEngine.clearDraft('advancedCruiseForm');
-                        if (activeCruiseTabBtn) activeCruiseTabBtn.classList.add('tab-saved');
+                        PersistenceEngine.applySavedTabState('advancedCruiseForm', '#advancedCruiseModal');
+                        refreshCruiseTableRow(res.data);
                         Swal.fire('Success!', res.message, 'success');
                     } else {
                         Swal.fire('Error', res.message || 'Something went wrong', 'error');
@@ -9151,7 +9256,6 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
             const activeServiceTab = activeServiceTabBtn ? activeServiceTabBtn.getAttribute('onclick')?.match(/'([^']+)'/)?.[1] : null;
             if (activeServiceTab) {
                 formData.set('active_tab', activeServiceTab);
-                PersistenceEngine.setSavedTabState('serviceForm', activeServiceTab);
             }
 
             Swal.fire({ title: 'Saving...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
@@ -9161,8 +9265,15 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
                 .then(json => {
                     Swal.close();
                     if (json.success) {
+                        if (json.data && json.data.id) {
+                            document.getElementById('service_id').value = json.data.id;
+                        }
+                        if (activeServiceTab) {
+                            PersistenceEngine.setSavedTabState('serviceForm', activeServiceTab);
+                        }
                         PersistenceEngine.clearDraft('serviceForm');
                         if (activeServiceTabBtn) activeServiceTabBtn.classList.add('tab-saved');
+                        refreshServiceTableRow(json.data);
                         Swal.fire('Saved!', json.message || 'Service saved successfully.', 'success');
                     } else {
                         Swal.fire('Error', json.message || 'Something went wrong.', 'error');
