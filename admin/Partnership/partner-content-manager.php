@@ -752,7 +752,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $partnerCompany,
                         $id
                     ]);
-                    echo json_encode(['success' => true, 'message' => 'Flash deal updated successfully!']);
+                    $stmt = $pdo->prepare("SELECT * FROM flash_deals WHERE id = ?");
+                    $stmt->execute([$id]);
+                    $row = $stmt->fetch(PDO::FETCH_ASSOC);
+                    echo json_encode(['success' => true, 'message' => 'Flash deal updated successfully!', 'data' => $row]);
                     exit;
                 } else {
                     $stmt = $pdo->prepare("INSERT INTO flash_deals (
@@ -800,7 +803,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $partnerId,
                         $partnerCompany
                     ]);
-                    echo json_encode(['success' => true, 'message' => 'Flash deal added successfully!']);
+                    $newId = intval($pdo->lastInsertId());
+                    $stmt = $pdo->prepare("SELECT * FROM flash_deals WHERE id = ?");
+                    $stmt->execute([$newId]);
+                    $row = $stmt->fetch(PDO::FETCH_ASSOC);
+                    echo json_encode(['success' => true, 'message' => 'Flash deal added successfully!', 'data' => $row, 'id' => $newId]);
                     exit;
                 }
             } catch (PDOException $e) {
@@ -949,7 +956,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $partnerCompany,
                         $id
                     ]);
-                    echo json_encode(['success' => true, 'message' => 'Destination updated successfully!']);
+                    $stmt = $pdo->prepare("SELECT * FROM destinations WHERE id = ?");
+                    $stmt->execute([$id]);
+                    $row = $stmt->fetch(PDO::FETCH_ASSOC);
+                    echo json_encode(['success' => true, 'message' => 'Destination updated successfully!', 'data' => $row]);
                     exit;
                 } else {
                     $stmt = $pdo->prepare("INSERT INTO destinations (
@@ -997,7 +1007,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $partnerId,
                         $partnerCompany
                     ]);
-                    echo json_encode(['success' => true, 'message' => 'Destination added successfully!']);
+                    $newId = intval($pdo->lastInsertId());
+                    $stmt = $pdo->prepare("SELECT * FROM destinations WHERE id = ?");
+                    $stmt->execute([$newId]);
+                    $row = $stmt->fetch(PDO::FETCH_ASSOC);
+                    echo json_encode(['success' => true, 'message' => 'Destination added successfully!', 'data' => $row, 'id' => $newId]);
                     exit;
                 }
             } catch (PDOException $e) {
@@ -1148,7 +1162,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $partnerCompany,
                         $id
                     ]);
-                    echo json_encode(['success' => true, 'message' => 'Foreign destination updated successfully!']);
+                    $stmt = $pdo->prepare("SELECT * FROM foreign_destinations WHERE id = ?");
+                    $stmt->execute([$id]);
+                    $row = $stmt->fetch(PDO::FETCH_ASSOC);
+                    echo json_encode(['success' => true, 'message' => 'Foreign destination updated successfully!', 'data' => $row]);
                     exit;
                 } else {
                     $stmt = $pdo->prepare("INSERT INTO foreign_destinations (
@@ -1194,7 +1211,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $partnerId,
                         $partnerCompany
                     ]);
-                    echo json_encode(['success' => true, 'message' => 'Foreign destination added successfully!']);
+                    $newId = intval($pdo->lastInsertId());
+                    $stmt = $pdo->prepare("SELECT * FROM foreign_destinations WHERE id = ?");
+                    $stmt->execute([$newId]);
+                    $row = $stmt->fetch(PDO::FETCH_ASSOC);
+                    echo json_encode(['success' => true, 'message' => 'Foreign destination added successfully!', 'data' => $row, 'id' => $newId]);
                     exit;
                 }
             } catch (PDOException $e) {
@@ -3154,6 +3175,21 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
             background: #003580;
         }
 
+        .tab-btn.tab-saved {
+            color: #166534;
+            font-weight: 700;
+        }
+
+        .tab-btn.tab-saved::after {
+            content: '';
+            position: absolute;
+            bottom: -6px;
+            left: 0;
+            width: 100%;
+            height: 3px;
+            background: #22c55e;
+        }
+
         .tab-content {
             display: none;
             padding: 5px 0;
@@ -4641,7 +4677,7 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
 
             <!-- Flash Deals Section -->
             <?php if ($page === 'flash-deals'): ?>
-                <div class="content-section">
+                <div id="flashDealsSection" class="content-section">
                     <div class="section-header">
                         <h2><i class="fas fa-bolt"></i> Flash Deals</h2>
                         <button class="add-btn" onclick="openFlashDealModal()">
@@ -4657,7 +4693,7 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
                                 $discount_text = $deal['discount_percent'] ? "⚡ {$deal['discount_percent']}% off" : ($deal['badge_text'] ?? 'Flash Deal');
                                 $is_expired = !empty($deal['promo_end']) && strtotime($deal['promo_end'] . ' 23:59:59') < time();
                                 ?>
-                                <div class="content-card" <?= $is_expired ? 'style="opacity: 0.7; filter: grayscale(80%); border-color: #ccc;"' : '' ?>>
+                                <div class="content-card" data-item-type="flash_deal" data-item-id="<?= $deal['id'] ?>" <?= $is_expired ? 'style="opacity: 0.7; filter: grayscale(80%); border-color: #ccc;"' : '' ?> >
                                     <div class="card-preview" style="background-image: url('<?= $preview_image ?>');">
                                         <span class="badge" <?= $is_expired ? 'style="background: #6c757d;"' : '' ?>>
                                             <?= $is_expired ? 'Expired' : htmlspecialchars($discount_text) ?>
@@ -5019,7 +5055,7 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
 
             <!-- Foreign Destinations Section -->
             <?php if ($page === 'foreign-destinations'): ?>
-                <div class="content-section">
+                <div id="foreignDestinationsSection" class="content-section">
                     <div class="section-header">
                         <h2><i class="fas fa-globe-asia"></i> Foreign Destinations</h2>
                         <button class="add-btn" onclick="openForeignDestinationModal()">
@@ -5035,7 +5071,7 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
                                 $preview_image = !empty($dest['image_path']) ? assetUrl($dest['image_path']) : 'https://via.placeholder.com/300x150?text=No+Image';
                                 $badge_text = $dest['badge_text'] ?? ($dest['activities_count'] . ' activities');
                                 ?>
-                                <div class="content-card">
+                                <div class="content-card" data-item-type="foreign_destination" data-item-id="<?= $dest['id'] ?>">
                                     <div class="card-preview" style="background-image: url('<?= $preview_image ?>');">
                                         <?php if (!empty($dest['badge_text'])): ?>
                                             <span class="badge">
@@ -5118,7 +5154,7 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
                                 <div id="fr-tab-general" class="tab-content active">
 
                                     <div class="form-group">
-                                        <label>Destination Name *</label>
+                                        <label>Title *</label>
                                         <input type="text" name="name" id="foreign_dest_name" required>
                                     </div>
 
@@ -5383,7 +5419,7 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
 
             <!-- Local Destinations Section -->
             <?php if ($page === 'local-destinations'): ?>
-                <div class="content-section">
+                <div id="localDestinationsSection" class="content-section">
                     <div class="section-header">
                         <h2><i class="fas fa-umbrella-beach"></i> Local Destinations</h2>
                         <button class="add-btn" onclick="openLocalDestinationModal()">
@@ -5399,7 +5435,7 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
                                 $preview_image = !empty($dest['image_path']) ? assetUrl($dest['image_path']) : 'https://via.placeholder.com/300x150?text=No+Image';
                                 $badge_text = $dest['badge_text'] ?? ($dest['activities_count'] . ' activities');
                                 ?>
-                                <div class="content-card">
+                                <div class="content-card" data-item-type="destination" data-item-id="<?= $dest['id'] ?>">
                                     <div class="card-preview" style="background-image: url('<?= $preview_image ?>');">
                                         <?php if (!empty($dest['badge_text'])): ?>
                                             <span class="badge">
@@ -5480,7 +5516,7 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
                                 <!-- General Info Tab -->
                                 <div id="lc-tab-general" class="tab-content active">
                                     <div class="form-group">
-                                        <label>Destination Name *</label>
+                                        <label>Title *</label>
                                         <input type="text" name="name" id="local_dest_name" required>
                                     </div>
 
@@ -6393,6 +6429,60 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
                 return null;
             },
 
+            getSavedTabsStorageKey: function(formId) {
+                return 'savedTabs_' + formId;
+            },
+
+            getSavedTabs: function(formId) {
+                try {
+                    const saved = localStorage.getItem(this.getSavedTabsStorageKey(formId));
+                    return saved ? JSON.parse(saved) : null;
+                } catch (e) {
+                    console.error('Error reading saved tabs', e);
+                    return null;
+                }
+            },
+
+            setSavedTabState: function(formId, tabId) {
+                try {
+                    const idElement = this.getIdElement(formId);
+                    const currentId = idElement ? idElement.value : '0';
+                    if (!currentId || currentId === '0') return;
+
+                    let saved = this.getSavedTabs(formId);
+                    if (!saved || saved.editingId !== currentId) {
+                        saved = { editingId: currentId, tabs: {} };
+                    }
+                    if (!saved.tabs) saved.tabs = {};
+                    saved.tabs[tabId] = true;
+                    localStorage.setItem(this.getSavedTabsStorageKey(formId), JSON.stringify(saved));
+                } catch (e) {
+                    console.error('Error saving tab state', e);
+                }
+            },
+
+            clearSavedTabState: function(formId) {
+                try {
+                    localStorage.removeItem(this.getSavedTabsStorageKey(formId));
+                } catch (e) {
+                    console.error('Error clearing saved tabs', e);
+                }
+            },
+
+            applySavedTabState: function(formId, modalSelector) {
+                const saved = this.getSavedTabs(formId);
+                const idElement = this.getIdElement(formId);
+                const currentId = idElement ? idElement.value : '0';
+                if (!saved || saved.editingId !== currentId || !saved.tabs) return;
+
+                document.querySelectorAll(modalSelector + ' .tab-btn').forEach(btn => {
+                    const targetMatch = btn.getAttribute('onclick')?.match(/'([^']+)'/);
+                    const target = targetMatch ? targetMatch[1] : btn.dataset.target;
+                    if (!target) return;
+                    btn.classList.toggle('tab-saved', !!saved.tabs[target]);
+                });
+            },
+
             showDraftSavedIndicator: function(formId) {
                 const form = document.getElementById(formId);
                 if (!form) return;
@@ -6440,6 +6530,60 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
                             this.clearDraft(formId);
                         });
                     }
+                });
+            },
+
+            getSavedTabsStorageKey: function(formId) {
+                return 'savedTabs_' + formId;
+            },
+
+            getSavedTabs: function(formId) {
+                try {
+                    const saved = localStorage.getItem(this.getSavedTabsStorageKey(formId));
+                    return saved ? JSON.parse(saved) : null;
+                } catch (e) {
+                    console.error('Error reading saved tabs', e);
+                    return null;
+                }
+            },
+
+            setSavedTabState: function(formId, tabId) {
+                try {
+                    const idElement = this.getIdElement(formId);
+                    const currentId = idElement ? idElement.value : '0';
+                    if (!currentId || currentId === '0') return;
+
+                    let saved = this.getSavedTabs(formId);
+                    if (!saved || saved.editingId !== currentId) {
+                        saved = { editingId: currentId, tabs: {} };
+                    }
+                    if (!saved.tabs) saved.tabs = {};
+                    saved.tabs[tabId] = true;
+                    localStorage.setItem(this.getSavedTabsStorageKey(formId), JSON.stringify(saved));
+                } catch (e) {
+                    console.error('Error saving tab state', e);
+                }
+            },
+
+            clearSavedTabState: function(formId) {
+                try {
+                    localStorage.removeItem(this.getSavedTabsStorageKey(formId));
+                } catch (e) {
+                    console.error('Error clearing saved tabs', e);
+                }
+            },
+
+            applySavedTabState: function(formId, modalSelector) {
+                const saved = this.getSavedTabs(formId);
+                const idElement = this.getIdElement(formId);
+                const currentId = idElement ? idElement.value : '0';
+                if (!saved || saved.editingId !== currentId || !saved.tabs) return;
+
+                document.querySelectorAll(modalSelector + ' .tab-btn').forEach(btn => {
+                    const targetMatch = btn.getAttribute('onclick')?.match(/'([^']+)'/);
+                    const target = targetMatch ? targetMatch[1] : btn.dataset.target;
+                    if (!target) return;
+                    btn.classList.toggle('tab-saved', !!saved.tabs[target]);
                 });
             }
         };
@@ -6499,6 +6643,7 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
 
             document.getElementById('foreignDestinationModal').classList.add('active');
             PersistenceEngine.checkDraft('foreignDestinationForm');
+            PersistenceEngine.applySavedTabState('foreignDestinationForm', '#foreignDestinationModal');
         }
 
         let _foreignGalleryFiles = []; // new files
@@ -6665,6 +6810,7 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
 
             document.getElementById('foreignDestinationModal').classList.add('active');
             PersistenceEngine.checkDraft('foreignDestinationForm');
+            PersistenceEngine.applySavedTabState('foreignDestinationForm', '#foreignDestinationModal');
         }
 
         function renderForeignItineraryBuilder() {
@@ -6797,6 +6943,7 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
 
             document.getElementById('localDestinationModal').classList.add('active');
             PersistenceEngine.checkDraft('localDestinationForm');
+            PersistenceEngine.applySavedTabState('localDestinationForm', '#localDestinationModal');
         }
 
         let _localGalleryFiles = []; // new files
@@ -6975,6 +7122,7 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
 
             document.getElementById('localDestinationModal').classList.add('active');
             PersistenceEngine.checkDraft('localDestinationForm');
+            PersistenceEngine.applySavedTabState('localDestinationForm', '#localDestinationModal');
         }
 
         function renderLocalItineraryBuilder() {
@@ -7069,6 +7217,13 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
                 formData.append('gallery[]', file);
             });
 
+            const activeTabBtn = document.querySelector('#foreignDestinationModal .tab-btn.active');
+            const activeTab = activeTabBtn ? activeTabBtn.getAttribute('onclick')?.match(/'([^']+)'/)?.[1] : null;
+            if (activeTab) {
+                formData.set('active_tab', activeTab);
+                PersistenceEngine.setSavedTabState('foreignDestinationForm', activeTab);
+            }
+
             Swal.fire({ title: 'Saving...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
 
             fetch('partner-content-manager.php', { method: 'POST', body: formData })
@@ -7077,8 +7232,9 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
                     Swal.close();
                     if (json.success) {
                         PersistenceEngine.clearDraft('foreignDestinationForm');
-                        Swal.fire('Saved!', json.message || 'Destination saved successfully.', 'success')
-                            .then(() => location.reload());
+                        if (activeTabBtn) activeTabBtn.classList.add('tab-saved');
+                        refreshPartnerItemCard('foreign_destination', json.data);
+                        Swal.fire('Saved!', json.message || 'Destination saved successfully.', 'success');
                     } else {
                         Swal.fire('Error', json.message || 'Something went wrong.', 'error');
                     }
@@ -7108,6 +7264,13 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
                 formData.append('gallery[]', file);
             });
 
+            const activeTabBtn = document.querySelector('#localDestinationModal .tab-btn.active');
+            const activeTab = activeTabBtn ? activeTabBtn.getAttribute('onclick')?.match(/'([^']+)'/)?.[1] : null;
+            if (activeTab) {
+                formData.set('active_tab', activeTab);
+                PersistenceEngine.setSavedTabState('localDestinationForm', activeTab);
+            }
+
             Swal.fire({ title: 'Saving...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
 
             fetch('partner-content-manager.php', { method: 'POST', body: formData })
@@ -7116,8 +7279,9 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
                     Swal.close();
                     if (json.success) {
                         PersistenceEngine.clearDraft('localDestinationForm');
-                        Swal.fire('Saved!', json.message || 'Destination saved successfully.', 'success')
-                            .then(() => location.reload());
+                        if (activeTabBtn) activeTabBtn.classList.add('tab-saved');
+                        refreshPartnerItemCard('destination', json.data);
+                        Swal.fire('Saved!', json.message || 'Destination saved successfully.', 'success');
                     } else {
                         Swal.fire('Error', json.message || 'Something went wrong.', 'error');
                     }
@@ -7147,6 +7311,13 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
                 formData.append('gallery[]', file);
             });
 
+            const activeTabBtn = document.querySelector('#flashDealModal .tab-btn.active');
+            const activeTab = activeTabBtn ? activeTabBtn.getAttribute('onclick')?.match(/'([^']+)'/)?.[1] : null;
+            if (activeTab) {
+                formData.set('active_tab', activeTab);
+                PersistenceEngine.setSavedTabState('flashDealForm', activeTab);
+            }
+
             Swal.fire({ title: 'Saving...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
 
             fetch('partner-content-manager.php', { method: 'POST', body: formData })
@@ -7155,8 +7326,9 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
                     Swal.close();
                     if (json.success) {
                         PersistenceEngine.clearDraft('flashDealForm');
-                        Swal.fire('Saved!', json.message || 'Flash Deal saved successfully.', 'success')
-                            .then(() => location.reload());
+                        if (activeTabBtn) activeTabBtn.classList.add('tab-saved');
+                        refreshPartnerItemCard('flash_deal', json.data);
+                        Swal.fire('Saved!', json.message || 'Flash Deal saved successfully.', 'success');
                     } else {
                         Swal.fire('Error', json.message || 'Something went wrong.', 'error');
                     }
@@ -7413,6 +7585,7 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
 
             document.getElementById('flashDealModal').classList.add('active');
             PersistenceEngine.checkDraft('flashDealForm');
+            PersistenceEngine.applySavedTabState('flashDealForm', '#flashDealModal');
         }
 
         let _flashGalleryFiles = []; // new files
@@ -7606,6 +7779,7 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
 
             document.getElementById('flashDealModal').classList.add('active');
             PersistenceEngine.checkDraft('flashDealForm');
+            PersistenceEngine.applySavedTabState('flashDealForm', '#flashDealModal');
         }
 
 
@@ -7800,6 +7974,7 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
             toggleVisaIconFields();
             document.getElementById('visaModal').classList.add('active');
             PersistenceEngine.checkDraft('visaForm');
+            PersistenceEngine.applySavedTabState('visaForm', '#visaModal');
         }
 
         function editVisa(visa) {
@@ -7834,6 +8009,7 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
             toggleVisaIconFields();
             document.getElementById('visaModal').classList.add('active');
             PersistenceEngine.checkDraft('visaForm');
+            PersistenceEngine.applySavedTabState('visaForm', '#visaModal');
         }
 
         document.getElementById('visaForm')?.addEventListener('submit', function (e) {
@@ -7843,6 +8019,13 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
             const form = this;
             const formData = new FormData(form);
 
+            const activeTabBtn = document.querySelector('#visaModal .tab-btn.active');
+            const activeTab = activeTabBtn ? activeTabBtn.getAttribute('onclick')?.match(/'([^']+)'/)?.[1] : null;
+            if (activeTab) {
+                formData.set('active_tab', activeTab);
+                PersistenceEngine.setSavedTabState('visaForm', activeTab);
+            }
+
             Swal.fire({ title: 'Saving...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
 
             fetch('partner-content-manager.php', { method: 'POST', body: formData })
@@ -7851,8 +8034,8 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
                     Swal.close();
                     if (json.success) {
                         PersistenceEngine.clearDraft('visaForm');
-                        Swal.fire('Saved!', json.message || 'Visa service saved successfully.', 'success')
-                            .then(() => location.reload());
+                        if (activeTabBtn) activeTabBtn.classList.add('tab-saved');
+                        Swal.fire('Saved!', json.message || 'Visa service saved successfully.', 'success');
                     } else {
                         Swal.fire('Error', json.message || 'Something went wrong.', 'error');
                     }
@@ -7888,7 +8071,8 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
         }
 
         function validateRequiredFields(form) {
-            const requiredFields = form.querySelectorAll('[required]');
+            const activeTabContent = form.querySelector('.tab-content.active');
+            const requiredFields = activeTabContent ? activeTabContent.querySelectorAll('[required]') : form.querySelectorAll('[required]');
             const missing = [];
             let firstInvalid = null;
 
@@ -7981,6 +8165,43 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
             buttons.forEach(b => b.classList.remove('active'));
             document.getElementById(tabId).classList.add('active');
             evt.currentTarget.classList.add('active');
+        }
+
+        function getSavedServiceTabs(s) {
+            const tabs = { general: false, details: false, itinerary: false, pricing: false, schedule: false, policies: false, gallery: false };
+            if (s.title || s.service_code || s.category || s.description) tabs.general = true;
+            if (s.highlights || s.amenities || (s.inclusions && s.inclusions !== '[]') || (s.exclusions && s.exclusions !== '[]')) tabs.details = true;
+            if (s.itinerary && s.itinerary.length > 0) tabs.itinerary = true;
+            if (parseFloat(s.price) > 0 || (s.available_slots && parseInt(s.available_slots) > 0) || (s.currency && String(s.currency).trim() !== '')) tabs.pricing = true;
+            if (s.duration || s.booking_deadline || s.departure_date || s.return_date) tabs.schedule = true;
+            if (s.required_documents || s.travel_requirements || s.cancellation_policy || s.terms_conditions) tabs.policies = true;
+            const galleryPaths = [];
+            if (s.featured_image) galleryPaths.push(s.featured_image);
+            if (s.image_gallery) {
+                try {
+                    const parsed = typeof s.image_gallery === 'string' ? JSON.parse(s.image_gallery) : s.image_gallery;
+                    if (Array.isArray(parsed)) galleryPaths.push(...parsed.filter(Boolean));
+                } catch (e) {}
+            }
+            if (galleryPaths.length > 0) tabs.gallery = true;
+            return tabs;
+        }
+
+        function setServiceTabSavedState(tabs) {
+            document.querySelectorAll('#serviceModal .tab-btn').forEach(btn => {
+                const target = btn.getAttribute('onclick')?.match(/'([^']+)'/);
+                const t = target ? target[1] : null;
+                if (!t) return;
+                btn.classList.toggle('tab-saved',
+                    (t === 's-tab-general' && tabs.general) ||
+                    (t === 's-tab-details' && tabs.details) ||
+                    (t === 's-tab-itinerary' && tabs.itinerary) ||
+                    (t === 's-tab-pricing' && tabs.pricing) ||
+                    (t === 's-tab-schedule' && tabs.schedule) ||
+                    (t === 's-tab-policies' && tabs.policies) ||
+                    (t === 's-tab-gallery' && tabs.gallery)
+                );
+            });
         }
 
         function switchFlashDealTab(evt, tabId) {
@@ -8282,6 +8503,7 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
         }
 
         function openServiceModal(type) {
+            document.querySelectorAll('#serviceModal .tab-btn').forEach(btn => btn.classList.remove('tab-saved'));
             document.getElementById('serviceModalTitle').innerText = 'Add ' + getServiceTypeLabel(type);
             document.getElementById('serviceForm').reset();
             document.getElementById('service_id').value = '0';
@@ -8330,6 +8552,7 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
 
             document.getElementById('serviceModal').classList.add('active');
             PersistenceEngine.checkDraft('serviceForm');
+            PersistenceEngine.applySavedTabState('serviceForm', '#serviceModal');
         }
 
         function editService(serviceData) {
@@ -8413,6 +8636,9 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
                             s.itinerary.forEach(it => addServiceItineraryDay(it.title, it.description));
                         }
 
+                        // Mark saved sections based on loaded data
+                        setServiceTabSavedState(getSavedServiceTabs(s));
+
                         // Reset tabs
                         const firstTab = document.querySelector('#serviceModal .tab-btn');
                         if (firstTab) firstTab.click();
@@ -8468,6 +8694,155 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
             return div.innerHTML;
         }
 
+        function getCardsGridForItemType(itemType) {
+            if (itemType === 'flash_deal') {
+                return document.querySelector('#flashDealsSection .cards-grid');
+            }
+            if (itemType === 'foreign_destination') {
+                return document.querySelector('#foreignDestinationsSection .cards-grid');
+            }
+            if (itemType === 'destination') {
+                return document.querySelector('#localDestinationsSection .cards-grid');
+            }
+            return null;
+        }
+
+        function buildPartnerCard(itemType, itemData) {
+            const previewImage = itemData.image_path
+                ? PersistenceEngine.normalizeAssetPath(itemData.image_path)
+                : 'https://via.placeholder.com/300x150?text=No+Image';
+            const card = document.createElement('div');
+            card.className = 'content-card';
+            card.dataset.itemType = itemType;
+            card.dataset.itemId = itemData.id;
+
+            let isExpired = false;
+            if (itemType === 'flash_deal' && itemData.promo_end) {
+                const endDate = new Date(itemData.promo_end + 'T23:59:59');
+                isExpired = !isNaN(endDate.getTime()) && endDate < new Date();
+            }
+            if (isExpired) {
+                card.style.opacity = '0.7';
+                card.style.filter = 'grayscale(80%)';
+                card.style.borderColor = '#ccc';
+            }
+
+            const titleText = itemData.title || itemData.name || 'Untitled';
+            const locationText = itemType === 'flash_deal'
+                ? itemData.location || 'Various'
+                : [itemData.city, itemData.country].filter(Boolean).join(', ') || 'Location unknown';
+            const badgeText = itemType === 'flash_deal'
+                ? (itemData.discount_percent ? `⚡ ${itemData.discount_percent}% off` : (itemData.badge_text || 'Flash Deal'))
+                : (itemData.badge_text || '');
+            const priceText = `${itemData.currency || '₱'} ${Number(itemData.price || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+            const durationText = itemData.duration ? escapeHtml(itemData.duration) : '';
+            const statusLabel = itemData.is_active == 1 ? 'Active' : 'Inactive';
+            const statusClass = itemData.is_active == 1 ? 'status-active' : 'status-inactive';
+
+            const preview = document.createElement('div');
+            preview.className = 'card-preview';
+            preview.style.backgroundImage = `url('${previewImage}')`;
+            if (badgeText) {
+                const badge = document.createElement('span');
+                badge.className = 'badge';
+                if (isExpired) badge.style.background = '#6c757d';
+                badge.textContent = badgeText;
+                preview.appendChild(badge);
+            }
+
+            const content = document.createElement('div');
+            content.className = 'card-content';
+
+            const title = document.createElement('h3');
+            title.className = 'card-title';
+            title.textContent = titleText;
+            content.appendChild(title);
+
+            const meta1 = document.createElement('div');
+            meta1.className = 'card-meta';
+            const locationSpan = document.createElement('span');
+            locationSpan.innerHTML = `<i class="fas fa-map-marker-alt"></i> ${escapeHtml(locationText)}`;
+            meta1.appendChild(locationSpan);
+            content.appendChild(meta1);
+
+            if (itemType !== 'flash_deal') {
+                const meta2 = document.createElement('div');
+                meta2.className = 'card-meta';
+                const activitiesSpan = document.createElement('span');
+                activitiesSpan.innerHTML = `<i class="fas fa-tasks"></i> ${escapeHtml(String(itemData.activities_count || 0))} activities`;
+                const statusSpan = document.createElement('span');
+                statusSpan.className = `status-badge ${statusClass}`;
+                statusSpan.textContent = statusLabel;
+                meta2.appendChild(activitiesSpan);
+                meta2.appendChild(statusSpan);
+                content.appendChild(meta2);
+            }
+
+            const meta3 = document.createElement('div');
+            meta3.className = 'card-meta';
+            const priceSpan = document.createElement('span');
+            priceSpan.innerHTML = `<i class="fas fa-tag"></i> ${escapeHtml(priceText)}`;
+            meta3.appendChild(priceSpan);
+            if (durationText) {
+                const durationSpan = document.createElement('span');
+                durationSpan.innerHTML = `<i class="fas fa-clock"></i> ${durationText}`;
+                meta3.appendChild(durationSpan);
+            }
+            content.appendChild(meta3);
+
+            const meta4 = document.createElement('div');
+            meta4.className = 'card-meta';
+            const statusSpan = document.createElement('span');
+            statusSpan.className = `status-badge ${statusClass}`;
+            statusSpan.textContent = statusLabel;
+            meta4.appendChild(statusSpan);
+            content.appendChild(meta4);
+
+            const actions = document.createElement('div');
+            actions.className = 'card-actions';
+            const editButton = document.createElement('button');
+            editButton.className = 'edit-card-btn';
+            editButton.type = 'button';
+            editButton.innerHTML = '<i class="fas fa-edit"></i> Edit';
+            editButton.addEventListener('click', () => {
+                if (itemType === 'flash_deal') editFlashDeal(itemData);
+                else if (itemType === 'foreign_destination') editForeignDestination(itemData);
+                else if (itemType === 'destination') editLocalDestination(itemData);
+            });
+            const deleteButton = document.createElement('button');
+            deleteButton.className = 'delete-card-btn';
+            deleteButton.type = 'button';
+            deleteButton.innerHTML = '<i class="fas fa-trash"></i> Delete';
+            deleteButton.addEventListener('click', () => {
+                const deleteType = itemType === 'flash_deal' ? 'flash_deal' : (itemType === 'foreign_destination' ? 'foreign_destination' : 'destination');
+                deleteItem(deleteType, itemData.id, itemData.name || itemData.title || 'Item');
+            });
+            actions.appendChild(editButton);
+            actions.appendChild(deleteButton);
+            content.appendChild(actions);
+
+            card.appendChild(preview);
+            card.appendChild(content);
+            return card;
+        }
+
+        function refreshPartnerItemCard(itemType, itemData) {
+            if (!itemData || !itemData.id) return;
+            const grid = getCardsGridForItemType(itemType);
+            if (!grid) return;
+            const existing = grid.querySelector(`.content-card[data-item-type="${itemType}"][data-item-id="${itemData.id}"]`);
+            const card = buildPartnerCard(itemType, itemData);
+            if (existing) {
+                existing.replaceWith(card);
+            } else {
+                const emptyMessage = grid.querySelector('.message.info');
+                if (emptyMessage && grid.children.length === 1) {
+                    grid.innerHTML = '';
+                }
+                grid.prepend(card);
+            }
+        }
+
         // ========== TAB SWITCHING FUNCTIONS ==========
         function switchForeignTab(evt, tabId) {
             const contents = document.querySelectorAll('#foreignDestinationModal .tab-content');
@@ -8503,6 +8878,43 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
             buttons.forEach(b => b.classList.remove('active'));
             document.getElementById(tabId).classList.add('active');
             evt.currentTarget.classList.add('active');
+        }
+
+        function getSavedAdvancedCruiseTabs(d) {
+            const tabs = { general: false, ship: false, itinerary: false, pricing: false, schedule: false, policies: false, gallery: false };
+            if (d.title || d.cruise_code || d.short_description || d.category) tabs.general = true;
+            if (d.ship_name || d.cruise_line || d.departure_port || d.destination_type || d.destinations || d.ship_description || d.room_types || d.amenities) tabs.ship = true;
+            if (d.itinerary && d.itinerary.length > 0) tabs.itinerary = true;
+            if (parseFloat(d.base_price) > 0 || parseFloat(d.promo_price) > 0) tabs.pricing = true;
+            if (d.departure_date || d.return_date || d.duration) tabs.schedule = true;
+            if (d.travel_requirements || d.cancellation_policy || d.terms_conditions) tabs.policies = true;
+            const gallery = [];
+            if (d.featured_image) gallery.push(d.featured_image);
+            if (d.gallery) {
+                try {
+                    const parsed = typeof d.gallery === 'string' ? JSON.parse(d.gallery) : d.gallery;
+                    if (Array.isArray(parsed)) gallery.push(...parsed.filter(Boolean));
+                } catch (e) {}
+            }
+            if (gallery.length > 0) tabs.gallery = true;
+            return tabs;
+        }
+
+        function setAdvancedCruiseTabSavedState(tabs) {
+            document.querySelectorAll('#advancedCruiseModal .tab-btn').forEach(btn => {
+                const target = btn.getAttribute('onclick')?.match(/'([^']+)'/);
+                const t = target ? target[1] : null;
+                if (!t) return;
+                btn.classList.toggle('tab-saved',
+                    (t === 'tab-general' && tabs.general) ||
+                    (t === 'tab-ship' && tabs.ship) ||
+                    (t === 'tab-itinerary' && tabs.itinerary) ||
+                    (t === 'tab-pricing' && tabs.pricing) ||
+                    (t === 'tab-schedule' && tabs.schedule) ||
+                    (t === 'tab-policies' && tabs.policies) ||
+                    (t === 'tab-gallery' && tabs.gallery)
+                );
+            });
         }
 
         function addItineraryDay(title = '', desc = '') {
@@ -8544,6 +8956,7 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
         }
 
         function openAdvancedCruiseModal() {
+            document.querySelectorAll('#advancedCruiseModal .tab-btn').forEach(btn => btn.classList.remove('tab-saved'));
             document.getElementById('advancedCruiseModalTitle').innerText = 'Add Cruise Inventory';
             document.getElementById('advancedCruiseForm').reset();
             document.getElementById('advanced_cruise_id').value = '0';
@@ -8565,6 +8978,7 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
 
             document.getElementById('advancedCruiseModal').classList.add('active');
             PersistenceEngine.checkDraft('advancedCruiseForm');
+            PersistenceEngine.applySavedTabState('advancedCruiseForm', '#advancedCruiseModal');
         }
 
         function editAdvancedCruise(id) {
@@ -8635,6 +9049,7 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
                             d.itinerary.forEach(it => addItineraryDay(it.title, it.description));
                         }
 
+                        setAdvancedCruiseTabSavedState(getSavedAdvancedCruiseTabs(d));
                         document.getElementById('advancedCruiseModal').classList.add('active');
                         PersistenceEngine.checkDraft('advancedCruiseForm');
                     }
@@ -8680,6 +9095,13 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
                 formData.append('gallery[]', file);
             });
 
+            const activeCruiseTabBtn = document.querySelector('#advancedCruiseModal .tab-btn.active');
+            const activeCruiseTab = activeCruiseTabBtn ? activeCruiseTabBtn.getAttribute('onclick')?.match(/'([^']+)'/)?.[1] : null;
+            if (activeCruiseTab) {
+                formData.set('active_tab', activeCruiseTab);
+                PersistenceEngine.setSavedTabState('advancedCruiseForm', activeCruiseTab);
+            }
+
             Swal.fire({ title: 'Saving...', didOpen: () => { Swal.showLoading(); } });
 
             fetch('partner-content-manager.php', { method: 'POST', body: formData })
@@ -8696,7 +9118,8 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
                     }
                     if (res.success) {
                         PersistenceEngine.clearDraft('advancedCruiseForm');
-                        Swal.fire('Success!', res.message, 'success').then(() => location.reload());
+                        if (activeCruiseTabBtn) activeCruiseTabBtn.classList.add('tab-saved');
+                        Swal.fire('Success!', res.message, 'success');
                     } else {
                         Swal.fire('Error', res.message || 'Something went wrong', 'error');
                     }
@@ -8724,6 +9147,13 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
                 formData.append('gallery[]', file);
             });
 
+            const activeServiceTabBtn = document.querySelector('#serviceModal .tab-btn.active');
+            const activeServiceTab = activeServiceTabBtn ? activeServiceTabBtn.getAttribute('onclick')?.match(/'([^']+)'/)?.[1] : null;
+            if (activeServiceTab) {
+                formData.set('active_tab', activeServiceTab);
+                PersistenceEngine.setSavedTabState('serviceForm', activeServiceTab);
+            }
+
             Swal.fire({ title: 'Saving...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
 
             fetch('partner-content-manager.php', { method: 'POST', body: formData })
@@ -8732,8 +9162,8 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
                     Swal.close();
                     if (json.success) {
                         PersistenceEngine.clearDraft('serviceForm');
-                        Swal.fire('Saved!', json.message || 'Service saved successfully.', 'success')
-                            .then(() => location.reload());
+                        if (activeServiceTabBtn) activeServiceTabBtn.classList.add('tab-saved');
+                        Swal.fire('Saved!', json.message || 'Service saved successfully.', 'success');
                     } else {
                         Swal.fire('Error', json.message || 'Something went wrong.', 'error');
                     }

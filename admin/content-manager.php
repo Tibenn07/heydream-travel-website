@@ -732,6 +732,165 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 
+    // Save Flash Deal - General Info Only (Partial Save)
+    elseif ($action === 'save_flash_deal_general') {
+        $id = intval($_POST['id'] ?? 0);
+        $title = trim($_POST['title']);
+        $location = trim($_POST['location'] ?? '');
+        $description = trim($_POST['description'] ?? '');
+        $category = trim($_POST['category'] ?? 'Theme Park');
+
+        // Validate title is not empty
+        if (empty($title)) {
+            echo json_encode(['success' => false, 'message' => 'Title is required.']);
+            exit;
+        }
+
+        try {
+            if ($id > 0) {
+                // Update only General Info fields
+                $stmt = $pdo->prepare("UPDATE flash_deals SET 
+                    title=?, location=?, description=?, category=?
+                    WHERE id=?");
+                $stmt->execute([
+                    $title,
+                    $location,
+                    $description,
+                    $category,
+                    $id
+                ]);
+                echo json_encode(['success' => true, 'message' => 'General info saved successfully!', 'id' => $id]);
+                exit;
+            } else {
+                // For new deals, create with minimal data
+                $stmt = $pdo->prepare("INSERT INTO flash_deals (
+                    title, location, description, category, price, currency, is_active
+                ) VALUES (?, ?, ?, ?, ?, ?, ?)");
+                $stmt->execute([
+                    $title,
+                    $location,
+                    $description,
+                    $category,
+                    0, // Default price
+                    '₱', // Default currency
+                    1 // Active by default
+                ]);
+                $new_id = $pdo->lastInsertId();
+                echo json_encode(['success' => true, 'message' => 'Flash deal created! Continue filling other sections.', 'id' => $new_id]);
+                exit;
+            }
+        } catch (PDOException $e) {
+            echo json_encode(['success' => false, 'message' => 'Database error: ' . $e->getMessage()]);
+            exit;
+        }
+    }
+
+    // Save Flash Deal - Partial Save from a specific tab
+    elseif ($action === 'save_flash_deal_partial') {
+        $id = intval($_POST['id'] ?? 0);
+        $activeTab = trim($_POST['active_tab'] ?? 'fd-tab-general');
+
+        // Ensure there is a record to update; create minimal stub if needed.
+        if ($id <= 0) {
+            $stmt = $pdo->prepare("INSERT INTO flash_deals (title, location, description, category, price, currency, is_active) VALUES (?, ?, ?, ?, ?, ?, ?)");
+            $stmt->execute(['Untitled Deal', '', '', 'Theme Park', 0, '₱', 1]);
+            $id = $pdo->lastInsertId();
+        }
+
+        try {
+            switch ($activeTab) {
+                case 'fd-tab-pricing':
+                    $price = floatval($_POST['price'] ?? 0);
+                    $currency = trim($_POST['currency'] ?? '₱');
+                    $original_price = floatval($_POST['original_price'] ?? 0);
+                    $discount_percent = intval($_POST['discount_percent'] ?? 0);
+                    $duration = trim($_POST['duration'] ?? '');
+                    $promo_start = !empty($_POST['promo_start']) ? $_POST['promo_start'] : null;
+                    $promo_end = !empty($_POST['promo_end']) ? $_POST['promo_end'] : null;
+                    $highlight_duration = intval($_POST['highlight_duration'] ?? 1);
+                    $blocked_months = isset($_POST['blocked_months']) ? implode(',', $_POST['blocked_months']) : '';
+                    $group_size = trim($_POST['group_size'] ?? '');
+                    $stmt = $pdo->prepare("UPDATE flash_deals SET price=?, currency=?, original_price=?, discount_percent=?, duration=?, promo_start=?, promo_end=?, highlight_duration=?, blocked_months=?, group_size=? WHERE id=?");
+                    $stmt->execute([$price, $currency, $original_price, $discount_percent, $duration, $promo_start, $promo_end, $highlight_duration, $blocked_months, $group_size, $id]);
+                    break;
+                case 'fd-tab-details':
+                    $best_season = trim($_POST['best_season'] ?? '');
+                    $badge_text = trim($_POST['badge_text'] ?? '');
+                    $booked_count = trim($_POST['booked_count'] ?? '');
+                    $display_order = intval($_POST['display_order'] ?? 0);
+                    $is_active = isset($_POST['is_active']) ? 1 : 0;
+                    $remarks = trim($_POST['remarks'] ?? '');
+                    $inclusions = $_POST['inclusions'] ?? '';
+                    if (is_string($inclusions) && strpos($inclusions, "\n") !== false) {
+                        $inclusions = explode("\n", $inclusions);
+                        $inclusions = array_filter(array_map('trim', $inclusions));
+                    }
+                    $exclusions = $_POST['exclusions'] ?? '';
+                    if (is_string($exclusions) && strpos($exclusions, "\n") !== false) {
+                        $exclusions = explode("\n", $exclusions);
+                        $exclusions = array_filter(array_map('trim', $exclusions));
+                    }
+                    $itinerary_json = $_POST['itinerary'] ?? '[]';
+                    $hotels_json = $_POST['hotels'] ?? '[]';
+                    $inclusions_json = is_array($inclusions) ? json_encode($inclusions) : '[]';
+                    $exclusions_json = is_array($exclusions) ? json_encode($exclusions) : '[]';
+                    $stmt = $pdo->prepare("UPDATE flash_deals SET best_season=?, badge_text=?, booked_count=?, display_order=?, is_active=?, remarks=?, inclusions=?, exclusions=?, itinerary=?, hotels=? WHERE id=?");
+                    $stmt->execute([$best_season, $badge_text, $booked_count, $display_order, $is_active, $remarks, $inclusions_json, $exclusions_json, $itinerary_json, $hotels_json, $id]);
+                    break;
+                case 'fd-tab-gallery':
+                    $remove_gallery = trim($_POST['remove_gallery_images'] ?? '');
+                    $gallery = [];
+                    $stmt = $pdo->prepare("SELECT image_gallery FROM flash_deals WHERE id = ?");
+                    $stmt->execute([$id]);
+                    $existingGallery = $stmt->fetchColumn();
+                    $gallery = $existingGallery ? json_decode($existingGallery, true) : [];
+                    if ($remove_gallery !== '') {
+                        $toRemove = explode(',', $remove_gallery);
+                        $gallery = array_values(array_filter($gallery, function ($img) use ($toRemove) {
+                            return !in_array($img, $toRemove);
+                        }));
+                    }
+                    if (isset($_FILES['gallery']) && !empty($_FILES['gallery']['name'][0])) {
+                        foreach ($_FILES['gallery']['tmp_name'] as $key => $tmp_name) {
+                            if ($_FILES['gallery']['error'][$key] === 0 && isAllowedUploadImage($_FILES['gallery']['type'][$key], $_FILES['gallery']['size'][$key])) {
+                                $ext = pathinfo($_FILES['gallery']['name'][$key], PATHINFO_EXTENSION);
+                                $filename = 'flash_g_' . time() . '_' . $key . '.' . $ext;
+                                if (move_uploaded_file($tmp_name, __DIR__ . '/../uploads/' . $filename)) {
+                                    $gallery[] = 'uploads/' . $filename;
+                                }
+                            }
+                        }
+                    }
+                    $image_gallery_json = json_encode(array_values($gallery));
+                    $image1 = isset($_FILES['image_1']) ? uploadImage($_FILES['image_1'], $_POST['old_image_1'] ?? null) : ['success' => true, 'path' => $_POST['old_image_1'] ?? null];
+                    $image2 = isset($_FILES['image_2']) ? uploadImage($_FILES['image_2'], $_POST['old_image_2'] ?? null) : ['success' => true, 'path' => $_POST['old_image_2'] ?? null];
+                    $image3 = isset($_FILES['image_3']) ? uploadImage($_FILES['image_3'], $_POST['old_image_3'] ?? null) : ['success' => true, 'path' => $_POST['old_image_3'] ?? null];
+                    if (!$image1['success'] || !$image2['success'] || !$image3['success']) {
+                        echo json_encode(['success' => false, 'message' => 'Image upload failed.']);
+                        exit;
+                    }
+                    $stmt = $pdo->prepare("UPDATE flash_deals SET image_path=?, image2_path=?, image3_path=?, image_gallery=? WHERE id=?");
+                    $stmt->execute([$image1['path'], $image2['path'], $image3['path'], $image_gallery_json, $id]);
+                    break;
+                case 'fd-tab-general':
+                default:
+                    $title = trim($_POST['title'] ?? 'Untitled Deal');
+                    $location = trim($_POST['location'] ?? '');
+                    $description = trim($_POST['description'] ?? '');
+                    $category = trim($_POST['category'] ?? 'Theme Park');
+                    $stmt = $pdo->prepare("UPDATE flash_deals SET title=?, location=?, description=?, category=? WHERE id=?");
+                    $stmt->execute([$title, $location, $description, $category, $id]);
+                    break;
+            }
+
+            echo json_encode(['success' => true, 'message' => 'Flash deal saved successfully.', 'id' => $id]);
+            exit;
+        } catch (PDOException $e) {
+            echo json_encode(['success' => false, 'message' => 'Database error: ' . $e->getMessage()]);
+            exit;
+        }
+    }
+
     // Save Destination (Local)
     elseif ($action === 'save_destination') {
         $id = intval($_POST['id'] ?? 0);
@@ -921,8 +1080,245 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 
+    // Save Destination (Local) - Partial Save by active tab
+    elseif ($action === 'save_destination_partial') {
+        $id = intval($_POST['id'] ?? 0);
+        $activeTab = trim($_POST['active_tab'] ?? 'lc-tab-general');
+
+        if ($id <= 0) {
+            $stmt = $pdo->prepare("INSERT INTO destinations (name, type, country, city, location_name, description, category, price, currency, is_active) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+            $stmt->execute([
+                trim($_POST['name'] ?? 'Untitled Destination'),
+                trim($_POST['type'] ?? 'local'),
+                trim($_POST['country'] ?? ''),
+                trim($_POST['city'] ?? ''),
+                trim($_POST['location_name'] ?? ''),
+                trim($_POST['description'] ?? ''),
+                trim($_POST['category'] ?? 'beach'),
+                floatval($_POST['price'] ?? 0),
+                trim($_POST['currency'] ?? '₱'),
+                1
+            ]);
+            $id = $pdo->lastInsertId();
+        }
+
+        try {
+            switch ($activeTab) {
+                case 'lc-tab-pricing':
+                    $price = floatval($_POST['price'] ?? 0);
+                    $currency = trim($_POST['currency'] ?? '₱');
+                    $duration = trim($_POST['duration'] ?? '');
+                    $blocked_dates = trim($_POST['blocked_dates'] ?? '');
+                    $promo_start = !empty($_POST['promo_start']) ? $_POST['promo_start'] : null;
+                    $promo_end = !empty($_POST['promo_end']) ? $_POST['promo_end'] : null;
+                    $highlight_duration = intval($_POST['highlight_duration'] ?? 1);
+                    $blocked_months = isset($_POST['blocked_months']) ? implode(',', $_POST['blocked_months']) : '';
+                    $booked_count = trim($_POST['booked_count'] ?? '');
+                    $stmt = $pdo->prepare("UPDATE destinations SET price=?, currency=?, duration=?, blocked_dates=?, promo_start=?, promo_end=?, highlight_duration=?, blocked_months=?, booked_count=? WHERE id=?");
+                    $stmt->execute([$price, $currency, $duration, $blocked_dates, $promo_start, $promo_end, $highlight_duration, $blocked_months, $booked_count, $id]);
+                    break;
+                case 'lc-tab-details':
+                    $activities_count = intval($_POST['activities_count'] ?? 0);
+                    $group_size = trim($_POST['group_size'] ?? '');
+                    $best_season = trim($_POST['best_season'] ?? '');
+                    $category = trim($_POST['category'] ?? 'beach');
+                    $badge_text = trim($_POST['badge_text'] ?? '');
+                    $display_order = intval($_POST['display_order'] ?? 0);
+                    $is_active = isset($_POST['is_active']) ? 1 : 0;
+                    $remarks = trim($_POST['remarks'] ?? '');
+                    $inclusions = $_POST['inclusions'] ?? '';
+                    if (is_string($inclusions) && strpos($inclusions, "\n") !== false) {
+                        $inclusions = explode("\n", $inclusions);
+                        $inclusions = array_filter(array_map('trim', $inclusions));
+                    }
+                    $exclusions = $_POST['exclusions'] ?? '';
+                    if (is_string($exclusions) && strpos($exclusions, "\n") !== false) {
+                        $exclusions = explode("\n", $exclusions);
+                        $exclusions = array_filter(array_map('trim', $exclusions));
+                    }
+                    $itinerary_json = $_POST['itinerary'] ?? '[]';
+                    $hotels_json = $_POST['hotels'] ?? '[]';
+                    $inclusions_json = is_array($inclusions) ? json_encode($inclusions) : $inclusions;
+                    $exclusions_json = is_array($exclusions) ? json_encode($exclusions) : $exclusions;
+                    $stmt = $pdo->prepare("UPDATE destinations SET activities_count=?, group_size=?, best_season=?, category=?, badge_text=?, display_order=?, is_active=?, remarks=?, inclusions=?, exclusions=?, itinerary=?, hotels=? WHERE id=?");
+                    $stmt->execute([$activities_count, $group_size, $best_season, $category, $badge_text, $display_order, $is_active, $remarks, $inclusions_json, $exclusions_json, $itinerary_json, $hotels_json, $id]);
+                    break;
+                case 'lc-tab-gallery':
+                    $gallery = [];
+                    if ($id > 0) {
+                        $stmt = $pdo->prepare("SELECT image_gallery FROM destinations WHERE id = ?");
+                        $stmt->execute([$id]);
+                        $existing = $stmt->fetchColumn();
+                        $gallery = $existing ? json_decode($existing, true) : [];
+                    }
+                    if (isset($_POST['remove_gallery_images']) && !empty($_POST['remove_gallery_images'])) {
+                        $to_remove = explode(',', $_POST['remove_gallery_images']);
+                        $gallery = array_values(array_filter($gallery, function ($img) use ($to_remove) {
+                            return !in_array($img, $to_remove);
+                        }));
+                    }
+                    if (isset($_FILES['gallery']) && !empty($_FILES['gallery']['name'][0])) {
+                        foreach ($_FILES['gallery']['tmp_name'] as $key => $tmp_name) {
+                            if ($_FILES['gallery']['error'][$key] === 0 && isAllowedUploadImage($_FILES['gallery']['type'][$key], $_FILES['gallery']['size'][$key])) {
+                                $ext = pathinfo($_FILES['gallery']['name'][$key], PATHINFO_EXTENSION);
+                                $filename = 'local_g_' . time() . '_' . $key . '.' . $ext;
+                                if (move_uploaded_file($tmp_name, __DIR__ . '/../uploads/' . $filename)) {
+                                    $gallery[] = 'uploads/' . $filename;
+                                }
+                            }
+                        }
+                    }
+                    $image_gallery_json = json_encode(array_values($gallery));
+                    $image = isset($_FILES['image']) ? uploadImage($_FILES['image'], $_POST['old_image'] ?? null) : ['success' => true, 'path' => $_POST['old_image'] ?? null];
+                    $image2 = isset($_FILES['image_2']) ? uploadImage($_FILES['image_2'], $_POST['old_image_2'] ?? null) : ['success' => true, 'path' => $_POST['old_image_2'] ?? null];
+                    $image3 = isset($_FILES['image_3']) ? uploadImage($_FILES['image_3'], $_POST['old_image_3'] ?? null) : ['success' => true, 'path' => $_POST['old_image_3'] ?? null];
+                    if (!$image['success'] || !$image2['success'] || !$image3['success']) {
+                        echo json_encode(['success' => false, 'message' => 'Image upload failed.']);
+                        exit;
+                    }
+                    $stmt = $pdo->prepare("UPDATE destinations SET image_path=?, image2_path=?, image3_path=?, image_gallery=? WHERE id=?");
+                    $stmt->execute([$image['path'], $image2['path'], $image3['path'], $image_gallery_json, $id]);
+                    break;
+                case 'lc-tab-general':
+                default:
+                    $name = trim($_POST['name'] ?? 'Untitled Destination');
+                    $country = trim($_POST['country'] ?? '');
+                    $city = trim($_POST['city'] ?? '');
+                    $location_name = trim($_POST['location_name'] ?? '');
+                    $description = trim($_POST['description'] ?? '');
+                    $stmt = $pdo->prepare("UPDATE destinations SET name=?, country=?, city=?, location_name=?, description=? WHERE id=?");
+                    $stmt->execute([$name, $country, $city, $location_name, $description, $id]);
+                    break;
+            }
+            echo json_encode(['success' => true, 'message' => 'Destination saved successfully.', 'id' => $id]);
+            exit;
+        } catch (PDOException $e) {
+            echo json_encode(['success' => false, 'message' => 'Database error: ' . $e->getMessage()]);
+            exit;
+        }
+    }
+
+    // Save Foreign Destination (Partial Save by active tab)
+    elseif ($action === 'save_foreign_destination_partial') {
+        $id = intval($_POST['id'] ?? 0);
+        $activeTab = trim($_POST['active_tab'] ?? 'fr-tab-general');
+
+        if ($id <= 0) {
+            $stmt = $pdo->prepare("INSERT INTO foreign_destinations (dest_key, name, country, city, location, description, category, price, currency, is_active) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+            $stmt->execute([
+                trim($_POST['dest_key'] ?? ''),
+                trim($_POST['name'] ?? 'Untitled Destination'),
+                trim($_POST['country'] ?? ''),
+                trim($_POST['city'] ?? ''),
+                trim($_POST['location'] ?? ''),
+                trim($_POST['description'] ?? ''),
+                trim($_POST['category'] ?? 'asia'),
+                floatval($_POST['price'] ?? 0),
+                trim($_POST['currency'] ?? '₱'),
+                1
+            ]);
+            $id = $pdo->lastInsertId();
+        }
+
+        try {
+            switch ($activeTab) {
+                case 'fr-tab-pricing':
+                    $price = floatval($_POST['price'] ?? 0);
+                    $currency = trim($_POST['currency'] ?? '₱');
+                    $duration = trim($_POST['duration'] ?? '');
+                    $blocked_dates = trim($_POST['blocked_dates'] ?? '');
+                    $promo_start = !empty($_POST['promo_start']) ? $_POST['promo_start'] : null;
+                    $promo_end = !empty($_POST['promo_end']) ? $_POST['promo_end'] : null;
+                    $highlight_duration = intval($_POST['highlight_duration'] ?? 1);
+                    $blocked_months = isset($_POST['blocked_months']) ? implode(',', $_POST['blocked_months']) : '';
+                    $group_size = trim($_POST['group_size'] ?? '');
+                    $activities_count = intval($_POST['activities_count'] ?? 0);
+                    $stmt = $pdo->prepare("UPDATE foreign_destinations SET price=?, currency=?, duration=?, blocked_dates=?, promo_start=?, promo_end=?, highlight_duration=?, blocked_months=?, group_size=?, activities_count=? WHERE id=?");
+                    $stmt->execute([$price, $currency, $duration, $blocked_dates, $promo_start, $promo_end, $highlight_duration, $blocked_months, $group_size, $activities_count, $id]);
+                    break;
+                case 'fr-tab-details':
+                    $best_season = trim($_POST['best_season'] ?? '');
+                    $category = trim($_POST['category'] ?? 'asia');
+                    $badge_text = trim($_POST['badge_text'] ?? '');
+                    $display_order = intval($_POST['display_order'] ?? 0);
+                    $is_active = isset($_POST['is_active']) ? 1 : 0;
+                    $remarks = trim($_POST['remarks'] ?? '');
+                    $collage_type = trim($_POST['collage_type'] ?? 'three');
+                    $inclusions = $_POST['inclusions'] ?? '';
+                    if (is_string($inclusions) && strpos($inclusions, "\n") !== false) {
+                        $inclusions = explode("\n", $inclusions);
+                        $inclusions = array_filter(array_map('trim', $inclusions));
+                    }
+                    $exclusions = $_POST['exclusions'] ?? '';
+                    if (is_string($exclusions) && strpos($exclusions, "\n") !== false) {
+                        $exclusions = explode("\n", $exclusions);
+                        $exclusions = array_filter(array_map('trim', $exclusions));
+                    }
+                    $itinerary_json = $_POST['itinerary'] ?? '[]';
+                    $hotels_json = $_POST['hotels'] ?? '[]';
+                    $inclusions_json = is_array($inclusions) ? json_encode($inclusions) : $inclusions;
+                    $exclusions_json = is_array($exclusions) ? json_encode($exclusions) : $exclusions;
+                    $stmt = $pdo->prepare("UPDATE foreign_destinations SET best_season=?, category=?, badge_text=?, display_order=?, is_active=?, remarks=?, collage_type=?, inclusions=?, exclusions=?, itinerary=?, hotels=? WHERE id=?");
+                    $stmt->execute([$best_season, $category, $badge_text, $display_order, $is_active, $remarks, $collage_type, $inclusions_json, $exclusions_json, $itinerary_json, $hotels_json, $id]);
+                    break;
+                case 'fr-tab-gallery':
+                    $gallery = [];
+                    if ($id > 0) {
+                        $stmt = $pdo->prepare("SELECT image_gallery FROM foreign_destinations WHERE id = ?");
+                        $stmt->execute([$id]);
+                        $existing = $stmt->fetchColumn();
+                        $gallery = $existing ? json_decode($existing, true) : [];
+                    }
+                    if (isset($_POST['remove_gallery_images']) && !empty($_POST['remove_gallery_images'])) {
+                        $to_remove = explode(',', $_POST['remove_gallery_images']);
+                        $gallery = array_values(array_filter($gallery, function ($img) use ($to_remove) {
+                            return !in_array($img, $to_remove);
+                        }));
+                    }
+                    if (isset($_FILES['gallery']) && !empty($_FILES['gallery']['name'][0])) {
+                        foreach ($_FILES['gallery']['tmp_name'] as $key => $tmp_name) {
+                            if ($_FILES['gallery']['error'][$key] === 0 && isAllowedUploadImage($_FILES['gallery']['type'][$key], $_FILES['gallery']['size'][$key])) {
+                                $ext = pathinfo($_FILES['gallery']['name'][$key], PATHINFO_EXTENSION);
+                                $filename = 'foreign_g_' . time() . '_' . $key . '.' . $ext;
+                                if (move_uploaded_file($tmp_name, __DIR__ . '/../uploads/' . $filename)) {
+                                    $gallery[] = 'uploads/' . $filename;
+                                }
+                            }
+                        }
+                    }
+                    $image_gallery_json = json_encode(array_values($gallery));
+                    $image = isset($_FILES['image']) ? uploadImage($_FILES['image'], $_POST['old_image'] ?? null) : ['success' => true, 'path' => $_POST['old_image'] ?? null];
+                    $image2 = isset($_FILES['image2']) ? uploadImage($_FILES['image2'], $_POST['old_image2'] ?? null) : ['success' => true, 'path' => $_POST['old_image2'] ?? null];
+                    $image3 = isset($_FILES['image3']) ? uploadImage($_FILES['image3'], $_POST['old_image3'] ?? null) : ['success' => true, 'path' => $_POST['old_image3'] ?? null];
+                    if (!$image['success'] || !$image2['success'] || !$image3['success']) {
+                        echo json_encode(['success' => false, 'message' => 'Image upload failed.']);
+                        exit;
+                    }
+                    $stmt = $pdo->prepare("UPDATE foreign_destinations SET image_path=?, image2_path=?, image3_path=?, image_gallery=?, collage_type=? WHERE id=?");
+                    $stmt->execute([$image['path'], $image2['path'], $image3['path'], $image_gallery_json, trim($_POST['collage_type'] ?? 'three'), $id]);
+                    break;
+                case 'fr-tab-general':
+                default:
+                    $name = trim($_POST['name'] ?? 'Untitled Destination');
+                    $country = trim($_POST['country'] ?? '');
+                    $city = trim($_POST['city'] ?? '');
+                    $location = trim($_POST['location'] ?? '');
+                    $description = trim($_POST['description'] ?? '');
+                    $stmt = $pdo->prepare("UPDATE foreign_destinations SET name=?, country=?, city=?, location=?, description=? WHERE id=?");
+                    $stmt->execute([$name, $country, $city, $location, $description, $id]);
+                    break;
+            }
+            echo json_encode(['success' => true, 'message' => 'Foreign destination saved successfully.', 'id' => $id]);
+            exit;
+        } catch (PDOException $e) {
+            echo json_encode(['success' => false, 'message' => 'Database error: ' . $e->getMessage()]);
+            exit;
+        }
+    }
+
     // Save Foreign Destination
     elseif ($action === 'save_foreign_destination') {
+        $id = intval($_POST['id'] ?? 0);
         $id = intval($_POST['id'] ?? 0);
         $name = trim($_POST['name']);
 
@@ -2520,6 +2916,12 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
             border-radius: 8px;
             font-size: 0.9rem;
             font-family: 'Poppins', sans-serif;
+            transition: all 0.3s ease;
+        }
+
+        /* Green highlight for saved title */
+        #deal_title {
+            transition: border-color 0.3s ease, background-color 0.3s ease;
         }
 
         .form-row {
@@ -2978,6 +3380,15 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
             width: 100%;
             height: 3px;
             background: #003580;
+        }
+
+        .tab-btn.tab-saved {
+            color: #16a34a;
+            font-weight: 700;
+        }
+
+        .tab-btn.tab-saved::after {
+            background: #16a34a;
         }
 
         .tab-content {
@@ -4557,13 +4968,13 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
                         </div>
                         <div class="modal-body">
                             <div class="tabs">
-                                <button class="tab-btn active" onclick="switchFlashDealTab(event, 'fd-tab-general')">General
+                                <button class="tab-btn active" data-target="fd-tab-general" onclick="switchFlashDealTab(event, 'fd-tab-general')">General
                                     Info</button>
-                                <button class="tab-btn" onclick="switchFlashDealTab(event, 'fd-tab-pricing')">Pricing &
+                                <button class="tab-btn" data-target="fd-tab-pricing" onclick="switchFlashDealTab(event, 'fd-tab-pricing')">Pricing &
                                     Schedule</button>
-                                <button class="tab-btn" onclick="switchFlashDealTab(event, 'fd-tab-details')">Itinerary &
+                                <button class="tab-btn" data-target="fd-tab-details" onclick="switchFlashDealTab(event, 'fd-tab-details')">Itinerary &
                                     Details</button>
-                                <button class="tab-btn"
+                                <button class="tab-btn" data-target="fd-tab-gallery"
                                     onclick="switchFlashDealTab(event, 'fd-tab-gallery')">Gallery</button>
                             </div>
 
@@ -4922,13 +5333,13 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
                         </div>
                         <div class="modal-body">
                             <div class="tabs">
-                                <button class="tab-btn active" onclick="switchForeignTab(event, 'fr-tab-general')">General
+                                <button class="tab-btn active" data-target="fr-tab-general" onclick="switchForeignTab(event, 'fr-tab-general')">General
                                     Info</button>
-                                <button class="tab-btn" onclick="switchForeignTab(event, 'fr-tab-pricing')">Pricing &
+                                <button class="tab-btn" data-target="fr-tab-pricing" onclick="switchForeignTab(event, 'fr-tab-pricing')">Pricing &
                                     Schedule</button>
-                                <button class="tab-btn" onclick="switchForeignTab(event, 'fr-tab-details')">Itinerary &
+                                <button class="tab-btn" data-target="fr-tab-details" onclick="switchForeignTab(event, 'fr-tab-details')">Itinerary &
                                     Details</button>
-                                <button class="tab-btn" onclick="switchForeignTab(event, 'fr-tab-gallery')">Gallery</button>
+                                <button class="tab-btn" data-target="fr-tab-gallery" onclick="switchForeignTab(event, 'fr-tab-gallery')">Gallery</button>
                             </div>
 
                             <form method="POST" enctype="multipart/form-data" id="foreignDestinationForm" novalidate>
@@ -5285,13 +5696,13 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
                         </div>
                         <div class="modal-body">
                             <div class="tabs">
-                                <button class="tab-btn active" onclick="switchLocalTab(event, 'lc-tab-general')">General
+                                <button class="tab-btn active" data-target="lc-tab-general" onclick="switchLocalTab(event, 'lc-tab-general')">General
                                     Info</button>
-                                <button class="tab-btn" onclick="switchLocalTab(event, 'lc-tab-pricing')">Pricing &
+                                <button class="tab-btn" data-target="lc-tab-pricing" onclick="switchLocalTab(event, 'lc-tab-pricing')">Pricing &
                                     Schedule</button>
-                                <button class="tab-btn" onclick="switchLocalTab(event, 'lc-tab-details')">Itinerary &
+                                <button class="tab-btn" data-target="lc-tab-details" onclick="switchLocalTab(event, 'lc-tab-details')">Itinerary &
                                     Details</button>
-                                <button class="tab-btn" onclick="switchLocalTab(event, 'lc-tab-gallery')">Gallery</button>
+                                <button class="tab-btn" data-target="lc-tab-gallery" onclick="switchLocalTab(event, 'lc-tab-gallery')">Gallery</button>
                             </div>
 
                             <form method="POST" enctype="multipart/form-data" id="localDestinationForm" novalidate>
@@ -6307,11 +6718,78 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
             renderHotelBuilder('foreign');
 
             // Reset tabs
+            document.querySelectorAll('#foreignDestinationModal .tab-btn').forEach(btn => btn.classList.remove('tab-saved'));
             const firstTab = document.querySelector('#foreignDestinationModal .tab-btn');
             if (firstTab) firstTab.click();
 
             document.getElementById('foreignDestinationModal').classList.add('active');
             PersistenceEngine.checkDraft('foreignDestinationForm');
+        }
+
+        function getSavedForeignTabs(dest) {
+            const tabs = { general: false, pricing: false, details: false, gallery: false };
+            if (dest.name || dest.country || dest.city || dest.location || dest.description) {
+                tabs.general = true;
+            }
+
+            // Consider pricing saved only when a meaningful pricing-related value exists.
+            const hasPricing = (
+                parseFloat(dest.price) > 0 ||
+                (dest.duration && String(dest.duration).trim() !== '') ||
+                (dest.blocked_dates && String(dest.blocked_dates).trim() !== '') ||
+                (dest.promo_start && String(dest.promo_start).trim() !== '') ||
+                (dest.promo_end && String(dest.promo_end).trim() !== '') ||
+                (parseInt(dest.highlight_duration || 0) > 1) ||
+                (dest.blocked_months && String(dest.blocked_months).trim() !== '') ||
+                (dest.group_size && String(dest.group_size).trim() !== '') ||
+                (dest.booked_count && String(dest.booked_count).trim() !== '') ||
+                (parseInt(dest.activities_count || 0) > 0)
+            );
+            if (hasPricing) {
+                tabs.pricing = true;
+            }
+
+            const hasDetails = (
+                (dest.best_season && String(dest.best_season).trim() !== '') ||
+                (dest.badge_text && String(dest.badge_text).trim() !== '') ||
+                (parseInt(dest.display_order || 0) > 0) ||
+                (dest.inclusions && String(dest.inclusions).trim() !== '' && dest.inclusions !== '[]') ||
+                (dest.exclusions && String(dest.exclusions).trim() !== '' && dest.exclusions !== '[]') ||
+                (dest.remarks && String(dest.remarks).trim() !== '') ||
+                (dest.itinerary && dest.itinerary !== '[]') ||
+                (dest.hotels && dest.hotels !== '[]')
+            );
+            if (hasDetails) {
+                tabs.details = true;
+            }
+
+            const galleryPaths = [];
+            if (dest.image_path) galleryPaths.push(dest.image_path);
+            if (dest.image2_path) galleryPaths.push(dest.image2_path);
+            if (dest.image3_path) galleryPaths.push(dest.image3_path);
+            if (dest.image_gallery) {
+                try {
+                    const parsed = typeof dest.image_gallery === 'string' ? JSON.parse(dest.image_gallery) : dest.image_gallery;
+                    if (Array.isArray(parsed)) galleryPaths.push(...parsed.filter(Boolean));
+                } catch (e) {}
+            }
+            if (galleryPaths.length > 0) {
+                tabs.gallery = true;
+            }
+            return tabs;
+        }
+
+        function setForeignTabSavedState(tabs) {
+            document.querySelectorAll('#foreignDestinationModal .tab-btn').forEach(btn => {
+                const target = btn.dataset.target;
+                if (!target) return;
+                btn.classList.toggle('tab-saved',
+                    (target === 'fr-tab-general' && tabs.general) ||
+                    (target === 'fr-tab-pricing' && tabs.pricing) ||
+                    (target === 'fr-tab-details' && tabs.details) ||
+                    (target === 'fr-tab-gallery' && tabs.gallery)
+                );
+            });
         }
 
         let _foreignGalleryFiles = []; // new files
@@ -6471,6 +6949,7 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
                 } catch (e) { console.error("Error parsing gallery", e); }
             }
             _renderForeignGalleryPreview();
+            setForeignTabSavedState(getSavedForeignTabs(dest));
 
             // Reset tabs
             const firstTab = document.querySelector('#foreignDestinationModal .tab-btn');
@@ -6605,11 +7084,79 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
             renderHotelBuilder('local');
 
             // Reset tabs
+            document.querySelectorAll('#localDestinationModal .tab-btn').forEach(btn => btn.classList.remove('tab-saved'));
             const firstTab = document.querySelector('#localDestinationModal .tab-btn');
             if (firstTab) firstTab.click();
 
             document.getElementById('localDestinationModal').classList.add('active');
             PersistenceEngine.checkDraft('localDestinationForm');
+        }
+
+        function getSavedLocalTabs(dest) {
+            const tabs = { general: false, pricing: false, details: false, gallery: false };
+            if (dest.name || dest.country || dest.city || dest.location_name || dest.description) {
+                tabs.general = true;
+            }
+
+            const hasPricing = (
+                parseFloat(dest.price) > 0 ||
+                (dest.duration && String(dest.duration).trim() !== '') ||
+                (dest.blocked_dates && String(dest.blocked_dates).trim() !== '') ||
+                (dest.promo_start && String(dest.promo_start).trim() !== '') ||
+                (dest.promo_end && String(dest.promo_end).trim() !== '') ||
+                (parseInt(dest.highlight_duration || 0) > 1) ||
+                (dest.blocked_months && String(dest.blocked_months).trim() !== '') ||
+                (dest.booked_count && String(dest.booked_count).trim() !== '') ||
+                (dest.group_size && String(dest.group_size).trim() !== '') ||
+                (parseInt(dest.activities_count || 0) > 0)
+            );
+            if (hasPricing) {
+                tabs.pricing = true;
+            }
+
+            const hasDetails = (
+                (parseInt(dest.activities_count || 0) > 0) ||
+                (dest.group_size && String(dest.group_size).trim() !== '') ||
+                (dest.best_season && String(dest.best_season).trim() !== '') ||
+                (dest.badge_text && String(dest.badge_text).trim() !== '') ||
+                (parseInt(dest.display_order || 0) > 0) ||
+                (dest.inclusions && String(dest.inclusions).trim() !== '' && dest.inclusions !== '[]') ||
+                (dest.exclusions && String(dest.exclusions).trim() !== '' && dest.exclusions !== '[]') ||
+                (dest.remarks && String(dest.remarks).trim() !== '') ||
+                (dest.itinerary && dest.itinerary !== '[]') ||
+                (dest.hotels && dest.hotels !== '[]')
+            );
+            if (hasDetails) {
+                tabs.details = true;
+            }
+
+            const galleryPaths = [];
+            if (dest.image_path) galleryPaths.push(dest.image_path);
+            if (dest.image2_path) galleryPaths.push(dest.image2_path);
+            if (dest.image3_path) galleryPaths.push(dest.image3_path);
+            if (dest.image_gallery) {
+                try {
+                    const parsed = typeof dest.image_gallery === 'string' ? JSON.parse(dest.image_gallery) : dest.image_gallery;
+                    if (Array.isArray(parsed)) galleryPaths.push(...parsed.filter(Boolean));
+                } catch (e) {}
+            }
+            if (galleryPaths.length > 0) {
+                tabs.gallery = true;
+            }
+            return tabs;
+        }
+
+        function setLocalTabSavedState(tabs) {
+            document.querySelectorAll('#localDestinationModal .tab-btn').forEach(btn => {
+                const target = btn.dataset.target;
+                if (!target) return;
+                btn.classList.toggle('tab-saved',
+                    (target === 'lc-tab-general' && tabs.general) ||
+                    (target === 'lc-tab-pricing' && tabs.pricing) ||
+                    (target === 'lc-tab-details' && tabs.details) ||
+                    (target === 'lc-tab-gallery' && tabs.gallery)
+                );
+            });
         }
 
         let _localGalleryFiles = []; // new files
@@ -6781,6 +7328,7 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
                 } catch (e) { console.error("Error parsing gallery", e); }
             }
             _renderLocalGalleryPreview();
+            setLocalTabSavedState(getSavedLocalTabs(dest));
 
             // Reset tabs
             const firstTab = document.querySelector('#localDestinationModal .tab-btn');
@@ -6865,7 +7413,12 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
         // Form submit handlers
         document.getElementById('foreignDestinationForm')?.addEventListener('submit', function (e) {
             e.preventDefault();
-            if (!validateRequiredFields(this)) return;
+            const activeTab = document.querySelector('#foreignDestinationModal .tab-content.active');
+            if (!activeTab) {
+                Swal.fire('Error', 'Unable to determine the active tab.', 'error');
+                return;
+            }
+            if (!validateRequiredFields(this, activeTab)) return;
 
             // Set itinerary and hotels fields before constructing FormData
             document.getElementById('foreign_itinerary_data').value = JSON.stringify(foreignItineraryDays);
@@ -6873,11 +7426,9 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
 
             const form = this;
             const formData = new FormData(form);
-
-            // Remove the empty file inputs that came from the form gallery select
+            formData.set('action', 'save_foreign_destination_partial');
+            formData.set('active_tab', activeTab.id);
             formData.delete('gallery[]');
-
-            // Append all accumulated gallery files
             _foreignGalleryFiles.forEach(file => {
                 formData.append('gallery[]', file);
             });
@@ -6889,9 +7440,17 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
                 .then(json => {
                     Swal.close();
                     if (json.success) {
-                        PersistenceEngine.clearDraft('foreignDestinationForm');
-                        Swal.fire('Saved!', json.message || 'Destination saved successfully.', 'success')
-                            .then(() => location.reload());
+                        if (json.id) {
+                            document.getElementById('foreign_dest_id').value = json.id;
+                        }
+                        const activeButton = document.querySelector('#foreignDestinationModal .tab-btn.active');
+                        if (activeButton) {
+                            activeButton.classList.add('tab-saved');
+                        }
+                        if (typeof PersistenceEngine !== 'undefined' && PersistenceEngine.saveDraft) {
+                            PersistenceEngine.saveDraft('foreignDestinationForm');
+                        }
+                        Swal.fire('Saved!', json.message || 'Destination saved successfully.', 'success');
                     } else {
                         Swal.fire('Error', json.message || 'Something went wrong.', 'error');
                     }
@@ -6904,7 +7463,12 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
 
         document.getElementById('localDestinationForm')?.addEventListener('submit', function (e) {
             e.preventDefault();
-            if (!validateRequiredFields(this)) return;
+            const activeTab = document.querySelector('#localDestinationModal .tab-content.active');
+            if (!activeTab) {
+                Swal.fire('Error', 'Unable to determine the active tab.', 'error');
+                return;
+            }
+            if (!validateRequiredFields(this, activeTab)) return;
 
             // Set itinerary and hotels fields before constructing FormData
             document.getElementById('local_itinerary_data').value = JSON.stringify(localItineraryDays);
@@ -6912,11 +7476,9 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
 
             const form = this;
             const formData = new FormData(form);
-
-            // Remove empty gallery
+            formData.set('action', 'save_destination_partial');
+            formData.set('active_tab', activeTab.id);
             formData.delete('gallery[]');
-
-            // Append all accumulated gallery files
             _localGalleryFiles.forEach(file => {
                 formData.append('gallery[]', file);
             });
@@ -6928,9 +7490,17 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
                 .then(json => {
                     Swal.close();
                     if (json.success) {
-                        PersistenceEngine.clearDraft('localDestinationForm');
-                        Swal.fire('Saved!', json.message || 'Destination saved successfully.', 'success')
-                            .then(() => location.reload());
+                        if (json.id) {
+                            document.getElementById('local_dest_id').value = json.id;
+                        }
+                        const activeButton = document.querySelector('#localDestinationModal .tab-btn.active');
+                        if (activeButton) {
+                            activeButton.classList.add('tab-saved');
+                        }
+                        if (typeof PersistenceEngine !== 'undefined' && PersistenceEngine.saveDraft) {
+                            PersistenceEngine.saveDraft('localDestinationForm');
+                        }
+                        Swal.fire('Saved!', json.message || 'Destination saved successfully.', 'success');
                     } else {
                         Swal.fire('Error', json.message || 'Something went wrong.', 'error');
                     }
@@ -6943,19 +7513,26 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
 
         document.getElementById('flashDealForm')?.addEventListener('submit', function (e) {
             e.preventDefault();
-            if (!validateRequiredFields(this)) return;
 
-            // Set itinerary and hotels fields
+            const activeTab = document.querySelector('#flashDealModal .tab-content.active');
+            if (!activeTab) {
+                Swal.fire('Error', 'Unable to determine the active tab.', 'error');
+                return;
+            }
+
+            if (!validateRequiredFields(this, activeTab)) return;
+
+            // Sync dynamic fields before saving
             document.getElementById('flash_deal_itinerary_data').value = JSON.stringify(flashDealItineraryDays);
             document.getElementById('flash_hotels_json').value = JSON.stringify(flashHotels);
 
             const form = this;
             const formData = new FormData(form);
+            formData.set('action', 'save_flash_deal_partial');
+            formData.set('active_tab', activeTab.id);
 
-            // Remove empty gallery
+            // Replace gallery inputs with accumulated files
             formData.delete('gallery[]');
-
-            // Append all accumulated gallery files
             _flashGalleryFiles.forEach(file => {
                 formData.append('gallery[]', file);
             });
@@ -6967,9 +7544,19 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
                 .then(json => {
                     Swal.close();
                     if (json.success) {
-                        PersistenceEngine.clearDraft('flashDealForm');
-                        Swal.fire('Saved!', json.message || 'Flash Deal saved successfully.', 'success')
-                            .then(() => location.reload());
+                        if (json.id) {
+                            document.getElementById('deal_id').value = json.id;
+                        }
+
+                        const activeButton = document.querySelector(`#flashDealModal .tab-btn[data-target="${activeTab.id}"]`);
+                        if (activeButton) {
+                            activeButton.classList.add('tab-saved');
+                        }
+
+                        Swal.fire('Saved!', json.message || 'Flash Deal saved successfully.', 'success');
+                        if (typeof PersistenceEngine !== 'undefined' && PersistenceEngine.saveDraft) {
+                            PersistenceEngine.saveDraft('flashDealForm');
+                        }
                     } else {
                         Swal.fire('Error', json.message || 'Something went wrong.', 'error');
                     }
@@ -6979,6 +7566,49 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
                     Swal.fire('Error', 'Network error: ' + err.message, 'error');
                 });
         });
+
+        function validateRequiredFields(form, scope = null) {
+            const container = scope || form;
+            const requiredFields = container.querySelectorAll('[required]');
+            const missing = [];
+            let firstInvalid = null;
+
+            requiredFields.forEach(field => {
+                if (field.type === 'radio') {
+                    const group = container.querySelectorAll(`input[name="${field.name}"]`);
+                    const anyChecked = Array.from(group).some(r => r.checked);
+                    if (!anyChecked && !missing.includes(getFieldLabel(field))) {
+                        missing.push(getFieldLabel(field));
+                        if (!firstInvalid) firstInvalid = field;
+                    }
+                    return;
+                }
+                const val = (field.value || '').trim();
+                if (!val) {
+                    missing.push(getFieldLabel(field));
+                    if (!firstInvalid) firstInvalid = field;
+                }
+            });
+
+            if (missing.length > 0) {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Missing Required Information',
+                    html: 'Please fill in the following before saving:<br><br><strong>' + missing.join('<br>') + '</strong>'
+                });
+
+                if (firstInvalid) {
+                    const tabContent = firstInvalid.closest('.tab-content');
+                    if (tabContent && !tabContent.classList.contains('active')) {
+                        const tabBtn = document.querySelector(`#flashDealModal .tab-btn[data-target="${tabContent.id}"]`);
+                        if (tabBtn) tabBtn.click();
+                    }
+                    setTimeout(() => firstInvalid.focus(), 100);
+                }
+                return false;
+            }
+            return true;
+        }
 
 
 
@@ -7181,6 +7811,7 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
             document.getElementById('deal_category').value = '';
             document.getElementById('deal_location').value = '';
             document.getElementById('deal_description').value = '';
+            document.querySelectorAll('#flashDealModal .tab-btn').forEach(btn => btn.classList.remove('tab-saved'));
             document.getElementById('deal_price').value = '';
             document.getElementById('deal_currency').value = '₱';
             document.getElementById('deal_original_price').value = '';
@@ -7308,6 +7939,135 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
             });
         }
 
+        function getSavedFlashDealTabs(deal) {
+            const tabs = {
+                general: false,
+                pricing: false,
+                details: false,
+                gallery: false
+            };
+
+            if (deal.title || deal.location || deal.description || deal.category) {
+                tabs.general = true;
+            }
+
+            if (parseFloat(deal.price) > 0 || parseFloat(deal.original_price) > 0 || parseInt(deal.discount_percent) > 0 || deal.duration || deal.promo_start || deal.promo_end || parseInt(deal.highlight_duration) > 1 || deal.group_size || (deal.blocked_months && deal.blocked_months !== '')) {
+                tabs.pricing = true;
+            }
+
+            if (deal.best_season || deal.badge_text || deal.booked_count || parseInt(deal.display_order) > 0 || deal.remarks || (deal.inclusions && deal.inclusions !== '[]') || (deal.exclusions && deal.exclusions !== '[]') || (deal.itinerary && deal.itinerary !== '[]') || (deal.hotels && deal.hotels !== '[]')) {
+                tabs.details = true;
+            }
+
+            const galleryPaths = [];
+            if (deal.image_path) galleryPaths.push(deal.image_path);
+            if (deal.image2_path) galleryPaths.push(deal.image2_path);
+            if (deal.image3_path) galleryPaths.push(deal.image3_path);
+            if (deal.image_gallery) {
+                try {
+                    const galleryValues = typeof deal.image_gallery === 'string' ? JSON.parse(deal.image_gallery) : deal.image_gallery;
+                    if (Array.isArray(galleryValues)) {
+                        galleryValues.forEach(img => {
+                            if (img) galleryPaths.push(img);
+                        });
+                    }
+                } catch (e) {
+                }
+            }
+            if (galleryPaths.length > 0) {
+                tabs.gallery = true;
+            }
+
+            return tabs;
+        }
+
+        function setFlashDealTabSavedState(tabs) {
+            document.querySelectorAll('#flashDealModal .tab-btn').forEach(btn => {
+                const target = btn.dataset.target;
+                if (!target) return;
+                btn.classList.toggle('tab-saved',
+                    (target === 'fd-tab-general' && tabs.general) ||
+                    (target === 'fd-tab-pricing' && tabs.pricing) ||
+                    (target === 'fd-tab-details' && tabs.details) ||
+                    (target === 'fd-tab-gallery' && tabs.gallery)
+                );
+            });
+        }
+
+        // ========== SERVICE (Flight / Hotel / Experience) TAB HELPERS ==========
+        function getSavedServiceTabs(s) {
+            const tabs = { general: false, details: false, itinerary: false, pricing: false, schedule: false, policies: false, gallery: false };
+            if (s.title || s.service_code || s.category || s.description) tabs.general = true;
+            if (s.highlights || s.amenities || (s.inclusions && s.inclusions !== '[]') || (s.exclusions && s.exclusions !== '[]')) tabs.details = true;
+            if (s.itinerary && s.itinerary !== '[]' && s.itinerary.length > 0) tabs.itinerary = true;
+            if (parseFloat(s.price) > 0 || (s.available_slots && parseInt(s.available_slots) > 0) || (s.currency && String(s.currency).trim() !== '')) tabs.pricing = true;
+            if (s.duration || s.booking_deadline || s.departure_date || s.return_date) tabs.schedule = true;
+            if (s.required_documents || s.travel_requirements || s.cancellation_policy || s.terms_conditions) tabs.policies = true;
+            const galleryPaths = [];
+            if (s.featured_image) galleryPaths.push(s.featured_image);
+            if (s.image_gallery) {
+                try {
+                    const parsed = typeof s.image_gallery === 'string' ? JSON.parse(s.image_gallery) : s.image_gallery;
+                    if (Array.isArray(parsed)) galleryPaths.push(...parsed.filter(Boolean));
+                } catch (e) {}
+            }
+            if (galleryPaths.length > 0) tabs.gallery = true;
+            return tabs;
+        }
+
+        function setServiceTabSavedState(tabs) {
+            document.querySelectorAll('#serviceModal .tab-btn').forEach(btn => {
+                const target = btn.getAttribute('onclick')?.match(/'([^']+)'/);
+                // fallback to data-target if available
+                const t = btn.dataset.target || (target ? target[1] : null);
+                if (!t) return;
+                btn.classList.toggle('tab-saved',
+                    (t === 's-tab-general' && tabs.general) ||
+                    (t === 's-tab-details' && tabs.details) ||
+                    (t === 's-tab-itinerary' && tabs.itinerary) ||
+                    (t === 's-tab-pricing' && tabs.pricing) ||
+                    (t === 's-tab-schedule' && tabs.schedule) ||
+                    (t === 's-tab-policies' && tabs.policies) ||
+                    (t === 's-tab-gallery' && tabs.gallery)
+                );
+            });
+        }
+
+        // ========== ADVANCED CRUISE TAB HELPERS ==========
+        function getSavedAdvancedCruiseTabs(d) {
+            const tabs = { general: false, ship: false, itinerary: false, pricing: false, schedule: false, policies: false, gallery: false };
+            if (d.title || d.cruise_code || d.short_description || d.category) tabs.general = true;
+            if (d.ship_name || d.route || d.room_types || d.amenities) tabs.ship = true;
+            if (d.itinerary && d.itinerary !== '[]' && d.itinerary.length > 0) tabs.itinerary = true;
+            if (parseFloat(d.base_price) > 0 || parseFloat(d.promo_price) > 0) tabs.pricing = true;
+            if (d.departure_date || d.return_date || d.duration) tabs.schedule = true;
+            if (d.travel_requirements || d.cancellation_policy || d.terms_conditions) tabs.policies = true;
+            const gallery = [];
+            if (d.featured_image) gallery.push(d.featured_image);
+            if (d.gallery) {
+                try { const p = typeof d.gallery === 'string' ? JSON.parse(d.gallery) : d.gallery; if (Array.isArray(p)) gallery.push(...p.filter(Boolean)); } catch(e) {}
+            }
+            if (gallery.length > 0) tabs.gallery = true;
+            return tabs;
+        }
+
+        function setAdvancedCruiseTabSavedState(tabs) {
+            document.querySelectorAll('#advancedCruiseModal .tab-btn').forEach(btn => {
+                const target = btn.getAttribute('onclick')?.match(/'([^']+)'/);
+                const t = btn.dataset.target || (target ? target[1] : null);
+                if (!t) return;
+                btn.classList.toggle('tab-saved',
+                    (t === 'tab-general' && tabs.general) ||
+                    (t === 'tab-ship' && tabs.ship) ||
+                    (t === 'tab-itinerary' && tabs.itinerary) ||
+                    (t === 'tab-pricing' && tabs.pricing) ||
+                    (t === 'tab-schedule' && tabs.schedule) ||
+                    (t === 'tab-policies' && tabs.policies) ||
+                    (t === 'tab-gallery' && tabs.gallery)
+                );
+            });
+        }
+
         function editFlashDeal(deal) {
             document.getElementById('flashDealModalTitle').innerText = 'Edit Flash Deal';
             document.getElementById('deal_id').value = deal.id;
@@ -7412,6 +8172,9 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
                 } catch (e) { console.error("Error parsing gallery", e); }
             }
             _renderFlashGalleryPreview();
+
+            // Apply saved tab state for loaded deal values
+            setFlashDealTabSavedState(getSavedFlashDealTabs(deal));
 
             // Reset tabs
             const firstTab = document.querySelector('#flashDealModal .tab-btn');
@@ -7698,48 +8461,6 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
                 if (label) return label.textContent.replace('*', '').trim();
             }
             return field.name || 'This field';
-        }
-
-        function validateRequiredFields(form) {
-            const requiredFields = form.querySelectorAll('[required]');
-            const missing = [];
-            let firstInvalid = null;
-
-            requiredFields.forEach(field => {
-                if (field.type === 'radio') {
-                    const group = form.querySelectorAll(`input[name="${field.name}"]`);
-                    const anyChecked = Array.from(group).some(r => r.checked);
-                    if (!anyChecked && !missing.includes(getFieldLabel(field))) {
-                        missing.push(getFieldLabel(field));
-                        if (!firstInvalid) firstInvalid = field;
-                    }
-                    return;
-                }
-                const val = (field.value || '').trim();
-                if (!val) {
-                    missing.push(getFieldLabel(field));
-                    if (!firstInvalid) firstInvalid = field;
-                }
-            });
-
-            if (missing.length > 0) {
-                Swal.fire({
-                    icon: 'warning',
-                    title: 'Missing Required Information',
-                    html: 'Please fill in the following before saving:<br><br><strong>' + missing.join('<br>') + '</strong>'
-                });
-
-                if (firstInvalid) {
-                    const tabContent = firstInvalid.closest('.tab-content');
-                    if (tabContent && !tabContent.classList.contains('active')) {
-                        const tabBtn = document.querySelector(`[onclick*="'${tabContent.id}'"]`);
-                        if (tabBtn) tabBtn.click();
-                    }
-                    setTimeout(() => firstInvalid.focus(), 100);
-                }
-                return false;
-            }
-            return true;
         }
 
         function deleteItem(type, id, name) {
@@ -8226,6 +8947,9 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
                             s.itinerary.forEach(it => addServiceItineraryDay(it.title, it.description));
                         }
 
+                        // Set saved tab state based on loaded data
+                        setServiceTabSavedState(getSavedServiceTabs(s));
+
                         // Reset tabs
                         const firstTab = document.querySelector('#serviceModal .tab-btn');
                         if (firstTab) firstTab.click();
@@ -8448,6 +9172,9 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
                             d.itinerary.forEach(it => addItineraryDay(it.title, it.description));
                         }
 
+                        // Set saved tab state for cruise modal
+                        setAdvancedCruiseTabSavedState(getSavedAdvancedCruiseTabs(d));
+
                         document.getElementById('advancedCruiseModal').classList.add('active');
                         PersistenceEngine.checkDraft('advancedCruiseForm');
                     }
@@ -8495,6 +9222,11 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
 
             Swal.fire({ title: 'Saving...', didOpen: () => { Swal.showLoading(); } });
 
+            // mark which tab is being saved so backend or UI can respond accordingly
+            const activeCruiseTabBtn = document.querySelector('#advancedCruiseModal .tab-btn.active');
+            const activeCruiseTab = activeCruiseTabBtn ? (activeCruiseTabBtn.dataset.target || activeCruiseTabBtn.getAttribute('onclick')?.match(/'([^']+)'/)?.[1]) : null;
+            if (activeCruiseTab) formData.set('active_tab', activeCruiseTab);
+
             fetch('content-manager.php', { method: 'POST', body: formData })
                 .then(r => r.text().then(text => ({ status: r.status, text })))
                 .then(({ status, text }) => {
@@ -8508,8 +9240,17 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
                         return;
                     }
                     if (res.success) {
-                        PersistenceEngine.clearDraft('advancedCruiseForm');
-                        Swal.fire('Success!', res.message, 'success').then(() => location.reload());
+                        // Keep modal open; mark active tab as saved and persist draft state
+                        const activeButton = document.querySelector('#advancedCruiseModal .tab-btn.active');
+                        if (activeButton) activeButton.classList.add('tab-saved');
+                        if (typeof PersistenceEngine !== 'undefined' && PersistenceEngine.saveDraft) {
+                            PersistenceEngine.saveDraft('advancedCruiseForm');
+                        }
+                        // update id if backend returned one
+                        if (res.id) {
+                            document.getElementById('advanced_cruise_id').value = res.id;
+                        }
+                        Swal.fire('Saved!', res.message || 'Cruise saved successfully.', 'success');
                     } else {
                         Swal.fire('Error', res.message || 'Something went wrong', 'error');
                     }
@@ -8539,14 +9280,24 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
 
             Swal.fire({ title: 'Saving...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
 
+            // include active tab identifier so UI can mark the saved section
+            const activeServiceTabBtn = document.querySelector('#serviceModal .tab-btn.active');
+            const activeServiceTab = activeServiceTabBtn ? (activeServiceTabBtn.dataset.target || activeServiceTabBtn.getAttribute('onclick')?.match(/'([^']+)'/)?.[1]) : null;
+            if (activeServiceTab) formData.set('active_tab', activeServiceTab);
+
             fetch('content-manager.php', { method: 'POST', body: formData })
                 .then(r => r.json())
                 .then(json => {
                     Swal.close();
                     if (json.success) {
-                        PersistenceEngine.clearDraft('serviceForm');
-                        Swal.fire('Saved!', json.message || 'Service saved successfully.', 'success')
-                            .then(() => location.reload());
+                        // keep modal open and mark the active tab as saved
+                        const activeButton = document.querySelector('#serviceModal .tab-btn.active');
+                        if (activeButton) activeButton.classList.add('tab-saved');
+                        if (json.id) document.getElementById('service_id').value = json.id;
+                        if (typeof PersistenceEngine !== 'undefined' && PersistenceEngine.saveDraft) {
+                            PersistenceEngine.saveDraft('serviceForm');
+                        }
+                        Swal.fire('Saved!', json.message || 'Service saved successfully.', 'success');
                     } else {
                         Swal.fire('Error', json.message || 'Something went wrong.', 'error');
                     }
