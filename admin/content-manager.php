@@ -8328,7 +8328,7 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
                     item.className = 'picker-item';
                     item.onclick = () => selectVisaCountry(name, code);
                     item.innerHTML = `
-                        <img src="https://flagcdn.com/w40/${code}.png" alt="${name}" onerror="this.src='https://via.placeholder.com/40x30?text=Flag'">
+                        <img src="https://flagcdn.com/w40/${code}.png" alt="${name}" onerror="this.onerror=null;this.src='https://via.placeholder.com/40x30?text=Flag'">
                         <span>${name}</span>
                     `;
                     results.appendChild(item);

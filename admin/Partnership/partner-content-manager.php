@@ -1923,7 +1923,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             echo json_encode(['success' => false, 'message' => 'Failed to save cruise: ' . $e->getMessage()]);
             exit;
         }
-        echo json_encode(['success' => true, 'message' => 'Cruise saved successfully!']);
+
+        $stmt = $pdo->prepare("SELECT * FROM cruises WHERE id = ?");
+        $stmt->execute([$cruise_id]);
+        $savedCruise = $stmt->fetch(PDO::FETCH_ASSOC);
+        $it_stmt = $pdo->prepare("SELECT * FROM cruise_itinerary WHERE cruise_id = ? ORDER BY day_number");
+        $it_stmt->execute([$cruise_id]);
+        $savedCruise['itinerary'] = $it_stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        echo json_encode(['success' => true, 'message' => 'Cruise saved successfully!', 'data' => $savedCruise]);
         exit;
     } elseif ($action === 'delete_advanced_cruise') {
         $id = intval($_POST['id']);
@@ -3596,7 +3604,7 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
                                             Actions</th>
                                     </tr>
                                 </thead>
-                                <tbody>
+                                <tbody id="cruiseTableBody">
                                     <?php if (empty($cruises)): ?>
                                         <tr>
                                             <td colspan="6" style="padding: 40px; text-align: center; color: #64748b;">No cruise
@@ -3604,7 +3612,7 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
                                         </tr>
                                     <?php else: ?>
                                         <?php foreach ($cruises as $cruise): ?>
-                                            <tr style="border-bottom: 1px solid #f1f5f9;">
+                                            <tr data-item-id="<?= $cruise['id'] ?>" style="border-bottom: 1px solid #f1f5f9;">
                                                 <td style="padding: 15px 20px;">
                                                     <?php if (!empty($cruise['featured_image'])): ?>
                                                         <img src="<?= assetUrl($cruise['featured_image']) ?>"
@@ -6473,6 +6481,9 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
                 const saved = this.getSavedTabs(formId);
                 const idElement = this.getIdElement(formId);
                 const currentId = idElement ? idElement.value : '0';
+                document.querySelectorAll(modalSelector + ' .tab-btn').forEach(btn => {
+                    btn.classList.remove('tab-saved');
+                });
                 if (!saved || saved.editingId !== currentId || !saved.tabs) return;
 
                 document.querySelectorAll(modalSelector + ' .tab-btn').forEach(btn => {
@@ -7866,7 +7877,7 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
                     item.className = 'picker-item';
                     item.onclick = () => selectVisaCountry(name, code);
                     item.innerHTML = `
-                        <img src="https://flagcdn.com/w40/${code}.png" alt="${name}" onerror="this.src='https://via.placeholder.com/40x30?text=Flag'">
+                        <img src="https://flagcdn.com/w40/${code}.png" alt="${name}" onerror="this.onerror=null;this.src='https://via.placeholder.com/40x30?text=Flag'">
                         <span>${name}</span>
                     `;
                     results.appendChild(item);
@@ -8636,15 +8647,13 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
                             s.itinerary.forEach(it => addServiceItineraryDay(it.title, it.description));
                         }
 
-                        // Mark saved sections based on loaded data
-                        setServiceTabSavedState(getSavedServiceTabs(s));
-
                         // Reset tabs
                         const firstTab = document.querySelector('#serviceModal .tab-btn');
                         if (firstTab) firstTab.click();
 
                         document.getElementById('serviceModal').classList.add('active');
                         PersistenceEngine.checkDraft('serviceForm');
+                        PersistenceEngine.applySavedTabState('serviceForm', '#serviceModal');
                     }
                 });
         }
@@ -9052,6 +9061,7 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
                         setAdvancedCruiseTabSavedState(getSavedAdvancedCruiseTabs(d));
                         document.getElementById('advancedCruiseModal').classList.add('active');
                         PersistenceEngine.checkDraft('advancedCruiseForm');
+                        PersistenceEngine.applySavedTabState('advancedCruiseForm', '#advancedCruiseModal');
                     }
                 });
         }
@@ -9117,8 +9127,15 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
                         return;
                     }
                     if (res.success) {
+                        if (res.data && res.data.id) {
+                            document.getElementById('advanced_cruise_id').value = res.data.id;
+                        }
+                        if (activeCruiseTab) {
+                            PersistenceEngine.setSavedTabState('advancedCruiseForm', activeCruiseTab);
+                        }
                         PersistenceEngine.clearDraft('advancedCruiseForm');
-                        if (activeCruiseTabBtn) activeCruiseTabBtn.classList.add('tab-saved');
+                        PersistenceEngine.applySavedTabState('advancedCruiseForm', '#advancedCruiseModal');
+                        refreshCruiseTableRow(res.data);
                         Swal.fire('Success!', res.message, 'success');
                     } else {
                         Swal.fire('Error', res.message || 'Something went wrong', 'error');
@@ -9151,7 +9168,6 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
             const activeServiceTab = activeServiceTabBtn ? activeServiceTabBtn.getAttribute('onclick')?.match(/'([^']+)'/)?.[1] : null;
             if (activeServiceTab) {
                 formData.set('active_tab', activeServiceTab);
-                PersistenceEngine.setSavedTabState('serviceForm', activeServiceTab);
             }
 
             Swal.fire({ title: 'Saving...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
@@ -9161,8 +9177,15 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
                 .then(json => {
                     Swal.close();
                     if (json.success) {
+                        if (json.data && json.data.id) {
+                            document.getElementById('service_id').value = json.data.id;
+                        }
+                        if (activeServiceTab) {
+                            PersistenceEngine.setSavedTabState('serviceForm', activeServiceTab);
+                        }
                         PersistenceEngine.clearDraft('serviceForm');
                         if (activeServiceTabBtn) activeServiceTabBtn.classList.add('tab-saved');
+                        refreshServiceTableRow(json.data);
                         Swal.fire('Saved!', json.message || 'Service saved successfully.', 'success');
                     } else {
                         Swal.fire('Error', json.message || 'Something went wrong.', 'error');

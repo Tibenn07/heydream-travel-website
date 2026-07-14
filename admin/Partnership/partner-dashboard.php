@@ -2696,6 +2696,19 @@ if (($section ?? 'dashboard') === 'bookings') {
 
 
                     <script>
+                    function normalizeAssetPath(path) {
+                        if (!path || typeof path !== 'string') {
+                            return '';
+                        }
+                        if (/^(https?:|\/\/)/i.test(path)) {
+                            return path;
+                        }
+                        if (path.startsWith('../') || path.startsWith('./') || path.startsWith('/')) {
+                            return path;
+                        }
+                        return '../../' + path.replace(/^\/+/, '');
+                    }
+
                     function openBookingDetailModal(b) {
                         const fmt = (v) => v || 'N/A';
                         const fmtDate = (v) => {
@@ -2775,8 +2788,8 @@ if (($section ?? 'dashboard') === 'bookings') {
                                 const proofUrl = normalizeAssetPath(b.payment_proof);
                                 const isImage = /\.(jpg|jpeg|png|gif|webp)$/i.test(b.payment_proof);
                                 document.getElementById('bm_payment_proof_content').innerHTML = isImage
-                                    ? `<a href="${proofUrl}" target="_blank" title="Click to view full image"><img src="${proofUrl}" alt="Payment Proof" style="max-width:100%;max-height:220px;border-radius:10px;border:2px solid #bbf7d0;box-shadow:0 4px 12px rgba(0,0,0,0.1);cursor:pointer;object-fit:cover;display:block;"></a><p style="font-size:0.78rem;color:#64748b;margin-top:6px;text-align:center;"><i class="fas fa-search-plus" style="margin-right:4px;"></i>Click image to view full size</p>`
-                                    : `<a href="${proofUrl}" target="_blank" class="view-btn" style="padding:8px 16px;font-size:0.85rem;text-decoration:none;display:inline-flex;align-items:center;gap:6px;border-radius:8px;"><i class="fas fa-file-download"></i> Download / View Receipt</a>`;
+                                    ? `<div style="text-align:center;"><a href="${proofUrl}" target="_blank" title="Click to view full image" style="display:inline-block;"><img src="${proofUrl}" alt="Payment Proof" style="max-width:100%;max-height:220px;border-radius:10px;border:2px solid #bbf7d0;box-shadow:0 4px 12px rgba(0,0,0,0.1);cursor:pointer;object-fit:cover;display:block;margin:0 auto;"></a><p style="font-size:0.78rem;color:#64748b;margin-top:6px;text-align:center;"><i class="fas fa-search-plus" style="margin-right:4px;"></i>Click image to view full size</p></div>`
+                                    : `<div style="text-align:center;"><a href="${proofUrl}" target="_blank" class="view-btn" style="padding:8px 16px;font-size:0.85rem;text-decoration:none;display:inline-flex;align-items:center;gap:6px;border-radius:8px;"><i class="fas fa-file-download"></i> Download / View Receipt</a></div>`;
                                 proofWrap.style.display = 'block';
                             } else {
                                 proofWrap.style.display = 'none';
@@ -2899,8 +2912,8 @@ if (($section ?? 'dashboard') === 'bookings') {
                                 const proofUrl = normalizeAssetPath(b.payment_proof);
                                 const isImage = /\.(jpg|jpeg|png|gif|webp)$/i.test(b.payment_proof);
                                 proofContent.innerHTML = isImage
-                                    ? `<a href="${proofUrl}" target="_blank" title="Click to view full image"><img src="${proofUrl}" alt="Payment Proof" style="max-width:100%;max-height:220px;border-radius:12px;border:2px solid #bbf7d0;box-shadow:0 4px 12px rgba(0,0,0,0.1);cursor:zoom-in;object-fit:contain;display:block;background:#f8fafc;"></a>`
-                                    : `<a href="${proofUrl}" target="_blank" style="display:inline-flex;align-items:center;gap:8px;background:#16a34a;color:white;padding:10px 18px;border-radius:10px;font-size:0.88rem;font-weight:600;text-decoration:none;"><i class="fas fa-file-download"></i> Open / Download Receipt</a>`;
+                                    ? `<div style="text-align:center;"><a href="${proofUrl}" target="_blank" title="Click to view full image" style="display:inline-block;"><img src="${proofUrl}" alt="Payment Proof" style="max-width:100%;max-height:220px;border-radius:12px;border:2px solid #bbf7d0;box-shadow:0 4px 12px rgba(0,0,0,0.1);cursor:zoom-in;object-fit:contain;display:block;margin:0 auto;background:#f8fafc;"></a></div>`
+                                    : `<div style="text-align:center;"><a href="${proofUrl}" target="_blank" style="display:inline-flex;align-items:center;gap:8px;background:#16a34a;color:white;padding:10px 18px;border-radius:10px;font-size:0.88rem;font-weight:600;text-decoration:none;"><i class="fas fa-file-download"></i> Open / Download Receipt</a></div>`;
                             } else {
                                 proofContent.innerHTML = `<div style="color:#64748b;font-size:0.88rem;padding:10px;background:#f8fafc;border-radius:8px;border:1px dashed #cbd5e1;text-align:center;margin-top:6px;"><i class="fas fa-image" style="margin-right:6px;opacity:0.5;"></i>No payment screenshot uploaded yet</div>`;
                             }
