@@ -3420,6 +3420,9 @@ if ($selected_dest_name) {
         });
     </script>
     <script src="js/saved.js"></script>
+
+    <!-- ===== HEYDREAM AI CHATBOT WIDGET ===== -->
+    <?php include_once __DIR__ . '/chatbot_widget.php'; ?>
 </body>
 
 </html>

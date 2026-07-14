@@ -2413,6 +2413,9 @@ try {
     </script>
     <script src="js/flash-deals.js?v=<?= time() ?>"></script>
     <script src="js/saved.js"></script>
+
+    <!-- ===== HEYDREAM AI CHATBOT WIDGET ===== -->
+    <?php include_once __DIR__ . '/chatbot_widget.php'; ?>
 </body>
 
 </html>
