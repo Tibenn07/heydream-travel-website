@@ -657,12 +657,10 @@ window.showFlashDealPopupModal = async function (dealId) {
         .filter(m => !isNaN(m));
 
     const parsedDuration = parseInt(deal.duration) || 1;
-    // highlight_duration defaults to 1 in the DB for almost every row, so
-    // `parseInt(...) || parsedDuration` never actually fell back -- 1 is
-    // truthy. Only trust highlight_duration as a deliberate override once
-    // it's > 1; otherwise derive the trip length from the duration text
-    // (e.g. "3D/2N" -> 3), which is what admins actually edit.
-    const highlightDuration = parseInt(deal.highlight_duration) > 1 ? parseInt(deal.highlight_duration) : parsedDuration;
+    // Trip length shown on the calendar is controlled by the content
+    // manager's "highlight duration" setting, not parsed from the
+    // free-text duration label.
+    const highlightDuration = parseInt(deal.highlight_duration) || parsedDuration;
 
     const flashDatePicker = flatpickr('#flashStepDate', {
         minDate: deal.promo_start && new Date(deal.promo_start) > new Date() ? deal.promo_start : 'today',

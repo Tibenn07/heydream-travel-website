@@ -815,14 +815,10 @@ window.showLocalPackagePopupModal = async function (identifier) {
         .map(m => parseInt(m.trim()) - 1)
         .filter(m => !isNaN(m));
 
-    // highlight_duration defaults to 1 in the DB for almost every row, so
-    // relying on it alone always highlighted a single day on the calendar no
-    // matter what the duration text said. Only trust highlight_duration as a
-    // deliberate override once it's > 1; otherwise derive the trip length
-    // from the human-readable duration text (e.g. "3D/2N" -> 3), which is
-    // what admins actually edit.
-    const parsedDuration = parseInt(destination.duration) || 1;
-    const highlightDuration = parseInt(destination.highlight_duration) > 1 ? parseInt(destination.highlight_duration) : parsedDuration;
+    // Trip length shown on the calendar is controlled by the content
+    // manager's "highlight duration" setting, not parsed from the
+    // free-text duration label.
+    const highlightDuration = parseInt(destination.highlight_duration || 1);
 
     flatpickr('#homeTravelDate', {
         minDate: destination.promo_start && new Date(destination.promo_start) > new Date() ? destination.promo_start : 'today',

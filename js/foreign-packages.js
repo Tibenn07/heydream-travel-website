@@ -683,14 +683,10 @@ window.showForeignPackagePopupModal = async function (destKey) {
         .filter(m => !isNaN(m));
 
     const parsedDuration = parseInt(destination.duration) || 1;
-    // highlight_duration defaults to 1 in the DB for almost every row (admins
-    // rarely touch it), so `parseInt(...) || parsedDuration` was never
-    // actually falling back -- 1 is truthy, so the calendar always
-    // highlighted a single day no matter what the duration text said. Only
-    // trust highlight_duration as a deliberate override once it's > 1;
-    // otherwise derive the trip length from the human-readable duration
-    // text (e.g. "3D/2N" -> 3), which is what admins actually edit.
-    const highlightDuration = parseInt(destination.highlight_duration) > 1 ? parseInt(destination.highlight_duration) : parsedDuration;
+    // Trip length shown on the calendar is controlled by the content
+    // manager's "highlight duration" setting, not parsed from the
+    // free-text duration label.
+    const highlightDuration = parseInt(destination.highlight_duration) || parsedDuration;
 
     flatpickr('#foreignStepDate', {
         minDate: destination.promo_start && new Date(destination.promo_start) > new Date() ? destination.promo_start : 'today',
