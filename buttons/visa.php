@@ -1903,6 +1903,310 @@ try {
                 gap: 8px;
             }
         }
+
+        /* ============================================================
+           VISA SERVICES ACCORDION SECTION
+        ============================================================ */
+        .visa-services-section {
+            padding: 40px 1% 10px;
+            width: 100%;
+            max-width: 1900px;
+            margin: 0 auto;
+        }
+
+        .visa-services-heading {
+            text-align: center;
+            margin-bottom: 28px;
+        }
+
+        .visa-services-heading h2 {
+            font-size: 1.7rem;
+            font-weight: 800;
+            color: #003580;
+            margin-bottom: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .visa-services-heading h2 i {
+            color: #8A2BE2;
+            font-size: 1.4rem;
+        }
+
+        .visa-services-heading p {
+            color: #666;
+            font-size: 0.92rem;
+            margin: 0;
+        }
+
+        /* Two-column accordion row */
+        .visa-accordion-row {
+            display: flex;
+            gap: 20px;
+            align-items: flex-start;
+        }
+
+        /* Individual accordion panel */
+        .visa-accordion-panel {
+            flex: 1 1 50%;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 8px 30px rgba(108, 92, 231, 0.09);
+            overflow: hidden;
+            transition: box-shadow 0.3s ease;
+            border: 1.5px solid rgba(108, 92, 231, 0.08);
+        }
+
+        .visa-accordion-panel:hover {
+            box-shadow: 0 12px 40px rgba(108, 92, 231, 0.16);
+        }
+
+        /* Panel header (always visible) */
+        .visa-panel-header {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 22px 26px;
+            cursor: pointer;
+            user-select: none;
+            background: white;
+            transition: background 0.3s ease;
+            position: relative;
+        }
+
+        .visa-panel-header:hover {
+            background: #f8f7ff;
+        }
+
+        .visa-accordion-panel.open .visa-panel-header {
+            background: linear-gradient(135deg, #f3f0ff 0%, #ede8ff 100%);
+            border-bottom: 1.5px solid rgba(108, 92, 231, 0.15);
+        }
+
+        .visa-panel-icon-wrap {
+            width: 52px;
+            height: 52px;
+            border-radius: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            font-size: 1.4rem;
+            color: white;
+            box-shadow: 0 6px 18px rgba(108, 92, 231, 0.3);
+        }
+
+        .panel-apply .visa-panel-icon-wrap {
+            background: linear-gradient(135deg, #6c5ce7, #8a7cff);
+        }
+
+        .panel-renew .visa-panel-icon-wrap {
+            background: linear-gradient(135deg, #8A2BE2, #b56cf7);
+        }
+
+        .visa-panel-text {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .visa-panel-text h3 {
+            font-size: 1.1rem;
+            font-weight: 800;
+            color: #003580;
+            margin: 0 0 3px;
+        }
+
+        .visa-panel-text p {
+            font-size: 0.78rem;
+            color: #888;
+            margin: 0;
+        }
+
+        .visa-panel-chevron {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: rgba(108, 92, 231, 0.08);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            color: #6c5ce7;
+            font-size: 0.95rem;
+            transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+                        background 0.3s ease;
+        }
+
+        .visa-accordion-panel.open .visa-panel-chevron {
+            transform: rotate(180deg);
+            background: rgba(108, 92, 231, 0.15);
+        }
+
+        /* Collapsible body */
+        .visa-panel-body {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1),
+                        padding 0.35s ease;
+            padding: 0 20px;
+        }
+
+        .visa-accordion-panel.open .visa-panel-body {
+            max-height: 600px;
+            padding: 20px;
+        }
+
+        /* Three mini-cards inside each panel */
+        .visa-mini-cards {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 14px;
+        }
+
+        .visa-mini-card {
+            background: #fafbff;
+            border-radius: 16px;
+            padding: 18px 14px 16px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            border: 1.5px solid rgba(108, 92, 231, 0.08);
+            transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1),
+                        box-shadow 0.28s ease,
+                        border-color 0.28s ease;
+            gap: 10px;
+        }
+
+        .visa-mini-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 14px 35px rgba(108, 92, 231, 0.14);
+            border-color: rgba(108, 92, 231, 0.22);
+        }
+
+        .visa-mini-card-icon {
+            width: 52px;
+            height: 52px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.3rem;
+            color: white;
+            box-shadow: 0 6px 16px rgba(108, 92, 231, 0.25);
+            flex-shrink: 0;
+        }
+
+        .panel-apply .visa-mini-card-icon {
+            background: linear-gradient(135deg, #6c5ce7, #8a7cff);
+        }
+
+        .panel-renew .visa-mini-card-icon {
+            background: linear-gradient(135deg, #8A2BE2, #b56cf7);
+        }
+
+        .visa-mini-card h4 {
+            font-size: 0.85rem;
+            font-weight: 700;
+            color: #003580;
+            margin: 0;
+            line-height: 1.3;
+        }
+
+        .visa-mini-card p {
+            font-size: 0.72rem;
+            color: #888;
+            margin: 0;
+            line-height: 1.4;
+            flex: 1;
+        }
+
+        .visa-mini-btn {
+            width: 100%;
+            border: none;
+            padding: 9px 10px;
+            border-radius: 30px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            letter-spacing: 0.4px;
+            color: white;
+            margin-top: auto;
+        }
+
+        .panel-apply .visa-mini-btn {
+            background: linear-gradient(135deg, #6c5ce7, #8a7cff);
+            box-shadow: 0 4px 14px rgba(108, 92, 231, 0.28);
+        }
+
+        .panel-apply .visa-mini-btn:hover {
+            background: linear-gradient(135deg, #ff9800, #f57c00);
+            transform: translateY(-2px);
+            box-shadow: 0 7px 20px rgba(255, 152, 0, 0.3);
+        }
+
+        .panel-renew .visa-mini-btn {
+            background: linear-gradient(135deg, #8A2BE2, #b56cf7);
+            box-shadow: 0 4px 14px rgba(138, 43, 226, 0.28);
+        }
+
+        .panel-renew .visa-mini-btn:hover {
+            background: linear-gradient(135deg, #ff9800, #f57c00);
+            transform: translateY(-2px);
+            box-shadow: 0 7px 20px rgba(255, 152, 0, 0.3);
+        }
+
+        /* Divider between section heading and panels */
+        .visa-services-divider {
+            height: 3px;
+            border-radius: 2px;
+            background: linear-gradient(90deg, #6c5ce7, #8A2BE2, #ff9800);
+            width: 60px;
+            margin: 0 auto 28px;
+        }
+
+        /* Responsive */
+        @media (max-width: 900px) {
+            .visa-accordion-row {
+                flex-direction: column;
+                gap: 16px;
+            }
+
+            .visa-accordion-panel {
+                flex: 1 1 100%;
+                width: 100%;
+            }
+
+            .visa-mini-cards {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 540px) {
+            .visa-services-section {
+                padding: 28px 4% 10px;
+            }
+
+            .visa-panel-header {
+                padding: 18px;
+                gap: 12px;
+            }
+
+            .visa-mini-cards {
+                grid-template-columns: 1fr;
+            }
+
+            .visa-accordion-panel.open .visa-panel-body {
+                max-height: 1200px;
+            }
+
+            .visa-services-heading h2 {
+                font-size: 1.35rem;
+            }
+        }
     </style>
 </head>
 
@@ -2306,6 +2610,110 @@ try {
             .step-icon { width: 45px; height: 45px; font-size: 1.2rem; }
             .loader-step.active { font-size: 1rem; }
         }
+
+        /* ── Visa Drawer Styles ── */
+        .visa-drawer-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(15, 23, 42, 0.4);
+            backdrop-filter: blur(4px);
+            z-index: 2000;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+        }
+        .visa-drawer-overlay.active {
+            opacity: 1; visibility: visible;
+        }
+        .visa-drawer {
+            position: fixed;
+            top: 0; right: -550px;
+            width: 550px; height: 100%;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            box-shadow: -10px 0 30px rgba(0,0,0,0.1);
+            z-index: 2001;
+            transition: right 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex;
+            flex-direction: column;
+            border-left: 1px solid rgba(255,255,255,0.4);
+        }
+        @media (max-width: 600px) {
+            .visa-drawer { width: 100%; right: -100%; }
+        }
+        .visa-drawer.active {
+            right: 0;
+        }
+        .visa-drawer-header {
+            background: linear-gradient(135deg, #6c5ce7, #8a7cff);
+            color: white;
+            padding: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-radius: 20px 0 0 20px; /* if it doesn't touch top, but it does, so no border-radius needed */
+            box-shadow: 0 4px 15px rgba(108, 92, 231, 0.3);
+        }
+        @media (max-width: 600px) { .visa-drawer-header { border-radius: 0; } }
+        .visa-drawer-header h2 {
+            margin: 0; font-size: 1.4rem; font-weight: 800; display: flex; align-items: center; gap: 10px;
+        }
+        .visa-drawer-close {
+            background: rgba(255,255,255,0.2);
+            border: none; color: white; width: 36px; height: 36px;
+            border-radius: 50%; display: flex; align-items: center; justify-content: center;
+            font-size: 1.2rem; cursor: pointer; transition: all 0.2s;
+        }
+        .visa-drawer-close:hover {
+            background: rgba(255,255,255,0.4); transform: rotate(90deg);
+        }
+        .visa-drawer-body {
+            flex: 1; overflow-y: auto; padding: 24px;
+        }
+        .visa-drawer-footer {
+            padding: 20px 24px; background: white; border-top: 1px solid #f1f5f9; display: flex; gap: 12px;
+        }
+        .visa-drawer-btn {
+            flex: 1; padding: 14px; border-radius: 12px; font-weight: 700; font-size: 1rem; border: none; cursor: pointer; transition: all 0.2s;
+        }
+        .visa-drawer-btn.cancel {
+            background: #f1f5f9; color: #475569;
+        }
+        .visa-drawer-btn.cancel:hover { background: #e2e8f0; }
+        .visa-drawer-btn.submit {
+            background: linear-gradient(135deg, #003580, #0055c8); color: white; box-shadow: 0 4px 12px rgba(0,53,128,0.3);
+        }
+        .visa-drawer-btn.submit:hover { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(0,53,128,0.4); }
+        .visa-drawer-btn:disabled { opacity: 0.7; cursor: not-allowed; transform: none; }
+        
+        .vd-section { margin-bottom: 24px; }
+        .vd-section h4 { color: #003580; margin-bottom: 16px; font-size: 1.05rem; display: flex; align-items: center; gap: 8px; border-left: 4px solid #ff9800; padding-left: 12px; }
+        .vd-form-group { margin-bottom: 16px; }
+        .vd-form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+        @media(max-width: 480px) { .vd-form-row { grid-template-columns: 1fr; gap: 0; } }
+        .vd-form-group label { display: block; font-weight: 600; margin-bottom: 6px; font-size: 0.85rem; color: #334155; }
+        .vd-form-group label .req { color: #ef4444; }
+        .vd-form-group input, .vd-form-group select, .vd-form-group textarea {
+            width: 100%; padding: 12px; border: 1px solid #cbd5e1; border-radius: 10px; font-size: 0.95rem; font-family: inherit; background: #fff; transition: border-color 0.2s, box-shadow 0.2s;
+        }
+        .vd-form-group input:focus, .vd-form-group select:focus, .vd-form-group textarea:focus {
+            outline: none; border-color: #6c5ce7; box-shadow: 0 0 0 3px rgba(108,92,231,0.1);
+        }
+        .vd-form-group input.error, .vd-form-group select.error { border-color: #ef4444; background: #fef2f2; }
+        .vd-file-upload {
+            border: 2px dashed #cbd5e1; border-radius: 12px; padding: 20px; text-align: center; cursor: pointer; transition: all 0.2s; background: #f8fafc;
+        }
+        .vd-file-upload:hover { border-color: #6c5ce7; background: #f0f7ff; }
+        .vd-file-upload i { font-size: 1.8rem; color: #94a3b8; margin-bottom: 8px; }
+        .vd-file-upload p { font-size: 0.85rem; color: #64748b; margin: 0; }
+        .vd-file-name { font-size: 0.8rem; color: #003580; font-weight: 600; margin-top: 8px !important; }
+        
+        .vd-error-msg { background: #fef2f2; border-left: 4px solid #ef4444; padding: 12px 16px; border-radius: 8px; color: #b91c1c; font-size: 0.9rem; margin-bottom: 20px; display: none; }
+        .vd-success-view { display: none; text-align: center; padding: 40px 20px; }
+        .vd-success-view i.fa-check-circle { font-size: 4rem; color: #22c55e; margin-bottom: 20px; animation: stepFadeIn 0.5s ease; }
+        .vd-success-view h3 { font-size: 1.6rem; color: #0f172a; margin-bottom: 10px; }
+        .vd-success-view p { color: #475569; line-height: 1.6; margin-bottom: 24px; }
+        .vd-success-view .ref-box { background: #f1f5f9; padding: 16px; border-radius: 12px; font-family: monospace; font-size: 1.2rem; font-weight: bold; color: #003580; letter-spacing: 1px; }
     </style>
 
     <script>
@@ -2553,6 +2961,137 @@ try {
             Search</button>
     </div>
 
+    <!-- ══════════════════════════════════════
+         VISA SERVICES ACCORDION SECTION
+    ══════════════════════════════════════ -->
+    <section class="visa-services-section">
+        <div class="visa-services-heading">
+            <h2><i class="fas fa-passport"></i> Visa Services</h2>
+            <p>Select a service below to get started with your visa journey</p>
+        </div>
+        <div class="visa-services-divider"></div>
+
+        <div class="visa-accordion-row">
+
+            <!-- ── Apply for Visa Panel ── -->
+            <div class="visa-accordion-panel panel-apply" id="panelApply">
+                <div class="visa-panel-header" onclick="toggleVisaPanel('panelApply')" role="button" tabindex="0"
+                     aria-expanded="false" aria-controls="bodyApply">
+                    <div class="visa-panel-icon-wrap">
+                        <i class="fas fa-file-signature"></i>
+                    </div>
+                    <div class="visa-panel-text">
+                        <h3>Apply for Visa</h3>
+                        <p>Start a fresh visa application for your destination</p>
+                    </div>
+                    <div class="visa-panel-chevron">
+                        <i class="fas fa-chevron-down"></i>
+                    </div>
+                </div>
+
+                <div class="visa-panel-body" id="bodyApply">
+                    <div class="visa-mini-cards">
+                        <!-- Tourist Visa -->
+                        <div class="visa-mini-card">
+                            <div class="visa-mini-card-icon">
+                                <i class="fas fa-umbrella-beach"></i>
+                            </div>
+                            <h4>Tourist Visa</h4>
+                            <p>Short-term travel for leisure, sightseeing, and recreation.</p>
+                            <button class="visa-mini-btn"
+                                onclick="window.location.href='general-visa-details.php?type=Tourist+Visa'">
+                                Apply Now
+                            </button>
+                        </div>
+                        <!-- Resident Visa -->
+                        <div class="visa-mini-card">
+                            <div class="visa-mini-card-icon">
+                                <i class="fas fa-home"></i>
+                            </div>
+                            <h4>Resident Visa</h4>
+                            <p>Long-term stay permit for those planning to reside abroad.</p>
+                            <button class="visa-mini-btn"
+                                onclick="window.location.href='general-visa-details.php?type=Resident+Visa'">
+                                Apply Now
+                            </button>
+                        </div>
+                        <!-- Work Visa -->
+                        <div class="visa-mini-card">
+                            <div class="visa-mini-card-icon">
+                                <i class="fas fa-briefcase"></i>
+                            </div>
+                            <h4>Work Visa</h4>
+                            <p>Permit for employment or business activities in a foreign country.</p>
+                            <button class="visa-mini-btn"
+                                onclick="window.location.href='general-visa-details.php?type=Work+Visa'">
+                                Apply Now
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ── Visa Renewal Panel ── -->
+            <div class="visa-accordion-panel panel-renew" id="panelRenew">
+                <div class="visa-panel-header" onclick="toggleVisaPanel('panelRenew')" role="button" tabindex="0"
+                     aria-expanded="false" aria-controls="bodyRenew">
+                    <div class="visa-panel-icon-wrap">
+                        <i class="fas fa-sync-alt"></i>
+                    </div>
+                    <div class="visa-panel-text">
+                        <h3>Visa Renewal</h3>
+                        <p>Extend or renew an existing visa before it expires</p>
+                    </div>
+                    <div class="visa-panel-chevron">
+                        <i class="fas fa-chevron-down"></i>
+                    </div>
+                </div>
+
+                <div class="visa-panel-body" id="bodyRenew">
+                    <div class="visa-mini-cards">
+                        <!-- Tourist Visa Renewal -->
+                        <div class="visa-mini-card">
+                            <div class="visa-mini-card-icon">
+                                <i class="fas fa-umbrella-beach"></i>
+                            </div>
+                            <h4>Tourist Visa Renewal</h4>
+                            <p>Extend your stay and continue exploring your destination.</p>
+                            <button class="visa-mini-btn"
+                                onclick="window.location.href='general-visa-details.php?type=Tourist+Visa+Renewal'">
+                                Renew Now
+                            </button>
+                        </div>
+                        <!-- Resident Visa Renewal -->
+                        <div class="visa-mini-card">
+                            <div class="visa-mini-card-icon">
+                                <i class="fas fa-home"></i>
+                            </div>
+                            <h4>Resident Visa Renewal</h4>
+                            <p>Renew your residency permit to maintain your legal status.</p>
+                            <button class="visa-mini-btn"
+                                onclick="window.location.href='general-visa-details.php?type=Resident+Visa+Renewal'">
+                                Renew Now
+                            </button>
+                        </div>
+                        <!-- Work Visa Renewal -->
+                        <div class="visa-mini-card">
+                            <div class="visa-mini-card-icon">
+                                <i class="fas fa-briefcase"></i>
+                            </div>
+                            <h4>Work Visa Renewal</h4>
+                            <p>Renew your work permit and keep your employment abroad active.</p>
+                            <button class="visa-mini-btn"
+                                onclick="window.location.href='general-visa-details.php?type=Work+Visa+Renewal'">
+                                Renew Now
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div><!-- end .visa-accordion-row -->
+    </section>
+
     <div class="service-content">
         <?php
         // ─── Global disclaimer/checklist fallback as JSON for JS ─────────────
@@ -2684,6 +3223,35 @@ try {
                 class="fas fa-arrow-left"></i> Back to Home</button></div>
 
     <script>
+        /* ── Visa Services Accordion ── */
+        function toggleVisaPanel(panelId) {
+            const allPanels = document.querySelectorAll('.visa-accordion-panel');
+            allPanels.forEach(function(panel) {
+                if (panel.id === panelId) {
+                    const isOpen = panel.classList.contains('open');
+                    panel.classList.toggle('open', !isOpen);
+                    const header = panel.querySelector('.visa-panel-header');
+                    if (header) header.setAttribute('aria-expanded', !isOpen ? 'true' : 'false');
+                } else {
+                    panel.classList.remove('open');
+                    const header = panel.querySelector('.visa-panel-header');
+                    if (header) header.setAttribute('aria-expanded', 'false');
+                }
+            });
+        }
+
+        // Keyboard accessibility for accordion headers
+        document.addEventListener('DOMContentLoaded', function() {
+            document.querySelectorAll('.visa-panel-header').forEach(function(header) {
+                header.addEventListener('keydown', function(e) {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        header.click();
+                    }
+                });
+            });
+        });
+
         let dropdownHighlight = -1;
 
         // Collect all visa card titles + category from the page on load
@@ -3362,6 +3930,324 @@ try {
         // Requirement items
         observeStagger('.req-item', 60);
     })();
+    </script>
+    <!-- ── Visa Application Drawer ── -->
+    <div class="visa-drawer-overlay" id="vdOverlay" onclick="closeVisaDrawer()"></div>
+    <div class="visa-drawer" id="vdDrawer">
+        <div class="visa-drawer-header">
+            <h2 id="vdHeaderTitle"><i class="fas fa-file-signature"></i> Visa Application</h2>
+            <button class="visa-drawer-close" onclick="closeVisaDrawer()"><i class="fas fa-times"></i></button>
+        </div>
+        
+        <div class="visa-drawer-body" id="vdBody">
+            <div class="vd-error-msg" id="vdError"></div>
+            
+            <form id="vdForm" onsubmit="return false;">
+                <!-- Hidden fields -->
+                <input type="hidden" id="vdVisaType" value="">
+                <input type="hidden" id="vdServiceType" value="Visa Assistance">
+                
+                <div class="vd-section">
+                    <h4><i class="fas fa-user"></i> Personal Information</h4>
+                    <div class="vd-form-group">
+                        <label>Email Address <span class="req">*</span></label>
+                        <input type="email" id="vdEmail" placeholder="your@email.com">
+                    </div>
+                    <div class="vd-form-group">
+                        <label>Full Name <span class="req">*</span></label>
+                        <input type="text" id="vdName" placeholder="As written in passport">
+                    </div>
+                    <div class="vd-form-row">
+                        <div class="vd-form-group">
+                            <label>Date of Birth <span class="req">*</span></label>
+                            <input type="date" id="vdDob">
+                        </div>
+                        <div class="vd-form-group">
+                            <label>Nationality <span class="req">*</span></label>
+                            <input type="text" id="vdNationality" placeholder="e.g. Filipino">
+                        </div>
+                    </div>
+                    <div class="vd-form-group">
+                        <label>Phone Number <span class="req">*</span></label>
+                        <input type="tel" id="vdPhone" placeholder="+63 912 345 6789">
+                    </div>
+                </div>
+                
+                <div class="vd-section">
+                    <h4><i class="fas fa-passport"></i> Passport Details</h4>
+                    <div class="vd-form-group">
+                        <label>Passport Number <span class="req">*</span></label>
+                        <input type="text" id="vdPassportNum">
+                    </div>
+                    <div class="vd-form-row">
+                        <div class="vd-form-group">
+                            <label>Expiry Date <span class="req">*</span></label>
+                            <input type="date" id="vdPassportExpiry">
+                        </div>
+                        <div class="vd-form-group">
+                            <label>Place of Issue <span class="req">*</span></label>
+                            <input type="text" id="vdPassportIssue">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="vd-section" id="vdRenewalSection" style="display:none;">
+                    <h4><i class="fas fa-sync-alt"></i> Renewal Information</h4>
+                    <div class="vd-form-group">
+                        <label>Current Visa Number <span class="req">*</span></label>
+                        <input type="text" id="vdCurrentVisaNum">
+                    </div>
+                    <div class="vd-form-group">
+                        <label>Current Visa Expiry Date <span class="req">*</span></label>
+                        <input type="date" id="vdCurrentVisaExpiry">
+                    </div>
+                    <div class="vd-form-group">
+                        <label>Reason for Renewal</label>
+                        <textarea id="vdRenewalReason" rows="2" placeholder="Brief explanation"></textarea>
+                    </div>
+                </div>
+                
+                <div class="vd-section">
+                    <h4><i class="fas fa-plane-departure"></i> Travel Information</h4>
+                    <div class="vd-form-group">
+                        <label>Destination Country <span class="req">*</span></label>
+                        <input type="text" id="vdDestination" placeholder="e.g. Japan, Canada">
+                    </div>
+                    <div class="vd-form-row">
+                        <div class="vd-form-group">
+                            <label>Intended Arrival Date <span class="req">*</span></label>
+                            <input type="date" id="vdArrival">
+                        </div>
+                        <div class="vd-form-group">
+                            <label>Intended Departure Date <span class="req">*</span></label>
+                            <input type="date" id="vdDeparture">
+                        </div>
+                    </div>
+                    <div class="vd-form-group">
+                        <label>Purpose of Visit <span class="req">*</span></label>
+                        <input type="text" id="vdPurpose" placeholder="e.g. Tourism, Work, Study">
+                    </div>
+                </div>
+                
+                <div class="vd-section">
+                    <h4><i class="fas fa-file-upload"></i> Required Documents</h4>
+                    <p style="font-size:0.8rem; color:#64748b; margin-bottom:12px;">Upload images or PDF files (max 10MB each).</p>
+                    <div class="vd-form-group">
+                        <label>Passport Data Page</label>
+                        <div class="vd-file-upload" onclick="document.getElementById('vdDocPassport').click()">
+                            <i class="fas fa-cloud-upload-alt"></i>
+                            <p>Click to upload</p>
+                            <div class="vd-file-name" id="vdNamePassport">No file selected</div>
+                            <input type="file" id="vdDocPassport" style="display:none;" accept="image/*,application/pdf" onchange="vdHandleFile(event, 'vdNamePassport')">
+                        </div>
+                    </div>
+                    <div class="vd-form-group">
+                        <label>Passport-size Photo</label>
+                        <div class="vd-file-upload" onclick="document.getElementById('vdDocPhoto').click()">
+                            <i class="fas fa-cloud-upload-alt"></i>
+                            <p>Click to upload</p>
+                            <div class="vd-file-name" id="vdNamePhoto">No file selected</div>
+                            <input type="file" id="vdDocPhoto" style="display:none;" accept="image/*,application/pdf" onchange="vdHandleFile(event, 'vdNamePhoto')">
+                        </div>
+                    </div>
+                    <div class="vd-form-group">
+                        <label>Supporting Documents</label>
+                        <div class="vd-file-upload" onclick="document.getElementById('vdDocSupport').click()">
+                            <i class="fas fa-cloud-upload-alt"></i>
+                            <p>Click to upload</p>
+                            <div class="vd-file-name" id="vdNameSupport">No file selected</div>
+                            <input type="file" id="vdDocSupport" style="display:none;" accept="image/*,application/pdf" onchange="vdHandleFile(event, 'vdNameSupport')">
+                        </div>
+                    </div>
+                </div>
+            </form>
+            
+            <!-- Success View -->
+            <div class="vd-success-view" id="vdSuccess">
+                <i class="fas fa-check-circle"></i>
+                <h3>Application Submitted!</h3>
+                <p>We've received your <span id="vdSuccessType">Visa</span> application. Our agents will review your details and contact you shortly.</p>
+                <div class="ref-box" id="vdSuccessRef"></div>
+            </div>
+            
+        </div>
+        
+        <div class="visa-drawer-footer" id="vdFooter">
+            <button type="button" class="visa-drawer-btn cancel" onclick="closeVisaDrawer()">Cancel</button>
+            <button type="button" class="visa-drawer-btn submit" id="vdSubmitBtn" onclick="submitVisaDrawer()">Submit Application <i class="fas fa-paper-plane" style="margin-left:6px;"></i></button>
+        </div>
+    </div>
+
+    <script>
+        function openVisaDrawer(visaType, mode) {
+            // Fill user data if available globally
+            document.getElementById('vdEmail').value = window.currentUserEmail || '';
+            document.getElementById('vdName').value = window.currentFullName || '';
+            
+            document.getElementById('vdVisaType').value = visaType;
+            document.getElementById('vdHeaderTitle').innerHTML = mode === 'Renew' ? `<i class="fas fa-sync-alt"></i> ${visaType}` : `<i class="fas fa-file-signature"></i> ${visaType}`;
+            
+            if(mode === 'Renew') {
+                document.getElementById('vdRenewalSection').style.display = 'block';
+            } else {
+                document.getElementById('vdRenewalSection').style.display = 'none';
+            }
+            
+            // Reset state
+            document.getElementById('vdForm').style.display = 'block';
+            document.getElementById('vdSuccess').style.display = 'none';
+            document.getElementById('vdFooter').style.display = 'flex';
+            document.getElementById('vdError').style.display = 'none';
+            document.getElementById('vdSubmitBtn').disabled = false;
+            
+            document.getElementById('vdOverlay').classList.add('active');
+            document.getElementById('vdDrawer').classList.add('active');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeVisaDrawer() {
+            document.getElementById('vdOverlay').classList.remove('active');
+            document.getElementById('vdDrawer').classList.remove('active');
+            document.body.style.overflow = '';
+            
+            // Reset files
+            ['vdDocPassport', 'vdDocPhoto', 'vdDocSupport'].forEach(id => {
+                let el = document.getElementById(id);
+                if(el) el.value = '';
+            });
+            ['vdNamePassport', 'vdNamePhoto', 'vdNameSupport'].forEach(id => {
+                let el = document.getElementById(id);
+                if(el) el.innerText = 'No file selected';
+            });
+        }
+        
+        function vdHandleFile(e, labelId) {
+            const file = e.target.files[0];
+            const label = document.getElementById(labelId);
+            if(file) {
+                if(file.size > 10 * 1024 * 1024) {
+                    alert('File too large. Max 10MB.');
+                    e.target.value = '';
+                    label.innerText = 'No file selected';
+                } else {
+                    label.innerText = file.name;
+                }
+            } else {
+                label.innerText = 'No file selected';
+            }
+        }
+        
+        async function submitVisaDrawer() {
+            const btn = document.getElementById('vdSubmitBtn');
+            const errDiv = document.getElementById('vdError');
+            errDiv.style.display = 'none';
+            
+            // Remove previous error classes
+            document.querySelectorAll('.vd-form-group input').forEach(el => el.classList.remove('error'));
+            
+            const reqIds = ['vdEmail', 'vdName', 'vdDob', 'vdNationality', 'vdPhone', 'vdPassportNum', 'vdPassportExpiry', 'vdPassportIssue', 'vdDestination', 'vdArrival', 'vdDeparture', 'vdPurpose'];
+            
+            const isRenew = document.getElementById('vdRenewalSection').style.display === 'block';
+            if (isRenew) {
+                reqIds.push('vdCurrentVisaNum', 'vdCurrentVisaExpiry');
+            }
+            
+            let hasError = false;
+            let errors = [];
+            
+            reqIds.forEach(id => {
+                const el = document.getElementById(id);
+                if(!el.value.trim()) {
+                    el.classList.add('error');
+                    hasError = true;
+                }
+            });
+            
+            if(hasError) {
+                errDiv.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Please fill in all required fields.';
+                errDiv.style.display = 'block';
+                document.getElementById('vdBody').scrollTop = 0;
+                return;
+            }
+            
+            btn.disabled = true;
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Submitting...';
+            
+            // Build special requests string (to pack extra fields into the generic bookings table)
+            let special_requests = `Nationality: ${document.getElementById('vdNationality').value}, DOB: ${document.getElementById('vdDob').value}, Passport: ${document.getElementById('vdPassportNum').value} (Exp: ${document.getElementById('vdPassportExpiry').value}, Issued: ${document.getElementById('vdPassportIssue').value}), Dest: ${document.getElementById('vdDestination').value}, Travel: ${document.getElementById('vdArrival').value} to ${document.getElementById('vdDeparture').value}, Purpose: ${document.getElementById('vdPurpose').value}`;
+            
+            if (isRenew) {
+                special_requests += ` | RENEWAL INFO - Current Visa: ${document.getElementById('vdCurrentVisaNum').value} (Exp: ${document.getElementById('vdCurrentVisaExpiry').value}), Reason: ${document.getElementById('vdRenewalReason').value}`;
+            }
+            
+            const payload = {
+                service_type: document.getElementById('vdServiceType').value,
+                package_name: document.getElementById('vdVisaType').value,
+                full_name: document.getElementById('vdName').value,
+                email: document.getElementById('vdEmail').value,
+                phone: document.getElementById('vdPhone').value,
+                total_amount: 0, // General application has no upfront fee here
+                travel_date: document.getElementById('vdArrival').value,
+                special_requests: special_requests,
+                payment_method: 'Manual Agent Approval',
+                payment_reference: 'PENDING_AGENT'
+            };
+            
+            try {
+                const res = await fetch('../api/save-service-booking.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                
+                const data = await res.json();
+                if(data.success) {
+                    // Upload files if any
+                    const ref = data.booking_number;
+                    const uploads = [];
+                    
+                    const filesToUpload = [
+                        { el: document.getElementById('vdDocPassport'), label: 'Passport Copy' },
+                        { el: document.getElementById('vdDocPhoto'), label: 'Passport Photo' },
+                        { el: document.getElementById('vdDocSupport'), label: 'Supporting Docs' }
+                    ];
+                    
+                    filesToUpload.forEach(f => {
+                        if(f.el.files.length > 0) {
+                            const fd = new FormData();
+                            fd.append('action', 'upload');
+                            fd.append('booking_number', ref);
+                            fd.append('document', f.el.files[0]);
+                            uploads.push(fetch('../User Account/api/upload-api.php', { method: 'POST', body: fd }).catch(e => console.error(e)));
+                        }
+                    });
+                    
+                    if(uploads.length > 0) {
+                        btn.innerHTML = '<i class="fas fa-cloud-upload-alt fa-fade"></i> Uploading documents...';
+                        await Promise.all(uploads);
+                    }
+                    
+                    // Show success
+                    document.getElementById('vdForm').style.display = 'none';
+                    document.getElementById('vdFooter').style.display = 'none';
+                    document.getElementById('vdSuccessType').innerText = document.getElementById('vdVisaType').value;
+                    document.getElementById('vdSuccessRef').innerText = ref;
+                    document.getElementById('vdSuccess').style.display = 'block';
+                    
+                } else {
+                    errDiv.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Error: ' + data.message;
+                    errDiv.style.display = 'block';
+                    btn.disabled = false;
+                    btn.innerHTML = originalText;
+                }
+            } catch(err) {
+                errDiv.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Network error. Please try again.';
+                errDiv.style.display = 'block';
+                btn.disabled = false;
+                btn.innerHTML = originalText;
+            }
+        }
     </script>
     <?php include_once __DIR__ . '/../chatbot_widget.php'; ?>
 </body>

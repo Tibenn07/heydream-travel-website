@@ -14,6 +14,15 @@ $isNumeric = is_numeric($identifier);
 
 $visa = null;
 
+// Self-healing migration for missing columns
+try {
+    $pdo->exec("ALTER TABLE visas ADD COLUMN partner_id INT NULL");
+} catch (PDOException $e) { /* Column exists or table doesn't exist yet */ }
+try {
+    $pdo->exec("ALTER TABLE visas ADD COLUMN partner_company VARCHAR(255) NULL");
+} catch (PDOException $e) { /* Column exists */ }
+
+
 try {
     $sql = "SELECT v.*, COALESCE(pr.business_display_name, p.company_name, v.partner_company) AS partner_company
             FROM visas v

@@ -1647,8 +1647,7 @@ foreach ($home_local_destinations as &$dest) {
             <img src="images/Heydream Logo.png" alt="HeyDream Logo" class="logo"
                 onclick="window.location.href='index.php'">
             <div class="company-name">
-                <img src="images/Localista (1).png" alt="HeyDream Travel and Tours"
-                    class="company-logo-img"
+                <img src="images/Localista (1).png" alt="HeyDream Travel and Tours" class="company-logo-img"
                     onclick="window.location.href='index.php'">
             </div>
         </div>
@@ -2031,24 +2030,31 @@ foreach ($home_local_destinations as &$dest) {
     </section>
 
     <!-- ==================== VOUCHER CENTER ==================== -->
-    <section class="voucher-center-section" style="padding: 30px 0; background: #f8fafc; border-top: 1px solid #e2e8f0; border-bottom: 1px solid #e2e8f0; overflow: hidden;">
+    <section class="voucher-center-section"
+        style="padding: 30px 0; background: #f8fafc; border-top: 1px solid #e2e8f0; border-bottom: 1px solid #e2e8f0; overflow: hidden;">
         <div class="container">
-            <div class="section-header-wrapper" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            <div class="section-header-wrapper"
+                style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
                 <div style="display: flex; align-items: center; gap: 12px;">
-                    <div style="background: linear-gradient(135deg, #003580, #0055c8); color: white; border-radius: 12px; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; font-size: 1.4rem; box-shadow: 0 4px 10px rgba(0, 53, 128, 0.2);">
+                    <div
+                        style="background: linear-gradient(135deg, #003580, #0055c8); color: white; border-radius: 12px; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; font-size: 1.4rem; box-shadow: 0 4px 10px rgba(0, 53, 128, 0.2);">
                         <i class="fas fa-gift"></i>
                     </div>
                     <div>
-                        <h1 class="section-title-popular animated-title-glow" style="margin: 0; font-size: 1.6rem; border-left: none; padding-left: 0; color: #003580; font-weight: 800; font-family: 'Outfit', sans-serif;">Exclusive Vouchers</h1>
+                        <h1 class="section-title-popular animated-title-glow"
+                            style="margin: 0; font-size: 1.6rem; border-left: none; padding-left: 0; color: #003580; font-weight: 800; font-family: 'Outfit', sans-serif;">
+                            Exclusive Vouchers</h1>
                     </div>
                 </div>
-                <a href="User Account/vouchers.php" class="view-all-link" style="color: #003580; font-weight: 700; font-size: 0.85rem; text-decoration: none; border: 1.5px solid #003580; padding: 6px 16px; border-radius: 50px; transition: all 0.3s ease; background: transparent;">
+                <a href="User Account/vouchers.php" class="view-all-link"
+                    style="color: #003580; font-weight: 700; font-size: 0.85rem; text-decoration: none; border: 1.5px solid #003580; padding: 6px 16px; border-radius: 50px; transition: all 0.3s ease; background: transparent;">
                     View all <i class="fas fa-arrow-right"></i>
                 </a>
             </div>
 
             <div class="popular-scroll-container" style="margin-bottom: 0;">
-                <div id="homepageVouchersGrid" style="display: flex; gap: 20px; min-width: min-content; padding: 10px 5px;">
+                <div id="homepageVouchersGrid"
+                    style="display: flex; gap: 20px; min-width: min-content; padding: 10px 5px;">
                     <!-- Loading state -->
                     <div class="loading-spinner" style="padding: 20px 0; margin: 0 auto;">
                         <i class="fas fa-spinner fa-spin" style="color: #003580; font-size: 1.5rem;"></i>
@@ -2061,23 +2067,54 @@ foreach ($home_local_destinations as &$dest) {
 
     <style>
         @keyframes colorShimmer {
-            0% { color: #003580; text-shadow: 0 0 0px rgba(0,53,128,0); transform: scale(1); }
-            50% { color: #0055c8; text-shadow: 0 0 10px rgba(0,85,200,0.4); transform: scale(1.02); }
-            100% { color: #003580; text-shadow: 0 0 0px rgba(0,53,128,0); transform: scale(1); }
+            0% {
+                color: #003580;
+                text-shadow: 0 0 0px rgba(0, 53, 128, 0);
+                transform: scale(1);
+            }
+
+            50% {
+                color: #0055c8;
+                text-shadow: 0 0 10px rgba(0, 85, 200, 0.4);
+                transform: scale(1.02);
+            }
+
+            100% {
+                color: #003580;
+                text-shadow: 0 0 0px rgba(0, 53, 128, 0);
+                transform: scale(1);
+            }
         }
+
         .animated-title-glow {
             animation: colorShimmer 3s infinite alternate;
             display: inline-block;
         }
 
         @keyframes fadeInUpVoucher {
-            from { opacity: 0; transform: translateY(20px); }
-            to { opacity: 1; transform: translateY(0); }
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
+
         @keyframes shineSweep {
-            0% { left: -100%; }
-            20% { left: 200%; }
-            100% { left: 200%; }
+            0% {
+                left: -100%;
+            }
+
+            20% {
+                left: 200%;
+            }
+
+            100% {
+                left: 200%;
+            }
         }
 
         .home-voucher-card {
@@ -2094,22 +2131,27 @@ foreach ($home_local_destinations as &$dest) {
             position: relative;
             animation: fadeInUpVoucher 0.6s ease-out forwards;
         }
+
         .home-voucher-card::before {
             content: '';
             position: absolute;
-            top: 0; left: -100%;
-            width: 50%; height: 100%;
-            background: linear-gradient(to right, rgba(255,255,255,0) 0%, rgba(255,255,255,0.6) 50%, rgba(255,255,255,0) 100%);
+            top: 0;
+            left: -100%;
+            width: 50%;
+            height: 100%;
+            background: linear-gradient(to right, rgba(255, 255, 255, 0) 0%, rgba(255, 255, 255, 0.6) 50%, rgba(255, 255, 255, 0) 100%);
             transform: skewX(-25deg);
             animation: shineSweep 4s infinite;
             z-index: 10;
             pointer-events: none;
         }
+
         .home-voucher-card:hover {
             transform: translateY(-3px);
             box-shadow: 0 10px 25px rgba(0, 53, 128, 0.12);
             border-color: #003580;
         }
+
         .home-voucher-left {
             padding: 15px;
             color: white;
@@ -2122,6 +2164,7 @@ foreach ($home_local_destinations as &$dest) {
             position: relative;
             overflow: hidden;
         }
+
         .home-voucher-left::after {
             content: '';
             position: absolute;
@@ -2130,13 +2173,15 @@ foreach ($home_local_destinations as &$dest) {
             width: 60px;
             height: 60px;
             border-radius: 50%;
-            background: rgba(255,255,255,0.1);
+            background: rgba(255, 255, 255, 0.1);
         }
+
         .home-voucher-val {
             font-size: 1.4rem;
             font-weight: 800;
             line-height: 1.1;
         }
+
         .home-voucher-type {
             font-size: 0.65rem;
             opacity: 0.9;
@@ -2144,6 +2189,7 @@ foreach ($home_local_destinations as &$dest) {
             margin-top: 2px;
             text-transform: uppercase;
         }
+
         .home-voucher-mid {
             display: flex;
             flex-direction: column;
@@ -2153,26 +2199,31 @@ foreach ($home_local_destinations as &$dest) {
             width: 14px;
             position: relative;
         }
+
         .home-voucher-mid .semi-circle-top {
             width: 14px;
             height: 7px;
             border-radius: 0 0 7px 7px;
-            background: #f8fafc; /* Matches parent background */
+            background: #f8fafc;
+            /* Matches parent background */
             border-bottom: 1px solid #e2e8f0;
             position: absolute;
             top: 0;
             left: 0;
         }
+
         .home-voucher-mid .semi-circle-bottom {
             width: 14px;
             height: 7px;
             border-radius: 7px 7px 0 0;
-            background: #f8fafc; /* Matches parent background */
+            background: #f8fafc;
+            /* Matches parent background */
             border-top: 1px solid #e2e8f0;
             position: absolute;
             bottom: 0;
             left: 0;
         }
+
         .home-voucher-mid .dashed-line {
             flex: 1;
             border-left: 2px dashed #cbd5e1;
@@ -2180,6 +2231,7 @@ foreach ($home_local_destinations as &$dest) {
             margin-top: 7px;
             margin-bottom: 7px;
         }
+
         .home-voucher-right {
             flex: 1;
             padding: 12px 15px;
@@ -2188,6 +2240,7 @@ foreach ($home_local_destinations as &$dest) {
             justify-content: space-between;
             background: white;
         }
+
         .home-voucher-title {
             font-size: 0.85rem;
             font-weight: 700;
@@ -2200,6 +2253,7 @@ foreach ($home_local_destinations as &$dest) {
             -webkit-box-orient: vertical;
             overflow: hidden;
         }
+
         .home-voucher-desc {
             font-size: 0.7rem;
             color: #64748b;
@@ -2210,17 +2264,20 @@ foreach ($home_local_destinations as &$dest) {
             -webkit-box-orient: vertical;
             overflow: hidden;
         }
+
         .home-voucher-limit {
             font-size: 0.65rem;
             color: #94a3b8;
             margin: 2px 0 0 0;
         }
+
         .home-voucher-action-row {
             display: flex;
             justify-content: space-between;
             align-items: center;
             margin-top: auto;
         }
+
         .home-voucher-btn {
             background: #003580;
             color: white;
@@ -2232,10 +2289,12 @@ foreach ($home_local_destinations as &$dest) {
             cursor: pointer;
             transition: all 0.2s;
         }
+
         .home-voucher-btn:hover {
             background: #ff9800;
             transform: scale(1.05);
         }
+
         .home-voucher-btn:disabled {
             background: #e2e8f0;
             color: #94a3b8;
@@ -3325,7 +3384,7 @@ foreach ($home_local_destinations as &$dest) {
                     if (res.success && res.data && res.data.length > 0) {
                         vouchersGrid.innerHTML = '';
                         let hasDisplayableVoucher = false;
-                        
+
                         res.data.forEach(voucher => {
                             // Skip auto-available vouchers since they don't require manual collection/claim on homepage
                             if (voucher.collection_method === 'auto_available') {
@@ -3335,7 +3394,7 @@ foreach ($home_local_destinations as &$dest) {
                             hasDisplayableVoucher = true;
                             const card = document.createElement('div');
                             card.className = 'home-voucher-card';
-                            
+
                             // Parse values
                             const discountVal = parseFloat(voucher.discount_value);
                             let valStr = '';
@@ -3347,7 +3406,7 @@ foreach ($home_local_destinations as &$dest) {
 
                             // Determine theme color based on discount or voucher settings
                             const themeColor = voucher.color_theme || '#003580';
-                            
+
                             // Target type display
                             let targetText = 'All Bookings';
                             if (voucher.targets && voucher.targets.length > 0) {
@@ -3422,7 +3481,7 @@ foreach ($home_local_destinations as &$dest) {
             // Helper to escape HTML safely
             function escapeHTML(str) {
                 if (!str) return '';
-                return str.replace(/[&<>'"]/g, 
+                return str.replace(/[&<>'"]/g,
                     tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag)
                 );
             }
@@ -3447,42 +3506,42 @@ foreach ($home_local_destinations as &$dest) {
                     method: 'POST',
                     body: formData
                 })
-                .then(res => res.json())
-                .then(data => {
-                    if (data.success) {
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data.success) {
+                            Swal.fire({
+                                title: 'Voucher Claimed!',
+                                text: data.message || 'Voucher has been added to your wallet.',
+                                icon: 'success',
+                                confirmButtonColor: '#003580'
+                            });
+                            btn.className = 'home-voucher-btn';
+                            btn.style.background = '#cbd5e1';
+                            btn.style.color = '#64748b';
+                            btn.innerHTML = 'Claimed';
+                            btn.disabled = true;
+                        } else {
+                            Swal.fire({
+                                title: 'Claim Failed',
+                                text: data.message || 'Something went wrong.',
+                                icon: 'error',
+                                confirmButtonColor: '#003580'
+                            });
+                            btn.disabled = false;
+                            btn.innerHTML = 'Claim';
+                        }
+                    })
+                    .catch(err => {
+                        console.error('Error claiming voucher:', err);
                         Swal.fire({
-                            title: 'Voucher Claimed!',
-                            text: data.message || 'Voucher has been added to your wallet.',
-                            icon: 'success',
-                            confirmButtonColor: '#003580'
-                        });
-                        btn.className = 'home-voucher-btn';
-                        btn.style.background = '#cbd5e1';
-                        btn.style.color = '#64748b';
-                        btn.innerHTML = 'Claimed';
-                        btn.disabled = true;
-                    } else {
-                        Swal.fire({
-                            title: 'Claim Failed',
-                            text: data.message || 'Something went wrong.',
+                            title: 'Error',
+                            text: 'Unable to connect to server. Please try again.',
                             icon: 'error',
                             confirmButtonColor: '#003580'
                         });
                         btn.disabled = false;
                         btn.innerHTML = 'Claim';
-                    }
-                })
-                .catch(err => {
-                    console.error('Error claiming voucher:', err);
-                    Swal.fire({
-                        title: 'Error',
-                        text: 'Unable to connect to server. Please try again.',
-                        icon: 'error',
-                        confirmButtonColor: '#003580'
                     });
-                    btn.disabled = false;
-                    btn.innerHTML = 'Claim';
-                });
             };
         });
     </script>
