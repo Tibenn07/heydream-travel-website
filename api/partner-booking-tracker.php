@@ -225,6 +225,7 @@ function ensurePartnerReportedIssues($pdo)
  *  2. Otherwise search all content tables (destinations, flash_deals, foreign_destinations,
  *     site_services, cruises, visas, partner_package_uploads) by package/destination name.
  *     Only packages with a non-null partner_id count.
+ *  3. Try fuzzy matching as fallback (partial name matching)
  */
 function resolvePartnerBookingMeta($pdo, array $input)
 {
@@ -236,6 +237,7 @@ function resolvePartnerBookingMeta($pdo, array $input)
 
     // If the front-end already resolved partner metadata, trust it.
     if ($partnerId > 0) {
+        error_log("Partner resolved from front-end: partner_id=$partnerId, source=$partnerSource");
         return [
             'partner_id'           => $partnerId,
             'partner_company'      => $partnerCompany   !== '' ? $partnerCompany   : null,
@@ -255,33 +257,35 @@ function resolvePartnerBookingMeta($pdo, array $input)
     ], static fn($v) => $v !== '')));
 
     if (empty($searchTerms)) {
+        error_log("No search terms found for partner resolution");
         return ['partner_id' => null, 'partner_company' => null, 'partner_package_id' => null, 'partner_package_name' => null, 'partner_source' => null];
     }
 
-    // Tables to search: [table => [name_column, partner_id_column, source_label]]
-    // All content tables created by partner-content-manager.php store partner_id directly.
+    // Tables to search: [table => [name_column, partner_id_column, partner_company_column, source_label]]
     $tables = [
+        'partner_package_uploads' => ['package_name', 'partner_id', 'partner_company', 'partner_package_upload'],
         'destinations'         => ['name', 'partner_id', 'partner_company', 'local_destination'],
         'foreign_destinations' => ['name', 'partner_id', 'partner_company', 'foreign_destination'],
         'flash_deals'          => ['title', 'partner_id', 'partner_company', 'flash_deal'],
         'site_services'        => ['title', 'partner_id', 'partner_company', 'site_service'],
         'cruises'              => ['title', 'partner_id', 'partner_company', 'cruise'],
         'visas'                => ['title', 'partner_id', 'partner_company', 'visa'],
-        'partner_package_uploads' => ['package_name', 'partner_id', 'partner_company', 'partner_package_upload'],
     ];
 
+    // FIRST: Try exact match across all search terms
     foreach ($searchTerms as $term) {
         foreach ($tables as $table => [$nameCol, $pidCol, $pcoCol, $sourceLabel]) {
             try {
-                $extra = ($table === 'partner_package_uploads') ? " AND upload_status = 'approved'" : '';
+                $extra = ($table === 'partner_package_uploads') ? " AND upload_status IN ('approved', 'pending')" : '';
                 $sql   = "SELECT id, {$pidCol} AS partner_id, {$pcoCol} AS partner_company, {$nameCol} AS pkg_name
                           FROM {$table}
-                          WHERE {$pidCol} IS NOT NULL AND LOWER({$nameCol}) = LOWER(?){$extra}
+                          WHERE {$pidCol} IS NOT NULL AND {$pidCol} > 0 AND LOWER({$nameCol}) = LOWER(?){$extra}
                           LIMIT 1";
                 $stmt  = $pdo->prepare($sql);
                 $stmt->execute([$term]);
                 $row   = $stmt->fetch(PDO::FETCH_ASSOC);
                 if ($row && !empty($row['partner_id'])) {
+                    error_log("Partner resolved from exact match in $table: partner_id={$row['partner_id']}, source=$sourceLabel, term=$term");
                     return [
                         'partner_id'           => (int) $row['partner_id'],
                         'partner_company'      => $row['partner_company'] ?? null,
@@ -296,6 +300,36 @@ function resolvePartnerBookingMeta($pdo, array $input)
         }
     }
 
+    // SECOND: Try partial/fuzzy match for better matching
+    foreach ($searchTerms as $term) {
+        foreach ($tables as $table => [$nameCol, $pidCol, $pcoCol, $sourceLabel]) {
+            try {
+                $extra = ($table === 'partner_package_uploads') ? " AND upload_status IN ('approved', 'pending')" : '';
+                $sql   = "SELECT id, {$pidCol} AS partner_id, {$pcoCol} AS partner_company, {$nameCol} AS pkg_name
+                          FROM {$table}
+                          WHERE {$pidCol} IS NOT NULL AND {$pidCol} > 0 AND LOWER({$nameCol}) LIKE LOWER(?){$extra}
+                          ORDER BY LENGTH({$nameCol}) ASC
+                          LIMIT 1";
+                $stmt  = $pdo->prepare($sql);
+                $stmt->execute(['%' . $term . '%']);
+                $row   = $stmt->fetch(PDO::FETCH_ASSOC);
+                if ($row && !empty($row['partner_id'])) {
+                    error_log("Partner resolved from fuzzy match in $table: partner_id={$row['partner_id']}, source=$sourceLabel, term=$term");
+                    return [
+                        'partner_id'           => (int) $row['partner_id'],
+                        'partner_company'      => $row['partner_company'] ?? null,
+                        'partner_package_id'   => (int) $row['id'],
+                        'partner_package_name' => $row['pkg_name'] ?? null,
+                        'partner_source'       => $sourceLabel,
+                    ];
+                }
+            } catch (Throwable $e) {
+                // Table may not exist yet; continue searching
+            }
+        }
+    }
+
+    error_log("Partner resolution failed for terms: " . implode(', ', $searchTerms));
     return [
         'partner_id'           => null,
         'partner_company'      => null,

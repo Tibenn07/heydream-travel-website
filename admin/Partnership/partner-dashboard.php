@@ -229,10 +229,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'confirm_booking') {
     $bookingId = (int)($_POST['booking_id'] ?? 0);
     if ($bookingId > 0) {
-        $checkStmt = $pdo->prepare("SELECT id FROM bookings WHERE id = ? AND partner_id = ? AND deleted_at IS NULL");
+        $checkStmt = $pdo->prepare("SELECT id FROM bookings WHERE id = ? AND (partner_id = ? OR (partner_id IS NULL AND partner_source = 'partner_package_upload' AND partner_package_id IS NOT NULL)) AND deleted_at IS NULL");
         $checkStmt->execute([$bookingId, $partnerId]);
         if ($checkStmt->fetch()) {
-            $stmt = $pdo->prepare("UPDATE bookings SET booking_status = 'confirmed', payment_status = 'paid', partner_approved = 1 WHERE id = ? AND partner_id = ? AND deleted_at IS NULL");
+            $stmt = $pdo->prepare("UPDATE bookings SET booking_status = 'confirmed', payment_status = 'paid', partner_approved = 1 WHERE id = ? AND (partner_id = ? OR (partner_id IS NULL AND partner_source = 'partner_package_upload' AND partner_package_id IS NOT NULL)) AND deleted_at IS NULL");
             if ($stmt->execute([$bookingId, $partnerId])) {
                 $successMessage = 'Booking approved successfully. It will now appear in the admin Bookings dashboard.';
             } else {
@@ -247,7 +247,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     if ($bookingId > 0) {
         $checkStmt = $pdo->prepare(
             "SELECT booking_status, payment_status, email, full_name, booking_number, destination_name, package_name, partner_package_name, travel_date, number_of_travelers, total_amount, travel_documents, ready_for_travel
-             FROM bookings WHERE id = ? AND partner_id = ? AND deleted_at IS NULL"
+             FROM bookings WHERE id = ? AND (partner_id = ? OR (partner_id IS NULL AND partner_source = 'partner_package_upload' AND partner_package_id IS NOT NULL)) AND deleted_at IS NULL"
         );
         $checkStmt->execute([$bookingId, $partnerId]);
         $oldBooking = $checkStmt->fetch(PDO::FETCH_ASSOC);
@@ -276,7 +276,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                 $newStatus = 'completed';
             }
 
-            $stmt = $pdo->prepare("UPDATE bookings SET booking_status=?, payment_status=?, visa_status=?, price_per_person=?, total_amount=?, travel_date=?, number_of_travelers=?, travel_documents=?, ready_for_travel=?, flight_details=?, admin_notes=? WHERE id=? AND partner_id=?");
+            $stmt = $pdo->prepare("UPDATE bookings SET booking_status=?, payment_status=?, visa_status=?, price_per_person=?, total_amount=?, travel_date=?, number_of_travelers=?, travel_documents=?, ready_for_travel=?, flight_details=?, admin_notes=? WHERE id=? AND (partner_id=? OR (partner_id IS NULL AND partner_source = 'partner_package_upload' AND partner_package_id IS NOT NULL))");
             $updateSuccess = $stmt->execute([$newStatus, $newPayment, $newVisa, $newPricePerPerson, $newAmount, $newTravel, $newTravelers, $newTravelDocs, $newReadyForTravel, $newFlightDetails, $newAdminNotes, $bookingId, $partnerId]);
 
             $emailSent = false;
@@ -333,10 +333,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'delete_booking') {
     $bookingId = (int)($_POST['booking_id'] ?? 0);
     if ($bookingId > 0) {
-        $checkStmt = $pdo->prepare("SELECT id FROM bookings WHERE id = ? AND partner_id = ? AND deleted_at IS NULL");
+        $checkStmt = $pdo->prepare("SELECT id FROM bookings WHERE id = ? AND (partner_id = ? OR (partner_id IS NULL AND partner_source = 'partner_package_upload' AND partner_package_id IS NOT NULL)) AND deleted_at IS NULL");
         $checkStmt->execute([$bookingId, $partnerId]);
         if ($checkStmt->fetch()) {
-            $stmt = $pdo->prepare("UPDATE bookings SET deleted_at = NOW() WHERE id = ? AND partner_id = ? AND deleted_at IS NULL");
+            $stmt = $pdo->prepare("UPDATE bookings SET deleted_at = NOW() WHERE id = ? AND (partner_id = ? OR (partner_id IS NULL AND partner_source = 'partner_package_upload' AND partner_package_id IS NOT NULL)) AND deleted_at IS NULL");
             if ($stmt->execute([$bookingId, $partnerId])) {
                 $successMessage = 'Booking removed successfully. It will also disappear from admin and partner booking lists.';
             } else {
@@ -616,7 +616,7 @@ $partnerBookingStatsStmt = $pdo->prepare(
             COALESCE(SUM(CASE WHEN payment_status = 'paid' OR booking_status IN ('confirmed','completed') THEN total_amount ELSE 0 END), 0) AS paid_revenue,
             COALESCE(SUM(CASE WHEN payment_status = 'unpaid' AND booking_status = 'pending' THEN total_amount ELSE 0 END), 0) AS pending_revenue
      FROM bookings
-     WHERE partner_id = ?
+     WHERE (partner_id = ? OR (partner_id IS NULL AND partner_source = 'partner_package_upload' AND partner_package_id IS NOT NULL))
        AND deleted_at IS NULL
        AND destination_name NOT LIKE '%Chocolate Hills%'
        AND package_name NOT LIKE '%Chocolate Hills%'
@@ -643,7 +643,7 @@ if (($section ?? 'dashboard') === 'bookings') {
     $limit = 10;
     $offset = ($currentPage - 1) * $limit;
 
-    $whereClause = "partner_id = :partner_id AND deleted_at IS NULL"
+    $whereClause = "(partner_id = :partner_id OR (partner_id IS NULL AND partner_source = 'partner_package_upload' AND partner_package_id IS NOT NULL)) AND deleted_at IS NULL"
                  . " AND destination_name NOT LIKE :exclude_destination"
                  . " AND package_name NOT LIKE :exclude_destination"
                  . " AND partner_package_name NOT LIKE :exclude_destination";

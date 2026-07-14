@@ -607,7 +607,14 @@ window.showLocalPackagePopupModal = async function (identifier) {
                     <div class="form-group"><label>Full Name *</label><input type="text" id="homeFullName" autocomplete="name" placeholder="Enter your full name" value="${window.currentFullName || ''}"></div>
                 </div>
                 <div class="form-row">
+<<<<<<< Updated upstream
                     <div class="form-group"><label>Phone *</label><input type="tel" id="homePhone" autocomplete="tel" placeholder="+63 912 345 6789"></div>
+=======
+                    <div class="form-group"><label>Email ${window.currentUserEmail ? '(Your Account Email)' : '*'}</label><input type="email" id="homeEmail" placeholder="your.email@example.com" value="${window.currentUserEmail || ''}" ${window.currentUserEmail ? 'readonly style="background-color:#f0f0f0;cursor:not-allowed;"' : ''}></div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group"><label>Phone *</label><input type="tel" id="homePhone" placeholder="+63 912 345 6789"></div>
+>>>>>>> Stashed changes
                     <div class="form-group"><label>Travelers *</label><input type="number" id="homeTravelersCount" min="1" value="1" onchange="updateHomeTotalPrice(${destination.price})"></div>
                 </div>
                 <!-- Voucher Section (Step 2) -->
@@ -1190,15 +1197,17 @@ window.resumeHomeBooking = async function (destKey, step) {
 function validateHomeStep2(destinationId, price, destinationName, duration) {
     const errors = [];
     const fullName = document.getElementById('homeFullName').value.trim();
+    const email = document.getElementById('homeEmail').value.trim();
     const phone = document.getElementById('homePhone').value.trim();
     const travelDate = document.getElementById('homeTravelDate').value;
     const travelers = document.getElementById('homeTravelersCount').value;
 
     if (!fullName) errors.push('Full Name is required');
 
-    // Use auto-detected email
-    const email = window.currentUserEmail || '';
-    if (!email) errors.push('Your account email could not be detected. Please log in again.');
+    // Validate email (either from logged-in user or form input)
+    if (!email) errors.push('Email address is required');
+    else if (!email.match(/^[^\s@]+@([^\s@]+\.)+[^\s@]+$/)) errors.push('Please enter a valid email address');
+    
     if (!phone) errors.push('Phone number is required');
     if (!travelers || travelers < 1) errors.push('At least 1 traveler is required');
 
@@ -1360,39 +1369,33 @@ function sendHomeBookingToServer(btn, originalText, paymentMethodName, paymentRe
     const appliedVoucher = window._appliedVoucher && window._appliedVoucher['home'];
     const finalAmount = appliedVoucher ? appliedVoucher.finalTotal : homeBookingData.totalAmount;
 
-    const formData = new FormData();
-    formData.append('service_type', 'Local Package');
-    formData.append('package_name', homeBookingData.destinationName);
-    formData.append('package_duration', homeBookingData.duration);
-    formData.append('price_per_person', homeBookingData.price);
-    formData.append('full_name', homeBookingData.fullName);
-    formData.append('email', homeBookingData.email);
-    formData.append('phone', homeBookingData.phone);
-    formData.append('travel_date', homeBookingData.travelDate);
-    formData.append('number_of_travelers', homeBookingData.travelers);
-    formData.append('special_requests', homeBookingData.specialRequests);
-    formData.append('total_amount', finalAmount);
-    formData.append('currency', window.currentHomeDestCurrency || '₱');
-    if (window.currentHomeDest?.partner_id) formData.append('partner_id', window.currentHomeDest.partner_id);
-    if (window.currentHomeDest?.partner_company) formData.append('partner_company', window.currentHomeDest.partner_company);
-    if (window.currentHomeDest?.partner_source) formData.append('partner_source', window.currentHomeDest.partner_source);
-    if (window.currentHomeDest?.name) formData.append('partner_package_name', window.currentHomeDest.name);
-    formData.append('payment_method', homeSelectedPayment);
-    if (paymentRef) formData.append('payment_reference', paymentRef);
-    if (appliedVoucher) {
-        formData.append('voucher_id', appliedVoucher.id);
-        formData.append('voucher_discount', appliedVoucher.discountAmount);
-    }
-
-    // Support file uploads for payment proof
-    const fileInput = document.getElementById(`homeProof${homeSelectedPayment.charAt(0).toUpperCase() + homeSelectedPayment.slice(1)}`);
-    if (fileInput && fileInput.files[0]) {
-        formData.append('payment_proof', fileInput.files[0]);
-    }
-
-    fetch('api/save-service-booking.php', {
+    fetch('api/save-local-booking.php', {
         method: 'POST',
-        body: formData
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            destination_name: homeBookingData.destinationName,
+            destination_id: homeBookingData.destinationId,
+            package_duration: homeBookingData.duration,
+            price_per_person: homeBookingData.price,
+            full_name: homeBookingData.fullName,
+            email: homeBookingData.email,
+            phone: homeBookingData.phone,
+            travel_date: homeBookingData.travelDate,
+            number_of_travelers: homeBookingData.travelers,
+            special_requests: homeBookingData.specialRequests,
+            total_amount: finalAmount,
+            currency: window.currentHomeDestCurrency || '₱',
+            payment_method: homeSelectedPayment,
+            payment_reference: paymentRef || null,
+            partner_id: window.currentHomeDest?.partner_id ?? null,
+            partner_company: window.currentHomeDest?.partner_company ?? null,
+            partner_source: window.currentHomeDest?.partner_source ?? 'local_destination',
+            partner_package_name: window.currentHomeDest?.name ?? null,
+            voucher_id: appliedVoucher?.id ?? null,
+            voucher_discount: appliedVoucher?.discountAmount ?? 0
+        })
     })
         .then(response => response.json())
         .then(data => {
