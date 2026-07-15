@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 // File: admin/content-manager.php
 // User-Friendly Content Manager with Full Package Management
 // Now supports auto-save draft functionality
@@ -46,7 +46,7 @@ if ($partnerCompany === '') {
     $partnerCompany = $partnerAccount['company_name'] ?? '';
 }
 
-$page = $_GET['page'] ?? 'flash-deals';
+$page = $_GET['page'] ?? 'foreign-destinations';
 $message = '';
 $error = '';
 
@@ -619,209 +619,8 @@ try {
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = $_POST['action'] ?? '';
 
-    // Save Flash Deal - Updated with new fields
-    if ($action === 'save_flash_deal') {
-        $id = intval($_POST['id'] ?? 0);
-        if ($id > 0 && !ensurePartnerOwnership($pdo, 'flash_deals', $id, $partnerId)) {
-            echo json_encode(['success' => false, 'message' => 'You can only edit your own packages.']);
-            exit;
-        }
-        $title = trim($_POST['title']);
-        $short_description = trim($_POST['short_description'] ?? '');
-        $category = trim($_POST['category']);
-        $location = trim($_POST['location']);
-        $description = trim($_POST['description'] ?? '');
-        $price = floatval($_POST['price']);
-        $currency = trim($_POST['currency'] ?? '₱');
-        $original_price = floatval($_POST['original_price'] ?? 0);
-        $discount_percent = intval($_POST['discount_percent'] ?? 0);
-        $duration = trim($_POST['duration'] ?? '');
-        $group_size = trim($_POST['group_size'] ?? '');
-        $best_season = trim($_POST['best_season'] ?? '');
-        $rating = floatval($_POST['rating'] ?? 0);
-        $reviews = intval($_POST['reviews'] ?? 0);
-        $booked_count = trim($_POST['booked_count'] ?? '');
-        $badge_text = trim($_POST['badge_text'] ?? '');
-        $is_active = isset($_POST['is_active']) ? 1 : 0;
-        $display_order = intval($_POST['display_order'] ?? 0);
-        $remarks = trim($_POST['remarks'] ?? '');
-        $blocked_dates = trim($_POST['blocked_dates'] ?? '');
-        $promo_start = !empty($_POST['promo_start']) ? $_POST['promo_start'] : null;
-        $promo_end = !empty($_POST['promo_end']) ? $_POST['promo_end'] : null;
-        $highlight_duration = intval($_POST['highlight_duration'] ?? 1);
-        $blocked_months = isset($_POST['blocked_months']) ? implode(',', $_POST['blocked_months']) : '';
-
-        // Handle items from form
-        $itinerary_json = $_POST['itinerary'] ?? '[]';
-        $hotels_json = $_POST['hotels'] ?? '[]';
-
-        // Handle inclusions
-        $inclusions = $_POST['inclusions'] ?? '';
-        if (is_string($inclusions) && strpos($inclusions, "\n") !== false) {
-            $inclusions = explode("\n", $inclusions);
-            $inclusions = array_filter(array_map('trim', $inclusions));
-        }
-        $inclusions_json = is_array($inclusions) ? json_encode($inclusions) : '[]';
-
-        // Handle exclusions
-        $exclusions = $_POST['exclusions'] ?? '';
-        if (is_string($exclusions) && strpos($exclusions, "\n") !== false) {
-            $exclusions = explode("\n", $exclusions);
-            $exclusions = array_filter(array_map('trim', $exclusions));
-        }
-        $exclusions_json = is_array($exclusions) ? json_encode($exclusions) : '[]';
-
-        $image1 = isset($_FILES['image_1']) ? uploadImage($_FILES['image_1'], $_POST['old_image_1'] ?? null) : ['success' => true, 'path' => $_POST['old_image_1'] ?? null];
-        $image2 = isset($_FILES['image_2']) ? uploadImage($_FILES['image_2'], $_POST['old_image_2'] ?? null) : ['success' => true, 'path' => $_POST['old_image_2'] ?? null];
-        $image3 = isset($_FILES['image_3']) ? uploadImage($_FILES['image_3'], $_POST['old_image_3'] ?? null) : ['success' => true, 'path' => $_POST['old_image_3'] ?? null];
-
-        // Handle Gallery Images
-        $gallery = [];
-        if ($id > 0) {
-            $stmt = $pdo->prepare("SELECT image_gallery FROM flash_deals WHERE id = ?");
-            $stmt->execute([$id]);
-            $existing = $stmt->fetchColumn();
-            $gallery = $existing ? json_decode($existing, true) : [];
-        }
-
-        if (isset($_POST['remove_gallery_images']) && !empty($_POST['remove_gallery_images'])) {
-            $to_remove = explode(',', $_POST['remove_gallery_images']);
-            $gallery = array_values(array_filter($gallery, function ($img) use ($to_remove) {
-                return !in_array($img, $to_remove);
-            }));
-        }
-
-        if (isset($_FILES['gallery']) && !empty($_FILES['gallery']['name'][0])) {
-            foreach ($_FILES['gallery']['tmp_name'] as $key => $tmp_name) {
-                if ($_FILES['gallery']['error'][$key] === 0 && isAllowedUploadImage($_FILES['gallery']['type'][$key], $_FILES['gallery']['size'][$key])) {
-                    $ext = pathinfo($_FILES['gallery']['name'][$key], PATHINFO_EXTENSION);
-                    $filename = 'flash_g_' . time() . '_' . $key . '.' . $ext;
-                    if (move_uploaded_file($tmp_name, dirname(__DIR__, 2) . '/uploads/' . $filename)) {
-                        $gallery[] = 'uploads/' . $filename;
-                    }
-                }
-            }
-        }
-        $image_gallery_json = json_encode($gallery);
-
-        if ($image1['success'] && $image2['success'] && $image3['success']) {
-            try {
-                if ($id > 0) {
-                    $stmt = $pdo->prepare("UPDATE flash_deals SET 
-                        title=?, short_description=?, category=?, location=?, description=?, 
-                        price=?, currency=?, original_price=?, discount_percent=?, duration=?, group_size=?, best_season=?,
-                        rating=?, reviews=?, booked_count=?, badge_text=?, 
-                        itinerary=?, inclusions=?, exclusions=?, hotels=?,
-                        image_path=?, image2_path=?, image3_path=?, image_gallery=?,
-                        is_active=?, display_order=?, remarks=?, blocked_dates=?,
-                        promo_start=?, promo_end=?, blocked_months=?, highlight_duration=?, partner_id=?, partner_company=? WHERE id=?");
-                    $stmt->execute([
-                        $title,
-                        $short_description,
-                        $category,
-                        $location,
-                        $description,
-                        $price,
-                        $currency,
-                        $original_price,
-                        $discount_percent,
-                        $duration,
-                        $group_size,
-                        $best_season,
-                        $rating,
-                        $reviews,
-                        $booked_count,
-                        $badge_text,
-                        $itinerary_json,
-                        $inclusions_json,
-                        $exclusions_json,
-                        $hotels_json,
-                        $image1['path'],
-                        $image2['path'],
-                        $image3['path'],
-                        $image_gallery_json,
-                        $is_active,
-                        $display_order,
-                        $remarks,
-                        $blocked_dates,
-                        $promo_start,
-                        $promo_end,
-                        $blocked_months,
-                        $highlight_duration,
-                        $partnerId,
-                        $partnerCompany,
-                        $id
-                    ]);
-                    $stmt = $pdo->prepare("SELECT * FROM flash_deals WHERE id = ?");
-                    $stmt->execute([$id]);
-                    $row = $stmt->fetch(PDO::FETCH_ASSOC);
-                    echo json_encode(['success' => true, 'message' => 'Flash deal updated successfully!', 'data' => $row]);
-                    exit;
-                } else {
-                    $stmt = $pdo->prepare("INSERT INTO flash_deals (
-                        title, short_description, category, location, description, 
-                        price, currency, original_price, discount_percent, duration, group_size, best_season,
-                        rating, reviews, booked_count, badge_text,
-                        itinerary, inclusions, exclusions, hotels,
-                        image_path, image2_path, image3_path, image_gallery,
-                        is_active, display_order, remarks, blocked_dates,
-                        promo_start, promo_end, blocked_months, highlight_duration, partner_id, partner_company
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
-                    $stmt->execute([
-                        $title,
-                        $short_description,
-                        $category,
-                        $location,
-                        $description,
-                        $price,
-                        $currency,
-                        $original_price,
-                        $discount_percent,
-                        $duration,
-                        $group_size,
-                        $best_season,
-                        $rating,
-                        $reviews,
-                        $booked_count,
-                        $badge_text,
-                        $itinerary_json,
-                        $inclusions_json,
-                        $exclusions_json,
-                        $hotels_json,
-                        $image1['path'],
-                        $image2['path'],
-                        $image3['path'],
-                        $image_gallery_json,
-                        $is_active,
-                        $display_order,
-                        $remarks,
-                        $blocked_dates,
-                        $promo_start,
-                        $promo_end,
-                        $blocked_months,
-                        $highlight_duration,
-                        $partnerId,
-                        $partnerCompany
-                    ]);
-                    $newId = intval($pdo->lastInsertId());
-                    $stmt = $pdo->prepare("SELECT * FROM flash_deals WHERE id = ?");
-                    $stmt->execute([$newId]);
-                    $row = $stmt->fetch(PDO::FETCH_ASSOC);
-                    echo json_encode(['success' => true, 'message' => 'Flash deal added successfully!', 'data' => $row, 'id' => $newId]);
-                    exit;
-                }
-            } catch (PDOException $e) {
-                echo json_encode(['success' => false, 'message' => 'Database error: ' . $e->getMessage()]);
-                exit;
-            }
-        } else {
-            echo json_encode(['success' => false, 'message' => 'Image upload failed: ' . ($image1['message'] ?? $image2['message'] ?? $image3['message'])]);
-            exit;
-        }
-    }
-
     // Save Destination (Local)
-    elseif ($action === 'save_destination') {
+    if ($action === 'save_destination') {
         $id = intval($_POST['id'] ?? 0);
         if ($id > 0 && !ensurePartnerOwnership($pdo, 'destinations', $id, $partnerId)) {
             echo json_encode(['success' => false, 'message' => 'You can only edit your own packages.']);
@@ -1267,29 +1066,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $stmt = $pdo->prepare("DELETE FROM foreign_destinations WHERE id = ?");
         $stmt->execute([$id]);
         echo json_encode(['success' => true, 'message' => 'Foreign destination deleted successfully!']);
-        exit;
-    }
-
-    // Delete Flash Deal
-    elseif ($action === 'delete_flash_deal') {
-        $id = intval($_POST['id']);
-        if (!ensurePartnerOwnership($pdo, 'flash_deals', $id, $partnerId)) {
-            echo json_encode(['success' => false, 'message' => 'You can only delete your own packages.']);
-            exit;
-        }
-        $stmt = $pdo->prepare("SELECT image_path, image2_path, image3_path FROM flash_deals WHERE id = ?");
-        $stmt->execute([$id]);
-        $deal = $stmt->fetch();
-        if ($deal) {
-            foreach (['image_path', 'image2_path', 'image3_path'] as $img_field) {
-                if ($deal[$img_field] && file_exists(dirname(__DIR__, 2) . '/' . $deal[$img_field])) {
-                    unlink(dirname(__DIR__, 2) . '/' . $deal[$img_field]);
-                }
-            }
-        }
-        $stmt = $pdo->prepare("DELETE FROM flash_deals WHERE id = ?");
-        $stmt->execute([$id]);
-        echo json_encode(['success' => true, 'message' => 'Flash deal deleted successfully!']);
         exit;
     }
 
@@ -1977,14 +1753,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 // Fetch data for display
 try {
-    $stmt = $pdo->prepare("SELECT * FROM flash_deals WHERE partner_id = ? ORDER BY display_order, id DESC");
-    $stmt->execute([$partnerId]);
-    $flash_deals = $stmt->fetchAll();
-} catch (PDOException $e) {
-    $flash_deals = [];
-}
-
-try {
     $stmt = $pdo->prepare("SELECT * FROM foreign_destinations WHERE partner_id = ? ORDER BY display_order, id DESC");
     $stmt->execute([$partnerId]);
     $foreign_destinations = $stmt->fetchAll();
@@ -2122,6 +1890,17 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
             margin: 0;
             padding: 0;
             box-sizing: border-box;
+        }
+
+        html, body {
+            /* Safety net: nothing on this page (a wide table, the wizard
+               progress bar, etc.) should ever be able to stretch the whole
+               page sideways -- each of those already has its own scoped
+               overflow-x:auto scroll container, so this just guarantees a
+               stray element can't leak past that and shift the entire
+               viewport (which was cutting off the left edge of everything,
+               including the browser's own URL bar, on mobile). */
+            overflow-x: hidden;
         }
 
         body {
@@ -2530,6 +2309,7 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
             width: 90%;
             max-height: 85vh;
             overflow-y: auto;
+            overflow-x: hidden;
             animation: fadeInUp 0.3s ease;
         }
 
@@ -3208,6 +2988,81 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
             animation: fadeIn 0.3s ease;
         }
 
+        /* .table-responsive is used to wrap the Cruises/Flight Bookings/
+           Hotel Services/Experiences tables, but the class was never
+           actually defined -- on narrow screens the tables just overflowed
+           and clipped with no way to reach the cut-off columns. */
+        .table-responsive { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+        /* ---- Step wizard progress bar (replaces the free-click .tabs row
+           inside Add/Edit modals) ---- */
+        /* justify-content:center + overflow-x:auto is a trap: when the
+           steps overflow (many steps on a narrow screen), centering makes
+           them spill past the container on BOTH sides equally, but
+           scrollLeft can never go negative -- so the left-side steps become
+           permanently unreachable no matter how far you scroll. flex-start
+           keeps step 1 anchored at scrollLeft:0 with nothing hidden. */
+        .pkgwiz-progress { display: flex; justify-content: flex-start; padding: 4px 0 22px; margin-bottom: 20px; border-bottom: 1px solid #eee; gap: 4px; overflow-x: auto; }
+        /* Center the step bar once there's room for all steps to fit --
+           center only works safely when nothing overflows (see the mobile
+           media query below for why flex-start is the base). */
+        @media (min-width: 640px) {
+            .pkgwiz-progress { justify-content: center; }
+        }
+        .pkgwiz-step { flex: 1; min-width: 90px; max-width: 170px; text-align: center; position: relative; background: none; border: none; cursor: default; font-family: inherit; }
+        .pkgwiz-circle { width: 32px; height: 32px; border-radius: 50%; background: #e2e8f0; color: #64748b; display: flex; align-items: center; justify-content: center; margin: 0 auto 8px; font-weight: 800; font-size: 0.82rem; position: relative; z-index: 2; transition: 0.25s; }
+        .pkgwiz-step.active .pkgwiz-circle { background: #003580; color: #fff; box-shadow: 0 0 0 5px rgba(0,53,128,0.14); }
+        .pkgwiz-step.done .pkgwiz-circle { background: #22c55e; color: #fff; font-size: 0; }
+        .pkgwiz-step.done .pkgwiz-circle::before { content: '\f00c'; font-family: 'Font Awesome 6 Free'; font-weight: 900; font-size: 0.75rem; }
+        .pkgwiz-connector { position: absolute; top: 16px; left: -50%; width: 100%; height: 2px; background: #e2e8f0; z-index: 1; }
+        .pkgwiz-step.done .pkgwiz-connector, .pkgwiz-step.active .pkgwiz-connector { background: #22c55e; }
+        .pkgwiz-label { font-size: 0.74rem; font-weight: 700; color: #64748b; }
+        .pkgwiz-step.active .pkgwiz-label { color: #003580; }
+        .pkgwiz-step.done .pkgwiz-label { color: #22c55e; }
+
+        .pkgwiz-nav { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin: 18px 0 4px; padding-top: 16px; border-top: 1px solid #eee; }
+        .pkgwiz-btn-back { border: 1.5px solid #93c5fd; background: #eff6ff; color: #1e3a8a; padding: 11px 22px; font-weight: 700; cursor: pointer; font: inherit; display: inline-flex; align-items: center; gap: 8px; border-radius: 8px; transition: background 0.15s, transform 0.15s; }
+        .pkgwiz-btn-back:hover { background: #dbeafe; transform: translateX(-2px); }
+        .pkgwiz-btn-next { border: none; background: linear-gradient(135deg, #003580, #0055c8); color: #fff; border-radius: 8px; padding: 11px 26px; font-weight: 700; cursor: pointer; font: inherit; display: inline-flex; align-items: center; gap: 8px; margin-left: auto; box-shadow: 0 4px 12px rgba(0,53,128,0.25); transition: transform 0.15s, box-shadow 0.15s; }
+        .pkgwiz-btn-next:hover { transform: translateY(-1px); box-shadow: 0 6px 16px rgba(0,53,128,0.32); }
+        .pkgwiz-nav-left { display: flex; align-items: center; }
+
+        /* ---- Dedicated "Review Changes" step (edit mode only, appended as
+           a real 5th step -- not squeezed above Save on the last real tab) ---- */
+        .pkgwiz-step.pkgwiz-step-review .pkgwiz-circle { font-size: 0.9rem; }
+        .pkgwiz-step.pkgwiz-step-review.active .pkgwiz-circle { background: #d97706; box-shadow: 0 0 0 5px rgba(217,119,6,0.16); }
+        .pkgwiz-step.pkgwiz-step-review.active .pkgwiz-label { color: #d97706; }
+        .pkgwiz-step.pkgwiz-step-review.done .pkgwiz-circle { background: #d97706; }
+        .pkgwiz-step.pkgwiz-step-review.done .pkgwiz-connector { background: #d97706; }
+
+        .pkgwiz-review-panel { padding: 4px 0 8px; }
+        .pkgwiz-review-heading { font-size: 1.1rem; font-weight: 800; color: #0f172a; margin: 0 0 4px; display: flex; align-items: center; gap: 10px; }
+        .pkgwiz-review-heading i { color: #d97706; }
+        .pkgwiz-review-sub { color: #64748b; font-size: 0.88rem; margin-bottom: 18px; }
+
+        .pkgwiz-receipt-count { display: inline-flex; align-items: center; gap: 6px; background: #fef3c7; color: #92400e; font-weight: 800; font-size: 0.76rem; padding: 6px 14px; border-radius: 20px; margin-bottom: 16px; text-transform: uppercase; letter-spacing: 0.03em; }
+        .pkgwiz-receipt-row { padding: 14px 16px; background: #fff; border: 1px solid #f1f5f9; border-radius: 10px; margin-bottom: 10px; box-shadow: 0 1px 3px rgba(15,23,42,0.04); }
+        .pkgwiz-receipt-field { font-weight: 700; color: #0f172a; font-size: 0.86rem; margin-bottom: 8px; display: flex; align-items: center; gap: 8px; }
+        .pkgwiz-receipt-field i { color: #d97706; font-size: 0.8rem; }
+        .pkgwiz-receipt-values { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+        .pkgwiz-receipt-old { background: #fef2f2; color: #b91c1c; text-decoration: line-through; padding: 5px 12px; border-radius: 6px; font-size: 0.82rem; word-break: break-word; }
+        .pkgwiz-receipt-arrow { color: #cbd5e1; flex-shrink: 0; }
+        .pkgwiz-receipt-new { background: #f0fdf4; color: #166534; font-weight: 700; padding: 5px 12px; border-radius: 6px; font-size: 0.82rem; word-break: break-word; }
+        .pkgwiz-receipt-empty { text-align: center; padding: 44px 20px; color: #94a3b8; background: #f8fafc; border: 1px dashed #e2e8f0; border-radius: 10px; }
+        .pkgwiz-receipt-empty i { font-size: 2.2rem; margin-bottom: 12px; display: block; color: #86efac; }
+        .pkgwiz-receipt-empty strong { display: block; font-size: 1rem; color: #334155; margin-bottom: 6px; }
+        .pkgwiz-receipt-empty p { margin: 0; font-size: 0.85rem; }
+
+        @media (max-width: 560px) {
+            .pkgwiz-label { font-size: 0.64rem; }
+            .pkgwiz-step { min-width: 62px; }
+            .pkgwiz-nav { flex-wrap: wrap; }
+            .pkgwiz-nav-left { width: 100%; order: 2; justify-content: center; }
+            .pkgwiz-btn-back { width: 100%; justify-content: center; }
+            .pkgwiz-btn-next { width: 100%; justify-content: center; order: 1; }
+            .pkgwiz-review-heading { font-size: 1rem; }
+        }
+
         .itinerary-item {
             background: #f8fafc;
             border: 1px solid #e2e8f0;
@@ -3388,10 +3243,6 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
                 <p>Manage Website Content</p>
             </div>
             <div class="sidebar-nav">
-                <a href="?page=flash-deals" class="nav-item <?= $page === 'flash-deals' ? 'active' : '' ?>">
-                    <i class="fas fa-bolt"></i>
-                    <span>Flash Deals</span>
-                </a>
                 <a href="?page=foreign-destinations"
                     class="nav-item <?= $page === 'foreign-destinations' ? 'active' : '' ?>">
                     <i class="fas fa-globe-asia"></i>
@@ -3986,11 +3837,9 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
                 <div class="content-section">
                     <div class="section-header">
                         <h2><i class="fas fa-mountain"></i> Experience Inventory</h2>
-                        <div style="display: flex; gap: 10px;">
-                            <button class="add-btn" onclick="openServiceModal('experience')">
-                                <i class="fas fa-plus"></i> Add New Experience
-                            </button>
-                        </div>
+                        <button class="add-btn" onclick="openServiceModal('experience')">
+                            <i class="fas fa-plus"></i> Add New Experience
+                        </button>
                     </div>
 
                     <div class="stats-grid"
@@ -4218,7 +4067,7 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
                                     style="background: #f8fbff; padding: 15px; border-radius: 10px; margin-top: 10px; border: 1px solid #eef2f7;">
                                     <div class="form-group">
                                         <label style="font-weight: 600; color: #003580;">Status Controls</label>
-                                        <div style="display: flex; gap: 24px; margin-top: 8px;">
+                                        <div style="display: flex; flex-wrap: wrap; gap: 12px 24px; margin-top: 8px;">
                                             <div class="toggle-switch-group">
                                                 <label class="toggle-switch">
                                                     <input type="checkbox" name="is_active" id="service_is_active" checked>
@@ -4449,7 +4298,7 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
                             <!-- General Tab -->
                             <div id="tab-general" class="tab-content active">
                                 <div class="form-grid"
-                                    style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                                    style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 20px;">
                                     <div class="form-group">
                                         <label>Cruise Title *</label>
                                         <input type="text" name="title" id="cruise_title" required>
@@ -4477,7 +4326,7 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
 
                                     <div class="form-group">
                                         <label>Status Controls</label>
-                                        <div style="display: flex; gap: 24px; align-items: center; margin-top: 10px;">
+                                        <div style="display: flex; flex-wrap: wrap; gap: 12px 24px; align-items: center; margin-top: 10px;">
                                             <div class="toggle-switch-group">
                                                 <label class="toggle-switch">
                                                     <input type="checkbox" name="is_published" id="cruise_is_published" value="1" checked>
@@ -4501,7 +4350,7 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
                             <!-- Ship Tab -->
                             <div id="tab-ship" class="tab-content">
                                 <div class="form-grid"
-                                    style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                                    style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 20px;">
                                     <div class="form-group">
                                         <label>Ship Name</label>
                                         <input type="text" name="ship_name" id="cruise_ship_name">
@@ -4559,7 +4408,7 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
                             <!-- Pricing Tab -->
                             <div id="tab-pricing" class="tab-content">
                                 <div class="form-grid"
-                                    style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                                    style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 20px;">
                                     <div class="form-group">
                                         <label>Base Price (₱) *</label>
                                         <input type="number" name="base_price" id="cruise_base_price" step="0.01"
@@ -4595,7 +4444,7 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
                             <!-- Schedule Tab -->
                             <div id="tab-schedule" class="tab-content">
                                 <div class="form-grid"
-                                    style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                                    style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 20px;">
                                     <div class="form-group">
                                         <label>Duration (e.g. 5D/4N)</label>
                                         <input type="text" name="duration" id="cruise_duration_val">
@@ -4682,384 +4531,6 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
                     </div>
                 </div>
             </div>
-
-            <!-- Flash Deals Section -->
-            <?php if ($page === 'flash-deals'): ?>
-                <div id="flashDealsSection" class="content-section">
-                    <div class="section-header">
-                        <h2><i class="fas fa-bolt"></i> Flash Deals</h2>
-                        <button class="add-btn" onclick="openFlashDealModal()">
-                            <i class="fas fa-plus"></i> Add Flash Deal
-                        </button>
-                    </div>
-                    <div class="cards-grid">
-                        <?php if (empty($flash_deals)): ?>
-                            <div class="message info">No flash deals yet. Click "Add Flash Deal" to create your first one.</div>
-                        <?php else: ?>
-                            <?php foreach ($flash_deals as $deal):
-                                $preview_image = !empty($deal['image_path']) ? assetUrl($deal['image_path']) : 'https://via.placeholder.com/300x150?text=No+Image';
-                                $discount_text = $deal['discount_percent'] ? "⚡ {$deal['discount_percent']}% off" : ($deal['badge_text'] ?? 'Flash Deal');
-                                $is_expired = !empty($deal['promo_end']) && strtotime($deal['promo_end'] . ' 23:59:59') < time();
-                                ?>
-                                <div class="content-card" data-item-type="flash_deal" data-item-id="<?= $deal['id'] ?>" <?= $is_expired ? 'style="opacity: 0.7; filter: grayscale(80%); border-color: #ccc;"' : '' ?> >
-                                    <div class="card-preview" style="background-image: url('<?= $preview_image ?>');">
-                                        <span class="badge" <?= $is_expired ? 'style="background: #6c757d;"' : '' ?>>
-                                            <?= $is_expired ? 'Expired' : htmlspecialchars($discount_text) ?>
-                                        </span>
-                                    </div>
-                                    <div class="card-content">
-                                        <h3 class="card-title">
-                                            <?= htmlspecialchars($deal['title']) ?>
-                                        </h3>
-                                        <div class="card-meta">
-                                            <span><i class="fas fa-tag"></i>
-                                                <?= htmlspecialchars($deal['category'] ?? 'General') ?>
-                                            </span>
-                                            <span><i class="fas fa-map-marker-alt"></i>
-                                                <?= htmlspecialchars($deal['location'] ?? 'Various') ?>
-                                            </span>
-                                        </div>
-                                        <div class="card-meta">
-                                            <span><i class="fas fa-tag"></i>
-                                                <?= htmlspecialchars($deal['currency'] ?? '₱') ?>
-                                                <?= number_format($deal['price'], 2) ?>
-                                            </span>
-                                            <?php if ($deal['original_price']): ?>
-                                                <span><i class="fas fa-tag"></i>
-                                                    <s>
-                                                        <?= htmlspecialchars($deal['currency'] ?? '₱') ?>
-                                                        <?= number_format($deal['original_price'], 2) ?>
-                                                    </s></span>
-                                            <?php endif; ?>
-                                            <?php if ($deal['discount_percent']): ?>
-                                                <span><i class="fas fa-percent"></i> Save
-                                                    <?= $deal['discount_percent'] ?>%
-                                                </span>
-                                            <?php endif; ?>
-                                        </div>
-                                        <div class="card-meta">
-                                            <?php if ($deal['duration']): ?>
-                                                <span><i class="fas fa-clock"></i>
-                                                    <?= htmlspecialchars($deal['duration']) ?>
-                                                </span>
-                                            <?php endif; ?>
-                                        </div>
-                                        <div class="card-meta">
-                                            <span
-                                                class="status-badge <?= $deal['is_active'] ? 'status-active' : 'status-inactive' ?>">
-                                                <?= $deal['is_active'] ? 'Active' : 'Inactive' ?>
-                                            </span>
-                                        </div>
-                                        <div class="card-actions">
-                                            <button class="edit-card-btn"
-                                                onclick="editFlashDeal(<?= htmlspecialchars(json_encode($deal)) ?>)">
-                                                <i class="fas fa-edit"></i> Edit
-                                            </button>
-                                            <button class="delete-card-btn"
-                                                onclick="deleteItem('flash_deal', <?= $deal['id'] ?>, '<?= htmlspecialchars($deal['title']) ?>')">
-                                                <i class="fas fa-trash"></i> Delete
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
-                            <?php endforeach; ?>
-                        <?php endif; ?>
-                    </div>
-                </div>
-
-                <div id="flashDealModal" class="modal">
-                    <div class="modal-content" style="max-width: 900px;">
-                        <div class="modal-header">
-                            <h3 id="flashDealModalTitle">Add Flash Deal</h3>
-                            <span class="close-modal" onclick="closeModal('flashDealModal')">&times;</span>
-                        </div>
-                        <div class="modal-body">
-                            <div class="tabs">
-                                <button class="tab-btn active" onclick="switchFlashDealTab(event, 'fd-tab-general')">General
-                                    Info</button>
-                                <button class="tab-btn" onclick="switchFlashDealTab(event, 'fd-tab-pricing')">Pricing &
-                                    Schedule</button>
-                                <button class="tab-btn" onclick="switchFlashDealTab(event, 'fd-tab-details')">Itinerary &
-                                    Details</button>
-                                <button class="tab-btn"
-                                    onclick="switchFlashDealTab(event, 'fd-tab-gallery')">Gallery</button>
-                            </div>
-
-                            <form method="POST" enctype="multipart/form-data" id="flashDealForm" novalidate>
-                                <input type="hidden" name="action" value="save_flash_deal">
-                                <input type="hidden" name="id" id="deal_id" value="0">
-                                <input type="hidden" name="old_image_1" id="old_image_1">
-                                <input type="hidden" name="old_image_2" id="old_image_2">
-                                <input type="hidden" name="old_image_3" id="old_image_3">
-                                <input type="hidden" name="remove_gallery_images" id="flash_remove_gallery_images" value="">
-
-                                <!-- General Info Tab -->
-                                <div id="fd-tab-general" class="tab-content active">
-
-                                    <div class="form-row">
-                                        <div class="form-group">
-                                            <label>Title *</label>
-                                            <input type="text" name="title" id="deal_title" required>
-                                        </div>
-                                        <div class="form-group" style="display:none;">
-                                            <label>Category *</label>
-                                            <select name="category" id="deal_category">
-                                                <option value="Theme Park">🎢 Theme Parks</option>
-                                                <option value="Zoos & aquariums">🦒 Zoos & Aquariums</option>
-                                                <option value="Water activities">💧 Water Activities</option>
-                                                <option value="Massages">💆 Massages & Spas</option>
-                                                <option value="Beach activities">🏖️ Beach Activities</option>
-                                                <option value="Cultural tours">🏛️ Cultural Tours</option>
-                                            </select>
-                                        </div>
-                                    </div>
-
-                                    <div class="form-row">
-                                        <div class="form-group">
-                                            <label>Location</label>
-                                            <input type="text" name="location" id="deal_location"
-                                                placeholder="e.g., Santa Rosa, Laguna">
-                                        </div>
-                                    </div>
-
-                                    <div class="form-group">
-                                        <label>Short Description</label>
-                                        <textarea name="description" id="deal_description" rows="4"
-                                            placeholder="Brief description that will appear on the package card."></textarea>
-                                    </div>
-                                </div>
-
-                                <!-- Pricing & Schedule Tab -->
-                                <div id="fd-tab-pricing" class="tab-content">
-                                    <div class="form-row">
-                                        <div class="form-group" style="flex: 1;">
-                                            <label>Currency</label>
-                                            <select name="currency" id="deal_currency" required>
-                                                <option value="₱">₱ PHP</option>
-                                                <option value="$">$ USD</option>
-                                                <option value="€">€ EUR</option>
-                                                <option value="£">£ GBP</option>
-                                                <option value="¥">¥ JPY/CNY</option>
-                                                <option value="₩">₩ KRW</option>
-                                                <option value="SG$">SG$ SGD</option>
-                                                <option value="RM">RM MYR</option>
-                                                <option value="฿">฿ THB</option>
-                                                <option value="A$">A$ AUD</option>
-                                            </select>
-                                        </div>
-                                        <div class="form-group" style="flex: 2;">
-                                            <label>Price *</label>
-                                            <input type="number" name="price" id="deal_price" step="0.01" required>
-                                        </div>
-                                        <div class="form-group" style="flex: 2;">
-                                            <label>Original Price</label>
-                                            <input type="number" name="original_price" id="deal_original_price" step="0.01">
-                                        </div>
-                                        <div class="form-group" style="flex: 1;">
-                                            <label>Discount %</label>
-                                            <input type="number" name="discount_percent" id="deal_discount_percent" step="1"
-                                                min="0" max="100" placeholder="Auto">
-                                        </div>
-                                    </div>
-
-                                    <div class="form-row">
-                                        <div class="form-group" style="flex: 2;">
-                                            <label>Duration (e.g. 3D/2N)</label>
-                                            <input type="text" name="duration" id="deal_duration" placeholder="3D/2N">
-                                        </div>
-                                        <div class="form-group" style="flex: 2;">
-                                            <label>Blocked Dates</label>
-                                            <input type="text" name="blocked_dates" id="deal_blocked_dates"
-                                                class="blocked-dates-picker" placeholder="Select dates...">
-                                        </div>
-                                    </div>
-
-                                    <!-- Promo Constraints -->
-                                    <div class="form-row">
-                                        <div class="form-group">
-                                            <label>Travel Validity Start</label>
-                                            <input type="date" name="promo_start" id="deal_promo_start">
-                                        </div>
-                                        <div class="form-group">
-                                            <label>Travel Validity End</label>
-                                            <input type="date" name="promo_end" id="deal_promo_end">
-                                        </div>
-                                        <div class="form-group">
-                                            <label>Highlight (Days)</label>
-                                            <input type="number" name="highlight_duration" id="deal_highlight_duration"
-                                                value="1" min="1">
-                                        </div>
-                                    </div>
-
-                                    <div class="form-group">
-                                        <label>Blocked Months (Unclickable)</label>
-                                        <div class="month-grid">
-                                            <?php $months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']; ?>
-                                            <?php foreach ($months as $i => $m): ?>
-                                                <label class="month-checkbox">
-                                                    <input type="checkbox" name="blocked_months[]" value="<?= $i + 1 ?>"
-                                                        class="deal-month-check">
-                                                    <?= $m ?>
-                                                </label>
-                                            <?php endforeach; ?>
-                                        </div>
-                                    </div>
-
-                                    <div class="form-row">
-                                        <div class="form-group">
-                                            <label>Group Size</label>
-                                            <input type="text" name="group_size" id="deal_group_size"
-                                                placeholder="2-15 pax">
-                                        </div>
-                                        <div class="form-group" style="display:none;">
-                                            <label>Rating (0-5)</label>
-                                            <input type="number" name="rating" id="deal_rating" step="0.1" min="0" max="5">
-                                        </div>
-                                        <div class="form-group" style="display:none;">
-                                            <label>Reviews Count</label>
-                                            <input type="number" name="reviews" id="deal_reviews">
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <!-- Itinerary & Details Tab -->
-                                <div id="fd-tab-details" class="tab-content">
-                                    <div class="form-row">
-                                        <div class="form-group">
-                                            <label>Validity (Optional / Fallback Info)</label>
-                                            <input type="text" name="best_season" id="deal_best_season"
-                                                placeholder="Year Round">
-                                        </div>
-                                        <div class="form-group">
-                                            <label>Badge Text</label>
-                                            <input type="text" name="badge_text" id="deal_badge_text"
-                                                placeholder="⚡ Flash Deal">
-                                        </div>
-                                        <div class="form-group">
-                                            <label>Booked Count</label>
-                                            <input type="text" name="booked_count" id="deal_booked_count"
-                                                placeholder="e.g., 10K+ booked">
-                                        </div>
-                                    </div>
-
-                                    <!-- Inclusions Section -->
-                                    <div class="form-group">
-                                        <label>Package Inclusions (one per line)</label>
-                                        <textarea name="inclusions" id="deal_inclusions" rows="4"
-                                            placeholder="VIP access included&#10;Travel Insurance&#10;English speaking guide&#10;Hotel transfers"></textarea>
-                                    </div>
-
-                                    <!-- Hotel Management -->
-                                    <div class="form-group">
-                                        <label>Hotel Options (Surcharges)</label>
-                                        <div id="flashHotelBuilderContainer"></div>
-                                        <button type="button" class="add-day-btn" style="background: #4caf50;"
-                                            onclick="addHotel('flash')">
-                                            <i class="fas fa-plus"></i> Add Hotel Option
-                                        </button>
-                                        <input type="hidden" name="hotels" id="flash_hotels_json" value="[]">
-                                        <small>Add hotels users can choose from. Use price 0 for the default hotel.</small>
-                                    </div>
-
-                                    <!-- Exclusions Section -->
-                                    <div class="form-group">
-                                        <label>Package Exclusions (one per line)</label>
-                                        <textarea name="exclusions" id="deal_exclusions" rows="3"
-                                            placeholder="Airfare&#10;Personal expenses&#10;Lunch & dinner"></textarea>
-                                    </div>
-
-                                    <!-- Itinerary Builder -->
-                                    <div class="form-group">
-                                        <label>Tour Itinerary</label>
-                                        <div id="flashDealItineraryBuilder"></div>
-                                        <button type="button" class="add-day-btn" onclick="addFlashDealItineraryDay()">
-                                            <i class="fas fa-plus"></i> Add Day
-                                        </button>
-                                        <input type="hidden" name="itinerary" id="flash_deal_itinerary_data" value="[]">
-                                    </div>
-
-                                    <div class="form-row">
-                                        <div class="form-group">
-                                            <label>Display Order</label>
-                                            <input type="number" name="display_order" id="deal_display_order" value="0">
-                                        </div>
-                                        <div class="form-group">
-                                            <label>&nbsp;</label>
-                                            <div class="toggle-switch-group">
-                                                <label class="toggle-switch">
-                                                    <input type="checkbox" name="is_active" id="deal_is_active" value="1" checked>
-                                                    <span class="toggle-switch-slider"></span>
-                                                </label>
-                                                <label for="deal_is_active" class="toggle-switch-label">Active (show on website)</label>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <div class="form-group">
-                                        <label>Remarks and Note</label>
-                                        <textarea name="remarks" id="deal_remarks" rows="4"
-                                            placeholder="Important notes about the itinerary, requirements, or special conditions..."></textarea>
-                                        <small>This will appear after the Tour Itinerary in the booking popup.</small>
-                                    </div>
-                                </div>
-
-                                <!-- Gallery Tab -->
-                                <div id="fd-tab-gallery" class="tab-content">
-                                    <div class="form-group">
-                                        <label>Main Images (Cover Slides)</label>
-                                        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px;">
-                                            <div>
-                                                <label style="font-size: 0.8rem;">Image 1 (Main)</label>
-                                                <input type="file" name="image_1" accept=".jpg,.jpeg,.png,.gif,.webp,image/jpeg,image/png,image/gif,image/webp"
-                                                    onchange="previewImage(this, 'fd_preview_1')">
-                                                <div id="fd_preview_1" class="image-preview"
-                                                    style="height: 120px; margin-top: 5px; border: 2px dashed #ddd; border-radius: 8px; background-size: cover; background-position: center;">
-                                                </div>
-                                            </div>
-                                            <div>
-                                                <label style="font-size: 0.8rem;">Image 2 (Optional)</label>
-                                                <input type="file" name="image_2" accept=".jpg,.jpeg,.png,.gif,.webp,image/jpeg,image/png,image/gif,image/webp"
-                                                    onchange="previewImage(this, 'fd_preview_2')">
-                                                <div id="fd_preview_2" class="image-preview"
-                                                    style="height: 120px; margin-top: 5px; border: 2px dashed #ddd; border-radius: 8px; background-size: cover; background-position: center;">
-                                                </div>
-                                            </div>
-                                            <div>
-                                                <label style="font-size: 0.8rem;">Image 3 (Optional)</label>
-                                                <input type="file" name="image_3" accept=".jpg,.jpeg,.png,.gif,.webp,image/jpeg,image/png,image/gif,image/webp"
-                                                    onchange="previewImage(this, 'fd_preview_3')">
-                                                <div id="fd_preview_3" class="image-preview"
-                                                    style="height: 120px; margin-top: 5px; border: 2px dashed #ddd; border-radius: 8px; background-size: cover; background-position: center;">
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <div class="form-group" style="margin-top: 25px;">
-                                        <label>Full Photo Gallery (Multi-upload)</label>
-                                        <input type="file" name="gallery[]" id="flash_gallery_input" multiple accept=".jpg,.jpeg,.png,.gif,.webp,image/jpeg,image/png,image/gif,image/webp"
-                                            onchange="previewFlashGallery(this)">
-                                        <div id="flash_gallery_preview"
-                                            style="display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 10px; margin-top: 15px;">
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div
-                                    style="position: sticky; bottom: -20px; background: white; padding: 20px 0; border-top: 1px solid #eee; margin-top: 20px; z-index: 10;">
-                                    <div class="form-actions">
-                                        <button type="submit" class="save-btn"
-                                            style="width: 100%; justify-content: center; height: 50px; font-size: 1.1rem;"><i
-                                                class="fas fa-save"></i> Save Flash Deal</button>
-                                        <button type="button" class="cancel-btn" onclick="closeModal('flashDealModal')"
-                                            style="width: 100%; justify-content: center; height: 45px; font-weight: 600; color: #64748b; background: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 8px; cursor: pointer; margin-top: 10px; transition: all 0.2s;">Cancel</button>
-                                    </div>
-                                </div>
-                            </form>
-                        </div>
-                    </div>
-                </div>
-            <?php endif; ?>
 
             <!-- Foreign Destinations Section -->
             <?php if ($page === 'foreign-destinations'): ?>
@@ -5370,7 +4841,7 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
                                 <div id="fr-tab-gallery" class="tab-content">
                                     <div class="form-group">
                                         <label>Main Images (Cover Slides)</label>
-                                        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px;">
+                                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 15px;">
                                             <div>
                                                 <label style="font-size: 0.8rem;">Image 1 (Main)</label>
                                                 <input type="file" name="image" accept=".jpg,.jpeg,.png,.gif,.webp,image/jpeg,image/png,image/gif,image/webp"
@@ -5412,7 +4883,7 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
                                     style="position: sticky; bottom: -20px; background: white; padding: 20px 0; border-top: 1px solid #eee; margin-top: 20px; z-index: 10;">
                                     <div class="form-actions">
                                         <button type="submit" class="save-btn"
-                                            style="width: 100%; justify-content: center; height: 50px; font-size: 1.1rem;"><i
+                                            style="width: 100%; justify-content: center; height: 50px; font-size: 1.05rem; border: none; border-radius: 10px; background: linear-gradient(135deg, #003580, #0055c8); box-shadow: 0 4px 14px rgba(0,53,128,0.28);"><i
                                                 class="fas fa-save"></i> Save Foreign Destination</button>
                                         <button type="button" class="cancel-btn"
                                             onclick="closeModal('foreignDestinationModal')"
@@ -5719,7 +5190,7 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
                                 <div id="lc-tab-gallery" class="tab-content">
                                     <div class="form-group">
                                         <label>Main Images (Cover Slides)</label>
-                                        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px;">
+                                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 15px;">
                                             <div>
                                                 <label style="font-size: 0.8rem;">Image 1 (Main)</label>
                                                 <input type="file" name="image" accept=".jpg,.jpeg,.png,.gif,.webp,image/jpeg,image/png,image/gif,image/webp"
@@ -5761,7 +5232,7 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
                                     style="position: sticky; bottom: -20px; background: white; padding: 20px 0; border-top: 1px solid #eee; margin-top: 20px; z-index: 10;">
                                     <div class="form-actions">
                                         <button type="submit" class="save-btn"
-                                            style="width: 100%; justify-content: center; height: 50px; font-size: 1.1rem;"><i
+                                            style="width: 100%; justify-content: center; height: 50px; font-size: 1.05rem; border: none; border-radius: 10px; background: linear-gradient(135deg, #003580, #0055c8); box-shadow: 0 4px 14px rgba(0,53,128,0.28);"><i
                                                 class="fas fa-save"></i> Save Local Destination</button>
                                         <button type="button" class="cancel-btn"
                                             onclick="closeModal('localDestinationModal')"
@@ -6223,13 +5694,7 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
                     formData.timestamp = new Date().getTime();
 
                     // Form-specific extra structures
-                    if (formId === 'flashDealForm') {
-                        formData._extra = {
-                            itinerary: typeof flashDealItineraryDays !== 'undefined' ? flashDealItineraryDays : [],
-                            hotels: typeof flashHotels !== 'undefined' ? flashHotels : [],
-                            savedGallery: typeof _flashSavedGallery !== 'undefined' ? _flashSavedGallery : []
-                        };
-                    } else if (formId === 'foreignDestinationForm') {
+                    if (formId === 'foreignDestinationForm') {
                         formData._extra = {
                             itinerary: typeof foreignItineraryDays !== 'undefined' ? foreignItineraryDays : [],
                             hotels: typeof foreignHotels !== 'undefined' ? foreignHotels : [],
@@ -6309,20 +5774,7 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
                     });
 
                     // Restore form-specific extra structures
-                    if (formId === 'flashDealForm' && parsed._extra) {
-                        if (parsed._extra.itinerary) {
-                            flashDealItineraryDays = parsed._extra.itinerary;
-                            renderFlashDealItineraryBuilder();
-                        }
-                        if (parsed._extra.hotels) {
-                            flashHotels = parsed._extra.hotels;
-                            renderHotelBuilder('flash');
-                        }
-                        if (parsed._extra.savedGallery) {
-                            _flashSavedGallery = parsed._extra.savedGallery;
-                            _renderFlashGalleryPreview();
-                        }
-                    } else if (formId === 'foreignDestinationForm' && parsed._extra) {
+                    if (formId === 'foreignDestinationForm' && parsed._extra) {
                         if (parsed._extra.itinerary) {
                             foreignItineraryDays = parsed._extra.itinerary;
                             renderForeignItineraryBuilder();
@@ -6395,11 +5847,7 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
                         }
                     };
 
-                    if (formId === 'flashDealForm') {
-                        updatePreview('old_image_1', 'fd_preview_1');
-                        updatePreview('old_image_2', 'fd_preview_2');
-                        updatePreview('old_image_3', 'fd_preview_3');
-                    } else if (formId === 'foreignDestinationForm') {
+                    if (formId === 'foreignDestinationForm') {
                         updatePreview('foreign_old_image', 'foreign_preview_1');
                         updatePreview('foreign_old_image2', 'foreign_preview_2');
                         updatePreview('foreign_old_image3', 'foreign_preview_3');
@@ -6426,7 +5874,6 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
             },
 
             getIdElement: function(formId) {
-                if (formId === 'flashDealForm') return document.getElementById('deal_id');
                 if (formId === 'foreignDestinationForm') return document.getElementById('foreign_dest_id');
                 if (formId === 'localDestinationForm') return document.getElementById('local_dest_id');
                 if (formId === 'serviceForm') return document.getElementById('service_id');
@@ -6516,7 +5963,6 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
 
             initAutosave: function() {
                 const formIds = [
-                    'flashDealForm',
                     'foreignDestinationForm',
                     'localDestinationForm',
                     'serviceForm',
@@ -6661,6 +6107,8 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
         let _foreignSavedGallery  = []; // saved images paths
 
         function _renderForeignGalleryPreview() {
+            window.pkgwizGalleryCurrent = window.pkgwizGalleryCurrent || {};
+            window.pkgwizGalleryCurrent.foreignDestinationForm = { saved: _foreignSavedGallery.length, added: _foreignGalleryFiles.length };
             const preview = document.getElementById('foreign_gallery_preview');
             if (!preview) return;
             preview.innerHTML = '';
@@ -6767,8 +6215,8 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
             document.getElementById('foreign_dest_badge_text').value = dest.badge_text || '';
             document.getElementById('foreign_dest_collage_type').value = dest.collage_type || 'three';
             document.getElementById('foreign_dest_display_order').value = dest.display_order || 0;
-            document.getElementById('foreign_dest_inclusions').value = dest.inclusions || '';
-            document.getElementById('foreign_dest_exclusions').value = dest.exclusions || '';
+            document.getElementById('foreign_dest_inclusions').value = linesFromJsonOrText(dest.inclusions);
+            document.getElementById('foreign_dest_exclusions').value = linesFromJsonOrText(dest.exclusions);
             document.getElementById('foreign_dest_remarks').value = dest.remarks || '';
             document.getElementById('foreign_dest_is_active').checked = dest.is_active == 1;
 
@@ -6961,6 +6409,8 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
         let _localSavedGallery  = []; // saved images paths
 
         function _renderLocalGalleryPreview() {
+            window.pkgwizGalleryCurrent = window.pkgwizGalleryCurrent || {};
+            window.pkgwizGalleryCurrent.localDestinationForm = { saved: _localSavedGallery.length, added: _localGalleryFiles.length };
             const preview = document.getElementById('local_gallery_preview');
             if (!preview) return;
             preview.innerHTML = '';
@@ -7068,8 +6518,8 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
             document.getElementById('local_dest_badge_text').value = dest.badge_text || '';
             document.getElementById('local_dest_booked_count').value = dest.booked_count || '';
             document.getElementById('local_dest_display_order').value = dest.display_order || '0';
-            document.getElementById('local_dest_inclusions').value = dest.inclusions || '';
-            document.getElementById('local_dest_exclusions').value = dest.exclusions || '';
+            document.getElementById('local_dest_inclusions').value = linesFromJsonOrText(dest.inclusions);
+            document.getElementById('local_dest_exclusions').value = linesFromJsonOrText(dest.exclusions);
             document.getElementById('local_dest_remarks').value = dest.remarks || '';
             document.getElementById('local_dest_is_active').checked = dest.is_active == 1;
 
@@ -7245,7 +6695,8 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
                         PersistenceEngine.clearDraft('foreignDestinationForm');
                         if (activeTabBtn) activeTabBtn.classList.add('tab-saved');
                         refreshPartnerItemCard('foreign_destination', json.data);
-                        Swal.fire('Saved!', json.message || 'Destination saved successfully.', 'success');
+                        Swal.fire('Saved!', json.message || 'Destination saved successfully.', 'success')
+                            .then(function () { document.getElementById('foreignDestinationModal').classList.remove('active'); });
                     } else {
                         Swal.fire('Error', json.message || 'Something went wrong.', 'error');
                     }
@@ -7292,7 +6743,8 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
                         PersistenceEngine.clearDraft('localDestinationForm');
                         if (activeTabBtn) activeTabBtn.classList.add('tab-saved');
                         refreshPartnerItemCard('destination', json.data);
-                        Swal.fire('Saved!', json.message || 'Destination saved successfully.', 'success');
+                        Swal.fire('Saved!', json.message || 'Destination saved successfully.', 'success')
+                            .then(function () { document.getElementById('localDestinationModal').classList.remove('active'); });
                     } else {
                         Swal.fire('Error', json.message || 'Something went wrong.', 'error');
                     }
@@ -7302,108 +6754,8 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
                     Swal.fire('Error', 'Network error: ' + err.message, 'error');
                 });
         });
-
-        document.getElementById('flashDealForm')?.addEventListener('submit', function (e) {
-            e.preventDefault();
-            if (!validateRequiredFields(this)) return;
-
-            // Set itinerary and hotels fields
-            document.getElementById('flash_deal_itinerary_data').value = JSON.stringify(flashDealItineraryDays);
-            document.getElementById('flash_hotels_json').value = JSON.stringify(flashHotels);
-
-            const form = this;
-            const formData = new FormData(form);
-
-            // Remove empty gallery
-            formData.delete('gallery[]');
-
-            // Append all accumulated gallery files
-            _flashGalleryFiles.forEach(file => {
-                formData.append('gallery[]', file);
-            });
-
-            const activeTabBtn = document.querySelector('#flashDealModal .tab-btn.active');
-            const activeTab = activeTabBtn ? activeTabBtn.getAttribute('onclick')?.match(/'([^']+)'/)?.[1] : null;
-            if (activeTab) {
-                formData.set('active_tab', activeTab);
-                PersistenceEngine.setSavedTabState('flashDealForm', activeTab);
-            }
-
-            Swal.fire({ title: 'Saving...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
-
-            fetch('partner-content-manager.php', { method: 'POST', body: formData })
-                .then(r => r.json())
-                .then(json => {
-                    Swal.close();
-                    if (json.success) {
-                        PersistenceEngine.clearDraft('flashDealForm');
-                        if (activeTabBtn) activeTabBtn.classList.add('tab-saved');
-                        refreshPartnerItemCard('flash_deal', json.data);
-                        Swal.fire('Saved!', json.message || 'Flash Deal saved successfully.', 'success');
-                    } else {
-                        Swal.fire('Error', json.message || 'Something went wrong.', 'error');
-                    }
-                })
-                .catch(err => {
-                    Swal.close();
-                    Swal.fire('Error', 'Network error: ' + err.message, 'error');
-                });
-        });
-
-
-
-
-        // ========== FLASH DEAL ITINERARY BUILDER ==========
-        let flashDealItineraryDays = [];
-
-        function renderFlashDealItineraryBuilder() {
-            const container = document.getElementById('flashDealItineraryBuilder');
-            if (!container) return;
-
-            if (flashDealItineraryDays.length === 0) {
-                container.innerHTML = '<div class="message info" style="background: #f8f9fa;">No itinerary days added. Click "Add Day" to create your itinerary.</div>';
-                if (typeof PersistenceEngine !== 'undefined' && PersistenceEngine.saveDraft) {
-                    PersistenceEngine.saveDraft('flashDealForm');
-                }
-                return;
-            }
-
-            let html = '<div class="itinerary-builder">';
-            flashDealItineraryDays.forEach((day, index) => {
-                const activitiesText = Array.isArray(day.activities) ? day.activities.join('\n') : (day.activities || '');
-                html += `
-                    <div class="itinerary-day-item" data-index="${index}">
-                        <button type="button" class="remove-day-btn" onclick="removeFlashDealItineraryDay(${index})">&times;</button>
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label>Day Number</label>
-                                <input type="number" value="${day.day || index + 1}" onchange="updateFlashDealItineraryDay(${index}, 'day', this.value)">
-                            </div>
-                            <div class="form-group">
-                                <label>Day Title</label>
-                                <input type="text" value="${escapeHtml(day.title || `Day ${index + 1}`)}" onchange="updateFlashDealItineraryDay(${index}, 'title', this.value)">
-                            </div>
-                        </div>
-                        <div class="form-group">
-                            <label>Activities (one per line)</label>
-                            <textarea rows="4" onchange="updateFlashDealItineraryDay(${index}, 'activities', this.value)">${escapeHtml(activitiesText)}</textarea>
-                        </div>
-                    </div>
-                `;
-            });
-            html += '</div>';
-            container.innerHTML = html;
-            if (typeof PersistenceEngine !== 'undefined' && PersistenceEngine.saveDraft) {
-                PersistenceEngine.saveDraft('flashDealForm');
-            }
-        }
 
         let flashHotels = [];
-        // flashDealHotels is an alias for flashHotels for backwards compatibility
-        Object.defineProperty(window, 'flashDealHotels', {
-            get() { return flashHotels; },
-            set(v) { flashHotels = v; }
-        });
 
         function renderHotelBuilder(type) {
             let hotelData = [];
@@ -7512,288 +6864,6 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
             const hiddenInput = document.getElementById(hiddenInputId);
             if (hiddenInput) hiddenInput.value = JSON.stringify(hotelData);
         }
-
-        function addFlashDealItineraryDay() {
-            const newDayNumber = flashDealItineraryDays.length + 1;
-            flashDealItineraryDays.push({
-                day: newDayNumber,
-                title: `Day ${newDayNumber}`,
-                activities: []
-            });
-            renderFlashDealItineraryBuilder();
-        }
-
-        function removeFlashDealItineraryDay(index) {
-            flashDealItineraryDays.splice(index, 1);
-            flashDealItineraryDays.forEach((day, i) => {
-                day.day = i + 1;
-                day.title = `Day ${i + 1}`;
-            });
-            renderFlashDealItineraryBuilder();
-        }
-
-        function updateFlashDealItineraryDay(index, field, value) {
-            if (field === 'day') {
-                flashDealItineraryDays[index].day = parseInt(value);
-            } else if (field === 'title') {
-                flashDealItineraryDays[index].title = value;
-            } else if (field === 'activities') {
-                const activities = value.split('\n').filter(a => a.trim());
-                flashDealItineraryDays[index].activities = activities;
-            }
-        }
-
-        // ========== FLASH DEAL FUNCTIONS (Updated) ==========
-        function openFlashDealModal() {
-            document.getElementById('flashDealModalTitle').innerText = 'Add Flash Deal';
-            document.getElementById('deal_id').value = '0';
-            document.getElementById('deal_title').value = '';
-            document.getElementById('deal_category').value = '';
-            document.getElementById('deal_location').value = '';
-            document.getElementById('deal_description').value = '';
-            document.getElementById('deal_price').value = '';
-            document.getElementById('deal_currency').value = '₱';
-            document.getElementById('deal_original_price').value = '';
-            document.getElementById('deal_discount_percent').value = '';
-            document.getElementById('deal_duration').value = '';
-
-            const picker = document.getElementById('deal_blocked_dates')._flatpickr;
-            if (picker) picker.clear();
-
-            document.getElementById('deal_group_size').value = '';
-            document.getElementById('deal_best_season').value = '';
-            document.getElementById('deal_badge_text').value = '';
-            document.getElementById('deal_rating').value = '';
-            document.getElementById('deal_reviews').value = '';
-            document.getElementById('deal_booked_count').value = '';
-            document.getElementById('deal_display_order').value = '0';
-            document.getElementById('deal_inclusions').value = '';
-            document.getElementById('deal_exclusions').value = '';
-            document.getElementById('deal_remarks').value = '';
-            document.getElementById('old_image_1').value = '';
-            document.getElementById('old_image_2').value = '';
-            document.getElementById('old_image_3').value = '';
-            document.getElementById('fd_preview_1').style.backgroundImage = '';
-            document.getElementById('fd_preview_2').style.backgroundImage = '';
-            document.getElementById('fd_preview_3').style.backgroundImage = '';
-            document.getElementById('deal_is_active').checked = true;
-            _flashGalleryFiles = [];
-            _flashSavedGallery = [];
-            document.getElementById('flash_remove_gallery_images').value = '';
-            _renderFlashGalleryPreview();
-
-            // Reset itinerary
-            flashDealItineraryDays = [];
-            renderFlashDealItineraryBuilder();
-
-            // Reset hotels
-            flashHotels = [];
-            renderHotelBuilder('flash');
-
-            // Reset tabs
-            const firstTab = document.querySelector('#flashDealModal .tab-btn');
-            if (firstTab) firstTab.click();
-
-            document.getElementById('flashDealModal').classList.add('active');
-            PersistenceEngine.checkDraft('flashDealForm');
-            PersistenceEngine.applySavedTabState('flashDealForm', '#flashDealModal');
-        }
-
-        let _flashGalleryFiles = []; // new files
-        let _flashSavedGallery  = []; // saved images paths
-
-        function _renderFlashGalleryPreview() {
-            const preview = document.getElementById('flash_gallery_preview');
-            if (!preview) return;
-            preview.innerHTML = '';
-
-            // 1. Render saved photos
-            _flashSavedGallery.forEach(img => {
-                const div = document.createElement('div');
-                div.style.height = '100px';
-                div.style.borderRadius = '8px';
-                div.style.backgroundImage = `url('${PersistenceEngine.normalizeAssetPath(img)}')`;
-                div.style.backgroundSize = 'cover';
-                div.style.backgroundPosition = 'center';
-                div.style.position = 'relative';
-                div.style.border = '1px solid #ddd';
-                div.innerHTML = `<button type="button" onclick="removeFlashGalleryImage('${img}', this)" style="position:absolute; top:5px; right:5px; background:rgba(220,53,69,0.8); color:white; border:none; border-radius:4px; width:20px; height:20px; cursor:pointer; font-size:10px;"><i class="fas fa-times"></i></button>`;
-                preview.appendChild(div);
-            });
-
-            // 2. Render newly selected photos
-            _flashGalleryFiles.forEach((file, index) => {
-                const reader = new FileReader();
-                const div = document.createElement('div');
-                div.style.height = '100px';
-                div.style.borderRadius = '8px';
-                div.style.backgroundSize = 'cover';
-                div.style.backgroundPosition = 'center';
-                div.style.position = 'relative';
-                div.style.border = '2px dashed #3b82f6';
-
-                reader.onload = function(e) {
-                    div.style.backgroundImage = `url(${e.target.result})`;
-                };
-                reader.readAsDataURL(file);
-
-                div.innerHTML = `<button type="button" onclick="_removeNewFlashGalleryFile(${index})" style="position:absolute; top:5px; right:5px; background:rgba(220,53,69,0.8); color:white; border:none; border-radius:4px; width:20px; height:20px; cursor:pointer; font-size:10px;"><i class="fas fa-times"></i></button>`;
-                preview.appendChild(div);
-            });
-        }
-
-        function _removeNewFlashGalleryFile(index) {
-            _flashGalleryFiles.splice(index, 1);
-            _renderFlashGalleryPreview();
-        }
-
-        function previewFlashGallery(input) {
-            if (input.files && input.files.length > 0) {
-                Array.from(input.files).forEach(file => {
-                    _flashGalleryFiles.push(file);
-                });
-                input.value = ''; // Clear file input so the same files can be re-selected
-            }
-            _renderFlashGalleryPreview();
-        }
-
-        function removeFlashGalleryImage(path, btn) {
-            Swal.fire({
-                title: 'Remove Image?',
-                text: 'Are you sure you want to remove this image from the gallery?',
-                icon: 'error',
-                showCancelButton: true,
-                confirmButtonColor: '#dc2626',
-                cancelButtonColor: '#64748b',
-                confirmButtonText: 'Yes, remove it!'
-            }).then((result) => {
-                if (result.isConfirmed) {
-                    const removeInput = document.getElementById('flash_remove_gallery_images');
-                    let current = removeInput.value ? removeInput.value.split(',') : [];
-                    current.push(path);
-                    removeInput.value = current.join(',');
-                    
-                    _flashSavedGallery = _flashSavedGallery.filter(img => img !== path);
-                    _renderFlashGalleryPreview();
-                }
-            });
-        }
-
-        function editFlashDeal(deal) {
-            document.getElementById('flashDealModalTitle').innerText = 'Edit Flash Deal';
-            document.getElementById('deal_id').value = deal.id;
-            document.getElementById('deal_title').value = deal.title || '';
-            document.getElementById('deal_category').value = deal.category || '';
-            document.getElementById('deal_location').value = deal.location || '';
-            document.getElementById('deal_description').value = deal.description || '';
-            document.getElementById('deal_price').value = deal.price || 0;
-            document.getElementById('deal_currency').value = deal.currency || '₱';
-            document.getElementById('deal_original_price').value = deal.original_price || 0;
-            document.getElementById('deal_discount_percent').value = deal.discount_percent || 0;
-            document.getElementById('deal_duration').value = deal.duration || '';
-
-            const picker = document.getElementById('deal_blocked_dates')._flatpickr;
-            if (picker) {
-                picker.clear();
-                if (deal.blocked_dates) picker.setDate(deal.blocked_dates.split(','));
-            }
-
-            document.getElementById('deal_group_size').value = deal.group_size || '';
-            document.getElementById('deal_best_season').value = deal.best_season || '';
-
-            // Populate new Promo fields
-            document.getElementById('deal_promo_start').value = deal.promo_start || '';
-            document.getElementById('deal_promo_end').value = deal.promo_end || '';
-            document.getElementById('deal_highlight_duration').value = deal.highlight_duration || 1;
-            setBlockedMonths(deal.blocked_months, 'deal-month-check');
-            document.getElementById('deal_badge_text').value = deal.badge_text || '';
-            document.getElementById('deal_rating').value = deal.rating || 0;
-            document.getElementById('deal_reviews').value = deal.reviews || 0;
-            document.getElementById('deal_booked_count').value = deal.booked_count || '';
-            document.getElementById('deal_display_order').value = deal.display_order || 0;
-            document.getElementById('deal_remarks').value = deal.remarks || '';
-            document.getElementById('deal_is_active').checked = deal.is_active == 1;
-
-            // Load itinerary
-            flashDealItineraryDays = [];
-            if (deal.itinerary) {
-                try {
-                    flashDealItineraryDays = typeof deal.itinerary === 'string' ? JSON.parse(deal.itinerary) : deal.itinerary;
-                } catch (e) { console.error("Error parsing itinerary", e); }
-            }
-            renderFlashDealItineraryBuilder();
-
-            // Load hotels
-            flashHotels = [];
-            if (deal.hotels) {
-                try {
-                    flashHotels = typeof deal.hotels === 'string' ? JSON.parse(deal.hotels) : deal.hotels;
-                } catch (e) { console.error("Error parsing hotels", e); }
-            }
-            renderHotelBuilder('flash');
-
-            // Parse inclusions
-            if (deal.inclusions) {
-                try {
-                    const inclusions = JSON.parse(deal.inclusions);
-                    if (Array.isArray(inclusions)) {
-                        document.getElementById('deal_inclusions').value = inclusions.join('\n');
-                    } else {
-                        document.getElementById('deal_inclusions').value = deal.inclusions;
-                    }
-                } catch (e) {
-                    document.getElementById('deal_inclusions').value = deal.inclusions;
-                }
-            }
-
-            // Parse exclusions
-            if (deal.exclusions) {
-                try {
-                    const exclusions = JSON.parse(deal.exclusions);
-                    if (Array.isArray(exclusions)) {
-                        document.getElementById('deal_exclusions').value = exclusions.join('\n');
-                    } else {
-                        document.getElementById('deal_exclusions').value = deal.exclusions;
-                    }
-                } catch (e) {
-                    document.getElementById('deal_exclusions').value = deal.exclusions;
-                }
-            }
-
-            if (deal.image_path) {
-                document.getElementById('fd_preview_1').style.backgroundImage = `url('${PersistenceEngine.normalizeAssetPath(deal.image_path)}')`;
-                document.getElementById('old_image_1').value = deal.image_path;
-            }
-            if (deal.image2_path) {
-                document.getElementById('fd_preview_2').style.backgroundImage = `url('${PersistenceEngine.normalizeAssetPath(deal.image2_path)}')`;
-                document.getElementById('old_image_2').value = deal.image2_path;
-            }
-            if (deal.image3_path) {
-                document.getElementById('fd_preview_3').style.backgroundImage = `url('${PersistenceEngine.normalizeAssetPath(deal.image3_path)}')`;
-                document.getElementById('old_image_3').value = deal.image3_path;
-            }
-
-            // Load Gallery
-            _flashGalleryFiles = [];
-            _flashSavedGallery = [];
-            document.getElementById('flash_remove_gallery_images').value = '';
-            if (deal.image_gallery) {
-                try {
-                    _flashSavedGallery = JSON.parse(deal.image_gallery) || [];
-                } catch (e) { console.error("Error parsing gallery", e); }
-            }
-            _renderFlashGalleryPreview();
-
-            // Reset tabs
-            const firstTab = document.querySelector('#flashDealModal .tab-btn');
-            if (firstTab) firstTab.click();
-
-            document.getElementById('flashDealModal').classList.add('active');
-            PersistenceEngine.checkDraft('flashDealForm');
-            PersistenceEngine.applySavedTabState('flashDealForm', '#flashDealModal');
-        }
-
-
 
         // ========== FLIGHT DATA FUNCTIONS ==========
         function openFlightModal() {
@@ -8046,7 +7116,8 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
                     if (json.success) {
                         PersistenceEngine.clearDraft('visaForm');
                         if (activeTabBtn) activeTabBtn.classList.add('tab-saved');
-                        Swal.fire('Saved!', json.message || 'Visa service saved successfully.', 'success');
+                        Swal.fire('Saved!', json.message || 'Visa service saved successfully.', 'success')
+                            .then(function () { document.getElementById('visaModal').classList.remove('active'); });
                     } else {
                         Swal.fire('Error', json.message || 'Something went wrong.', 'error');
                     }
@@ -8124,6 +7195,335 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
             return true;
         }
 
+        // ================= Generic Step Wizard Controller =================
+        // Wraps an existing tab-based Add/Edit modal (the .tabs / .tab-btn /
+        // .tab-content / "active" pattern already used everywhere in this
+        // file) into a linear numbered step flow, reusing each tab button's
+        // own label text as the step label.
+        //
+        // The original .tabs row is kept in the DOM (just visually hidden),
+        // not removed -- other existing code (the modal's "reset to first
+        // tab" on open, PersistenceEngine's saved-tab-state restore) finds
+        // and .click()s those buttons directly, and that must keep working
+        // unchanged. Our Next/Back buttons simply .click() the real hidden
+        // button for the target tab, which reuses the existing switchXTab()
+        // logic exactly as before; a listener on every tab button keeps the
+        // new progress bar in sync no matter who triggered the tab change.
+        //
+        // Next re-uses the existing validateRequiredFields() (unchanged) to
+        // gate progress. The modal's own Save button is untouched -- it
+        // already saves the entire form regardless of which tab happens to
+        // be active (active_tab is only used for the tab-saved indicator,
+        // never read server-side) -- so it only needs to be hidden until the
+        // final step.
+        function initStepWizard(modalId, formId) {
+            const modal = document.getElementById(modalId);
+            const form = document.getElementById(formId);
+            if (!modal || !form) return;
+
+            const tabsRow = modal.querySelector('.tabs');
+            const tabBtns = tabsRow ? Array.from(tabsRow.querySelectorAll('.tab-btn')) : [];
+            const saveBtn = form.querySelector('button[type="submit"]');
+            if (!tabsRow || !tabBtns.length || !saveBtn) return;
+
+            const realStepCount = tabBtns.length;
+
+            // Progress bar has realStepCount + 1 circles; the extra "Review
+            // Changes" circle is only shown when editing an existing item
+            // (toggled per modal-open in the MutationObserver below).
+            const progress = document.createElement('div');
+            progress.className = 'pkgwiz-progress';
+            const labels = tabBtns.map(function (btn) { return btn.textContent.trim(); }).concat(['Review Changes']);
+            labels.forEach(function (label, i) {
+                const step = document.createElement('div');
+                step.className = 'pkgwiz-step' + (i === 0 ? ' active' : '') + (i === realStepCount ? ' pkgwiz-step-review' : '');
+                step.innerHTML = (i > 0 ? '<div class="pkgwiz-connector"></div>' : '') +
+                    '<div class="pkgwiz-circle">' + (i === realStepCount ? '<i class="fas fa-receipt"></i>' : (i + 1)) + '</div>' +
+                    '<div class="pkgwiz-label">' + label + '</div>';
+                progress.appendChild(step);
+            });
+            tabsRow.insertAdjacentElement('afterend', progress);
+            tabsRow.style.display = 'none';
+            const progressSteps = Array.from(progress.querySelectorAll('.pkgwiz-step'));
+            const reviewProgressStep = progressSteps[realStepCount];
+
+            // Virtual "Review Changes" content panel -- a real .tab-content
+            // sibling of the others, just not driven by a real tab button.
+            const reviewPanel = document.createElement('div');
+            reviewPanel.className = 'tab-content pkgwiz-review-panel';
+            reviewPanel.innerHTML =
+                '<h4 class="pkgwiz-review-heading"><i class="fas fa-receipt"></i> Review What Changed</h4>' +
+                '<p class="pkgwiz-review-sub">Double-check before saving. Only fields you actually edited are listed.</p>' +
+                '<div class="pkgwiz-receipt-body"></div>';
+            saveBtn.insertAdjacentElement('beforebegin', reviewPanel);
+
+            // No standalone Cancel button -- the modal's own × close icon
+            // (always visible, top-right of the header) already covers
+            // that, and having a second cancel control was inconsistent
+            // per-modal. The original inline Cancel button (in the same row
+            // as Save) is just hidden.
+            const oldCancelBtn = form.querySelector('.cancel-btn');
+            if (oldCancelBtn) oldCancelBtn.style.display = 'none';
+
+            const nav = document.createElement('div');
+            nav.className = 'pkgwiz-nav';
+            nav.innerHTML =
+                '<div class="pkgwiz-nav-left"><button type="button" class="pkgwiz-btn-back" style="visibility:hidden;"><i class="fas fa-arrow-left"></i> Back</button></div>' +
+                '<button type="button" class="pkgwiz-btn-next">Next <i class="fas fa-arrow-right"></i></button>';
+            saveBtn.insertAdjacentElement('beforebegin', nav);
+
+            // The save button already sits in a sticky footer that has its
+            // own top border + padding as a divider from the fields above.
+            // .pkgwiz-nav carries the same divider styling for when it's
+            // used standalone, but nested here it just doubles up into a
+            // second border/gap right above the Back/Next row -- drop it.
+            nav.style.borderTop = 'none';
+            nav.style.marginTop = '0';
+            nav.style.paddingTop = '0';
+
+            const backBtn = nav.querySelector('.pkgwiz-btn-back');
+            const nextBtn = nav.querySelector('.pkgwiz-btn-next');
+
+            // Snapshot every field's value (and the gallery/cover-photo
+            // state tracked by _renderXGalleryPreview) the instant the modal
+            // becomes visible -- by then editX(data) has already populated
+            // the fields, or openXModal() has already reset them for a
+            // fresh Add -- so the review step can diff against it later.
+            const idField = form.querySelector('input[name="id"]');
+            let snapshot = null;
+            let galleryBaseline = null;
+            let isEditMode = false;
+            let current = 0;
+
+            function snapshotFields() {
+                snapshot = {};
+                form.querySelectorAll('input[name], select[name], textarea[name]').forEach(function (el) {
+                    if (el.type === 'file') return;
+                    // Hidden fields are usually just plumbing (ids, tab
+                    // state) and not worth reporting -- except itinerary/
+                    // hotels, which are real user-edited data that happens
+                    // to live in a hidden JSON field fed by a JS builder.
+                    if (el.type === 'hidden' && el.name !== 'itinerary' && el.name !== 'hotels') return;
+                    // Checkboxes/radios frequently share one "name" across a
+                    // whole group (e.g. blocked_months[] -- one checkbox per
+                    // month, all same name, different value) -- key by
+                    // name+value so each option gets its own snapshot slot
+                    // instead of colliding into a single, meaningless one.
+                    const key = (el.type === 'radio' || el.type === 'checkbox') ? el.name + ':' + el.value : el.name;
+                    snapshot[key] = (el.type === 'checkbox' || el.type === 'radio') ? el.checked : el.value;
+                });
+                window.pkgwizGalleryCurrent = window.pkgwizGalleryCurrent || {};
+                const g = window.pkgwizGalleryCurrent[formId];
+                galleryBaseline = g ? { saved: g.saved, added: g.added } : null;
+            }
+
+            new MutationObserver(function () {
+                if (modal.classList.contains('active')) {
+                    isEditMode = !!(idField && parseInt(idField.value, 10) > 0);
+                    reviewProgressStep.style.display = isEditMode ? '' : 'none';
+                    snapshotFields();
+                    current = 0;
+                    renderStep();
+                }
+            }).observe(modal, { attributes: true, attributeFilter: ['class'] });
+
+            function tabIdFor(btn) {
+                const m = btn.getAttribute('onclick').match(/'([^']+)'/);
+                return m ? m[1] : null;
+            }
+            function totalSteps() { return isEditMode ? realStepCount + 1 : realStepCount; }
+            function trimReceiptText(t) {
+                const s = String(t);
+                return s.length > 60 ? s.slice(0, 57) + '...' : s;
+            }
+            function cleanLabel(label) {
+                // Strips trailing hint text in parentheses, e.g. "Blocked
+                // Months (Unclickable)" -> "Blocked Months" -- that hint is
+                // about the *form field*, not meaningful in a receipt.
+                return String(label).replace(/\s*\([^)]*\)\s*$/, '').trim() || label;
+            }
+            function formatReceiptValue(v) {
+                // One-per-line textareas (inclusions, highlights, etc.)
+                // read as an unbroken run-on when newlines collapse to
+                // spaces in HTML -- join with commas instead so each item
+                // is visually distinct.
+                return String(v).split('\n').map(function (s) { return s.trim(); }).filter(Boolean).join(', ');
+            }
+            function describeItineraryOrHotels(name, jsonStr) {
+                let arr = [];
+                try { arr = JSON.parse(jsonStr || '[]'); } catch (e) { /* not valid JSON */ }
+                if (!Array.isArray(arr) || !arr.length) return '(empty)';
+                if (name === 'itinerary') {
+                    return arr.length + ' day' + (arr.length > 1 ? 's' : '') + ' (' +
+                        arr.map(function (d) { return d.title || ('Day ' + d.day); }).join(', ') + ')';
+                }
+                return arr.length + ' hotel' + (arr.length > 1 ? 's' : '') + ' (' +
+                    arr.map(function (h) { return h.name || 'Untitled'; }).join(', ') + ')';
+            }
+
+            function computeReceiptRows() {
+                const seen = {};
+                const rows = [];
+                // Same-name checkbox groups (e.g. blocked_months[] -- one
+                // checkbox per month) are collected here and reduced to a
+                // single "old set -> new set" row each, instead of either
+                // colliding into one bogus comparison or spamming one row
+                // per checkbox.
+                const checkboxGroups = {};
+
+                form.querySelectorAll('input[name], select[name], textarea[name]').forEach(function (el) {
+                    if (el.type === 'file' || el.type === 'radio') return;
+
+                    if (el.type === 'hidden') {
+                        if (el.name !== 'itinerary' && el.name !== 'hotels') return;
+                        const label = el.name === 'itinerary' ? 'Itinerary' : 'Hotels';
+                        if (seen[label]) return;
+                        const wasJson = (snapshot && snapshot[el.name]) || '[]';
+                        const nowJson = el.value || '[]';
+                        if (wasJson === nowJson) return;
+                        seen[label] = true;
+                        rows.push({
+                            label: label,
+                            oldVal: describeItineraryOrHotels(el.name, wasJson),
+                            newVal: describeItineraryOrHotels(el.name, nowJson)
+                        });
+                        return;
+                    }
+
+                    if (el.type === 'checkbox') {
+                        const key = el.name + ':' + el.value;
+                        const was = !!(snapshot && snapshot[key]);
+                        if (!checkboxGroups[el.name]) {
+                            checkboxGroups[el.name] = { label: cleanLabel(getFieldLabel(el)), items: [] };
+                        }
+                        const itemText = (el.closest('label') ? el.closest('label').textContent : '').trim() || el.value;
+                        checkboxGroups[el.name].items.push({ text: itemText, was: was, now: el.checked });
+                        return;
+                    }
+
+                    const label = cleanLabel(getFieldLabel(el));
+                    if (seen[label]) return;
+                    const was = (snapshot && snapshot[el.name]) || '';
+                    const now = el.value;
+                    if (was === now) return;
+                    seen[label] = true;
+                    const wasFmt = formatReceiptValue(was);
+                    const nowFmt = formatReceiptValue(now);
+                    rows.push({ label: label, oldVal: wasFmt || '(empty)', newVal: nowFmt || '(empty)' });
+                });
+
+                Object.keys(checkboxGroups).forEach(function (name) {
+                    const group = checkboxGroups[name];
+                    const wasChecked = group.items.filter(function (i) { return i.was; }).map(function (i) { return i.text; });
+                    const nowChecked = group.items.filter(function (i) { return i.now; }).map(function (i) { return i.text; });
+                    if (wasChecked.join(',') === nowChecked.join(',')) return;
+                    rows.push({
+                        label: group.label,
+                        oldVal: wasChecked.length ? wasChecked.join(', ') : '(none)',
+                        newVal: nowChecked.length ? nowChecked.join(', ') : '(none)'
+                    });
+                });
+
+                // Cover/featured image slots -- a newly chosen file always
+                // means "replaced", since the input can never be pre-filled.
+                form.querySelectorAll('input[type="file"]').forEach(function (el) {
+                    if (el.name === 'gallery[]' || !el.files || !el.files.length) return;
+                    rows.push({ label: cleanLabel(getFieldLabel(el)), oldVal: 'Previous photo', newVal: el.files[0].name, isPhoto: true });
+                });
+
+                // Gallery photo additions/removals, tracked generically via
+                // window.pkgwizGalleryCurrent[formId] (updated by each
+                // type's own _renderXGalleryPreview()).
+                const g = window.pkgwizGalleryCurrent && window.pkgwizGalleryCurrent[formId];
+                if (g && galleryBaseline) {
+                    if (g.added > 0) {
+                        rows.push({ label: 'Gallery Photos', oldVal: null, newVal: '+' + g.added + ' photo' + (g.added > 1 ? 's' : '') + ' added', isPhoto: true, addedOnly: true });
+                    }
+                    const removed = Math.max(0, galleryBaseline.saved - g.saved);
+                    if (removed > 0) {
+                        rows.push({ label: 'Gallery Photos', oldVal: null, newVal: '-' + removed + ' photo' + (removed > 1 ? 's' : '') + ' removed', isPhoto: true, removedOnly: true });
+                    }
+                }
+
+                return rows;
+            }
+
+            function renderReceiptPanel() {
+                const rows = computeReceiptRows();
+                const body = reviewPanel.querySelector('.pkgwiz-receipt-body');
+                if (!rows.length) {
+                    body.innerHTML = '<div class="pkgwiz-receipt-empty"><i class="fas fa-circle-check"></i><strong>Nothing Changed</strong><p>Everything still matches the original. Go back to edit a field, or save as-is.</p></div>';
+                    return;
+                }
+                body.innerHTML = '<div class="pkgwiz-receipt-count"><i class="fas fa-pen"></i> ' + rows.length + ' field' + (rows.length > 1 ? 's' : '') + ' changed</div>' +
+                    rows.map(function (r) {
+                        const icon = r.isPhoto ? 'fa-image' : 'fa-pen';
+                        let values;
+                        if (r.addedOnly || r.removedOnly) {
+                            values = '<span class="pkgwiz-receipt-new">' + escapeHtml(r.newVal) + '</span>';
+                        } else {
+                            values = '<span class="pkgwiz-receipt-old">' + escapeHtml(trimReceiptText(r.oldVal)) + '</span>' +
+                                '<span class="pkgwiz-receipt-arrow"><i class="fas fa-arrow-right"></i></span>' +
+                                '<span class="pkgwiz-receipt-new">' + escapeHtml(trimReceiptText(r.newVal)) + '</span>';
+                        }
+                        return '<div class="pkgwiz-receipt-row"><div class="pkgwiz-receipt-field"><i class="fas ' + icon + '"></i> ' + escapeHtml(r.label) + '</div>' +
+                            '<div class="pkgwiz-receipt-values">' + values + '</div></div>';
+                    }).join('');
+            }
+
+            function renderStep() {
+                const total = totalSteps();
+                const isVirtual = current === realStepCount;
+
+                tabBtns.forEach(function (btn, idx) {
+                    const content = document.getElementById(tabIdFor(btn));
+                    const active = !isVirtual && idx === current;
+                    btn.classList.toggle('active', active);
+                    if (content) content.classList.toggle('active', active);
+                });
+                reviewPanel.classList.toggle('active', isVirtual);
+                if (isVirtual) renderReceiptPanel();
+
+                progressSteps.forEach(function (s, idx) {
+                    s.classList.toggle('active', idx === current);
+                    s.classList.toggle('done', idx < current);
+                });
+                // On narrow screens the progress bar scrolls horizontally --
+                // keep the active step in view instead of making users hunt
+                // for it after each Next/Back. Step 1 always resets scroll
+                // to the very start (scrollIntoView's "center" math can
+                // otherwise leave leftover scroll position from a previous
+                // time this same modal was open further along).
+                if (current === 0) {
+                    progress.scrollLeft = 0;
+                } else {
+                    progressSteps[current].scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' });
+                }
+
+                const isLast = current === total - 1;
+                backBtn.style.visibility = current === 0 ? 'hidden' : 'visible';
+                nextBtn.style.display = isLast ? 'none' : '';
+                saveBtn.style.display = isLast ? '' : 'none';
+            }
+
+            // Keep in sync if something else clicks a real (hidden) tab
+            // button directly -- validateRequiredFields() jumping to the
+            // first invalid tab, or legacy reset-to-first-tab code.
+            tabBtns.forEach(function (btn, idx) {
+                btn.addEventListener('click', function () { current = idx; renderStep(); });
+            });
+
+            nextBtn.addEventListener('click', function () {
+                if (current < realStepCount && !validateRequiredFields(form)) return;
+                if (current < totalSteps() - 1) { current++; renderStep(); }
+            });
+            backBtn.addEventListener('click', function () {
+                if (current > 0) { current--; renderStep(); }
+            });
+
+            renderStep();
+        }
+
         function deleteItem(type, id, name) {
             Swal.fire({
                 title: 'Delete Item?',
@@ -8136,8 +7536,7 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
             }).then((result) => {
                 if (result.isConfirmed) {
                     let action = '';
-                    if (type === 'flash_deal') action = 'delete_flash_deal';
-                    else if (type === 'foreign_destination') action = 'delete_foreign_destination';
+                    if (type === 'foreign_destination') action = 'delete_foreign_destination';
                     else if (type === 'destination') action = 'delete_destination';
                     else if (type === 'flight_data') action = 'delete_flight_data';
                     else if (type === 'hotel_data') action = 'delete_hotel_data';
@@ -8215,15 +7614,6 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
             });
         }
 
-        function switchFlashDealTab(evt, tabId) {
-            const contents = document.querySelectorAll('#flashDealModal .tab-content');
-            contents.forEach(c => c.classList.remove('active'));
-            const buttons = document.querySelectorAll('#flashDealModal .tab-btn');
-            buttons.forEach(b => b.classList.remove('active'));
-            document.getElementById(tabId).classList.add('active');
-            evt.currentTarget.classList.add('active');
-        }
-
         function switchLocalTab(evt, tabId) {
             const contents = document.querySelectorAll('#localDestinationModal .tab-content');
             contents.forEach(c => c.classList.remove('active'));
@@ -8299,6 +7689,8 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
         }
 
         function _renderCruiseGalleryPreview(preview, countBadge) {
+            window.pkgwizGalleryCurrent = window.pkgwizGalleryCurrent || {};
+            window.pkgwizGalleryCurrent.advancedCruiseForm = { saved: _cruiseSavedGallery.length, added: _cruiseGalleryFiles.length };
             preview.innerHTML = '';
 
             const savedCount = _cruiseSavedGallery.length;
@@ -8416,6 +7808,8 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
         }
 
         function _renderServiceGalleryPreview(preview, countBadge) {
+            window.pkgwizGalleryCurrent = window.pkgwizGalleryCurrent || {};
+            window.pkgwizGalleryCurrent.serviceForm = { saved: _serviceSavedGallery.length, added: _serviceGalleryFiles.length };
             preview.innerHTML = '';
 
             const savedCount = _serviceSavedGallery.length;
@@ -8703,10 +8097,24 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
             return div.innerHTML;
         }
 
-        function getCardsGridForItemType(itemType) {
-            if (itemType === 'flash_deal') {
-                return document.querySelector('#flashDealsSection .cards-grid');
+        // Inclusions/exclusions are saved as a JSON array (e.g. '["A","B"]')
+        // but edited as one-per-line plain text -- unpack back to lines here.
+        function linesFromJsonOrText(value) {
+            if (!value) return '';
+            if (typeof value === 'string') {
+                const trimmed = value.trim();
+                if (trimmed.startsWith('[')) {
+                    try {
+                        const arr = JSON.parse(trimmed);
+                        if (Array.isArray(arr)) return arr.join('\n');
+                    } catch (e) { /* not JSON, fall through */ }
+                }
+                return value;
             }
+            return Array.isArray(value) ? value.join('\n') : '';
+        }
+
+        function getCardsGridForItemType(itemType) {
             if (itemType === 'foreign_destination') {
                 return document.querySelector('#foreignDestinationsSection .cards-grid');
             }
@@ -8726,10 +8134,6 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
             card.dataset.itemId = itemData.id;
 
             let isExpired = false;
-            if (itemType === 'flash_deal' && itemData.promo_end) {
-                const endDate = new Date(itemData.promo_end + 'T23:59:59');
-                isExpired = !isNaN(endDate.getTime()) && endDate < new Date();
-            }
             if (isExpired) {
                 card.style.opacity = '0.7';
                 card.style.filter = 'grayscale(80%)';
@@ -8737,12 +8141,8 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
             }
 
             const titleText = itemData.title || itemData.name || 'Untitled';
-            const locationText = itemType === 'flash_deal'
-                ? itemData.location || 'Various'
-                : [itemData.city, itemData.country].filter(Boolean).join(', ') || 'Location unknown';
-            const badgeText = itemType === 'flash_deal'
-                ? (itemData.discount_percent ? `⚡ ${itemData.discount_percent}% off` : (itemData.badge_text || 'Flash Deal'))
-                : (itemData.badge_text || '');
+            const locationText = [itemData.city, itemData.country].filter(Boolean).join(', ') || 'Location unknown';
+            const badgeText = itemData.badge_text || '';
             const priceText = `${itemData.currency || '₱'} ${Number(itemData.price || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
             const durationText = itemData.duration ? escapeHtml(itemData.duration) : '';
             const statusLabel = itemData.is_active == 1 ? 'Active' : 'Inactive';
@@ -8774,7 +8174,7 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
             meta1.appendChild(locationSpan);
             content.appendChild(meta1);
 
-            if (itemType !== 'flash_deal') {
+            {
                 const meta2 = document.createElement('div');
                 meta2.className = 'card-meta';
                 const activitiesSpan = document.createElement('span');
@@ -8814,8 +8214,7 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
             editButton.type = 'button';
             editButton.innerHTML = '<i class="fas fa-edit"></i> Edit';
             editButton.addEventListener('click', () => {
-                if (itemType === 'flash_deal') editFlashDeal(itemData);
-                else if (itemType === 'foreign_destination') editForeignDestination(itemData);
+                if (itemType === 'foreign_destination') editForeignDestination(itemData);
                 else if (itemType === 'destination') editLocalDestination(itemData);
             });
             const deleteButton = document.createElement('button');
@@ -8823,7 +8222,7 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
             deleteButton.type = 'button';
             deleteButton.innerHTML = '<i class="fas fa-trash"></i> Delete';
             deleteButton.addEventListener('click', () => {
-                const deleteType = itemType === 'flash_deal' ? 'flash_deal' : (itemType === 'foreign_destination' ? 'foreign_destination' : 'destination');
+                const deleteType = itemType === 'foreign_destination' ? 'foreign_destination' : 'destination';
                 deleteItem(deleteType, itemData.id, itemData.name || itemData.title || 'Item');
             });
             actions.appendChild(editButton);
@@ -8869,15 +8268,6 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
             document.getElementById(tabId).classList.add('active');
             evt.currentTarget.classList.add('active');
         }
-        function switchFlashDealTab(evt, tabId) {
-            const contents = document.querySelectorAll('#flashDealModal .tab-content');
-            contents.forEach(c => c.classList.remove('active'));
-            const buttons = document.querySelectorAll('#flashDealModal .tab-btn');
-            buttons.forEach(b => b.classList.remove('active'));
-            document.getElementById(tabId).classList.add('active');
-            evt.currentTarget.classList.add('active');
-        }
-
 
         // ========== ADVANCED CRUISE FUNCTIONS ==========
         function switchTab(evt, tabId) {
@@ -9135,8 +8525,13 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
                         }
                         PersistenceEngine.clearDraft('advancedCruiseForm');
                         PersistenceEngine.applySavedTabState('advancedCruiseForm', '#advancedCruiseModal');
-                        refreshCruiseTableRow(res.data);
-                        Swal.fire('Success!', res.message, 'success');
+                        // Cruises render as table rows, not the card-grid
+                        // Foreign/Local Destination use, and no row-patching
+                        // function exists for that table -- reload (same
+                        // pattern deleteItem() already uses after a delete)
+                        // instead of hand-building one.
+                        Swal.fire('Success!', res.message, 'success')
+                            .then(function () { location.reload(); });
                     } else {
                         Swal.fire('Error', res.message || 'Something went wrong', 'error');
                     }
@@ -9185,8 +8580,13 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
                         }
                         PersistenceEngine.clearDraft('serviceForm');
                         if (activeServiceTabBtn) activeServiceTabBtn.classList.add('tab-saved');
-                        refreshServiceTableRow(json.data);
-                        Swal.fire('Saved!', json.message || 'Service saved successfully.', 'success');
+                        // Services render as table rows, not the card-grid
+                        // Foreign/Local Destination use, and no row-patching
+                        // function exists for that table -- reload (same
+                        // pattern deleteItem() already uses after a delete)
+                        // instead of hand-building one.
+                        Swal.fire('Saved!', json.message || 'Service saved successfully.', 'success')
+                            .then(function () { location.reload(); });
                     } else {
                         Swal.fire('Error', json.message || 'Something went wrong.', 'error');
                     }
@@ -9291,6 +8691,11 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
             });
         }
         PersistenceEngine.initAutosave();
+
+        initStepWizard('foreignDestinationModal', 'foreignDestinationForm');
+        initStepWizard('localDestinationModal', 'localDestinationForm');
+        initStepWizard('serviceModal', 'serviceForm');
+        initStepWizard('advancedCruiseModal', 'advancedCruiseForm');
     </script>
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
     <script>
