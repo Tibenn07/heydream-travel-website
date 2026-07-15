@@ -103,7 +103,7 @@ function normalizeBookPackage($row, $type)
     return [
         'type' => $type,
         'id' => $row['id'],
-        'identifier' => $type === 'foreign' ? ($row['dest_key'] ?? $row['id']) : $row['id'],
+        'identifier' => $type === 'foreign' ? (!empty($row['dest_key']) ? $row['dest_key'] : $row['id']) : $row['id'],
         'name' => $row['name'] ?? $row['title'] ?? 'Package',
         'location' => (!empty($row['location_name']) ? $row['location_name'] : null) ?? (!empty($row['location']) ? $row['location'] : null) ?? $row['city'] ?? $row['country'] ?? '',
         'price' => floatval($row['price'] ?? 0),

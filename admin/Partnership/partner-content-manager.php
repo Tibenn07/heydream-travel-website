@@ -8597,40 +8597,8 @@ $visa_checklist_text = implode("\n", $visa_checklist_array);
                 });
         });
 
-        // Clear accumulated gallery files when service modal is closed
-        document.getElementById('serviceModal')?.addEventListener('click', function(e) {
-            // Only reset when the overlay (modal backdrop) is clicked – handled by the
-            // generic modal click-to-close listener below. We just piggy-back here.
-        });
-        // Reset gallery accumulator when modal opens (handled in openServiceModal / editService)
-
-        // Close modals on overlay click
-        // Close modals on overlay click (with mousedown/mouseup checks to prevent swipe closes)
-        let mousedownTarget = null;
-        document.querySelectorAll('.modal').forEach(modal => {
-            modal.addEventListener('mousedown', function (e) {
-                mousedownTarget = e.target;
-            });
-            modal.addEventListener('mouseup', function (e) {
-                if (e.target === this && mousedownTarget === this) {
-                    const form = this.querySelector('form');
-                    if (form) {
-                        PersistenceEngine.saveDraft(form.id);
-                        Swal.fire({
-                            icon: 'info',
-                            title: 'Draft Saved',
-                            text: 'Your progress has been automatically saved as a draft.',
-                            toast: true,
-                            position: 'top-end',
-                            showConfirmButton: false,
-                            timer: 2000,
-                            backdrop: false
-                        });
-                    }
-                    this.classList.remove('active');
-                }
-            });
-        });
+        // Modals are intentionally NOT closed by clicking the overlay/backdrop.
+        // Users must use the explicit close (X) button, which calls closeModal().
         // Mobile Sidebar Toggle
         const sidebarToggle = document.getElementById('sidebarToggle');
         const sidebarOverlay = document.getElementById('sidebarOverlay');

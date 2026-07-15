@@ -96,6 +96,10 @@ function ensurePartnerBookingTracking($pdo)
         ['reminder_sent', 'TINYINT(1) DEFAULT 0'],
         ['visa_status', "VARCHAR(50) DEFAULT 'PENDING'"],
         ['marketing_consent', 'TINYINT(1) DEFAULT 0'],
+        ['hotel_name', 'VARCHAR(255) DEFAULT NULL'],
+        ['hotel_price', 'DECIMAL(10,2) DEFAULT 0'],
+        ['package_source_id', 'INT DEFAULT NULL'],
+        ['package_source_type', 'VARCHAR(50) DEFAULT NULL'],
         // Soft-delete: deleting a booking (admin or partner side) sets this
         // instead of removing the row, so it can be restored from a Trash view.
         ['deleted_at', 'TIMESTAMP NULL DEFAULT NULL'],
