@@ -714,16 +714,41 @@ EOF;
 
         case 'get_package_info':
             $packageName = $_GET['package_name'] ?? '';
-            debugLog("Processing get_package_info for Package: " . $packageName);
-            if (empty($packageName)) {
+            $sourceId = $_GET['package_source_id'] ?? '';
+            $sourceType = $_GET['package_source_type'] ?? '';
+            debugLog("Processing get_package_info for Package: " . $packageName . " (source_id=$sourceId, source_type=$sourceType)");
+            if (empty($packageName) && empty($sourceId)) {
                 echo json_encode(['success' => false, 'message' => 'Missing package name']);
                 break;
             }
 
+            $info = false;
+            // Bookings made after package_source_id/type were added carry a
+            // real foreign key -- use that first. It's immune to the name
+            // ever being edited/renamed after the booking was placed, unlike
+            // the name-based lookups below.
+            if ($sourceId !== '' && $sourceType !== '') {
+                $sourceTables = [
+                    'local' => "SELECT inclusions, exclusions, itinerary, description, location_name as location FROM destinations WHERE id = ? LIMIT 1",
+                    'foreign' => "SELECT inclusions, exclusions, itinerary, description, location_name as location FROM foreign_destinations WHERE id = ? LIMIT 1",
+                    'flash' => "SELECT inclusions, exclusions, itinerary, description, location FROM flash_deals WHERE id = ? LIMIT 1",
+                ];
+                if (isset($sourceTables[$sourceType])) {
+                    try {
+                        $stmt = $pdo->prepare($sourceTables[$sourceType]);
+                        $stmt->execute([intval($sourceId)]);
+                        $info = $stmt->fetch(PDO::FETCH_ASSOC);
+                    } catch (Exception $e) {
+                    }
+                }
+            }
+
             // Try searching in destinations (Local/Foreign)
+            if (!$info && $packageName !== '') {
             $stmt = $pdo->prepare("SELECT inclusions, exclusions, itinerary, description, location_name as location FROM destinations WHERE name = ? LIMIT 1");
             $stmt->execute([$packageName]);
             $info = $stmt->fetch(PDO::FETCH_ASSOC);
+            }
 
             if (!$info) {
                 // Try searching in flash_deals
@@ -739,6 +764,37 @@ EOF;
                     $stmt->execute([$packageName]);
                     $info = $stmt->fetch(PDO::FETCH_ASSOC);
                 } catch (Exception $e) {
+                }
+            }
+
+            // Bookings store package_name with a suffix/prefix appended at
+            // save time (e.g. "Test 1 Tour Package", "Local Destination:
+            // Test 1", "Flash Deal: Test 1") -- that never equals the
+            // destination's actual name, so an exact match above wrongly
+            // reports a perfectly live package as deleted. Strip the known
+            // wrappers and retry before giving up.
+            if (!$info) {
+                $strippedName = preg_replace('/\s+Tour Package$/i', '', $packageName);
+                $strippedName = preg_replace('/^(Local Destination|Flash Deal):\s*/i', '', $strippedName);
+                if ($strippedName !== $packageName && $strippedName !== '') {
+                    $stmt = $pdo->prepare("SELECT inclusions, exclusions, itinerary, description, location_name as location FROM destinations WHERE name = ? LIMIT 1");
+                    $stmt->execute([$strippedName]);
+                    $info = $stmt->fetch(PDO::FETCH_ASSOC);
+
+                    if (!$info) {
+                        $stmt = $pdo->prepare("SELECT inclusions, exclusions, itinerary, description, location FROM flash_deals WHERE title = ? LIMIT 1");
+                        $stmt->execute([$strippedName]);
+                        $info = $stmt->fetch(PDO::FETCH_ASSOC);
+                    }
+
+                    if (!$info) {
+                        try {
+                            $stmt = $pdo->prepare("SELECT inclusions, exclusions, itinerary, description, location_name as location FROM foreign_destinations WHERE name = ? LIMIT 1");
+                            $stmt->execute([$strippedName]);
+                            $info = $stmt->fetch(PDO::FETCH_ASSOC);
+                        } catch (Exception $e) {
+                        }
+                    }
                 }
             }
 

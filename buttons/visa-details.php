@@ -190,8 +190,24 @@ $isFree = $visa && strtolower($visa['visa_status'] ?? '') === 'free';
         .booking-number { background: #e8f0fe; padding: 8px 16px; border-radius: 8px; font-size: 0.8rem; margin: 12px 0; display: inline-block; }
         .details-card { background: #f8f9fa; padding: 15px; border-radius: 12px; margin: 15px 0; text-align: left; font-size: 0.8rem; }
         .payment-status-pending { background: #fff3cd; color: #856404; padding: 10px; border-radius: 8px; text-align: center; font-size: 0.8rem; margin-top: 10px; }
-        .btn-primary { background: linear-gradient(135deg, #28a745, #218838); width: auto; padding: 8px 20px; }
-        .btn-secondary { background: #6c757d; width: auto; padding: 8px 20px; }
+        .btn-primary {
+            background: linear-gradient(135deg, #22c55e, #16a34a);
+            width: auto;
+            padding: 12px 26px;
+            box-shadow: 0 4px 14px rgba(22,163,74,0.3);
+            transition: transform 0.15s ease, box-shadow 0.15s ease;
+        }
+        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 6px 18px rgba(22,163,74,0.4); }
+        .btn-secondary {
+            background: #fff;
+            color: #475569;
+            border: 1.5px solid #cbd5e1;
+            width: auto;
+            padding: 12px 26px;
+            box-shadow: none;
+            transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+        }
+        .btn-secondary:hover { background: #f1f5f9; border-color: #94a3b8; color: #334155; }
     </style>
 </head>
 

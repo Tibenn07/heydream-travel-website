@@ -862,10 +862,11 @@ ob_end_clean();
                     if (!googleIdToken) {
                         throw new Error('Google ID token missing');
                     }
+                    const redirectTarget = new URLSearchParams(window.location.search).get('redirect');
                     return fetch('firebase_auth.php', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ id_token: googleIdToken })
+                        body: JSON.stringify({ id_token: googleIdToken, redirect: redirectTarget })
                     }).then(resp => resp.json()).then(data => ({ data, clientFirstName }));
                 })
                 .then(({ data, clientFirstName }) => {

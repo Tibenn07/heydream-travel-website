@@ -13,7 +13,7 @@ window.toggleForeignHotelSelection = function () {
     const dropdown = document.getElementById('foreignHotelDropdown');
     if (dropdown) dropdown.style.display = dropdown.style.display === 'none' ? 'block' : 'none';
 };
-window.selectForeignHotel = function (index, name, stars, price) {
+window.selectForeignHotel = function (index, name, stars, price, skipPersist) {
     const basePrice = window.currentForeignDest ? window.currentForeignDest.price : 0;
     const nameEl = document.getElementById('foreignSelectedHotelName');
     const starHtml = stars ? ` <span style="font-size:0.8rem;">${'⭐'.repeat(stars)}</span>` : '';
@@ -25,6 +25,15 @@ window.selectForeignHotel = function (index, name, stars, price) {
     document.querySelectorAll('#foreignHotelDropdown .hotel-option').forEach((el) => {
         el.style.background = Number(el.dataset.hotelIndex) === index ? '#e3f2fd' : 'white';
     });
+    // Persist the pick so it survives the modal being torn down and
+    // rebuilt from scratch -- which happens when login interrupts the
+    // booking flow (resumeForeignBooking rebuilds the whole modal, which
+    // otherwise silently resets the hotel surcharge back to 0).
+    if (!skipPersist && window.currentForeignDestKey) {
+        try {
+            sessionStorage.setItem('foreign_hotel_' + window.currentForeignDestKey, JSON.stringify({ index, name, stars, price }));
+        } catch (e) { /* storage unavailable, skip */ }
+    }
 };
 
 // Format number with commas
@@ -509,9 +518,11 @@ window.showForeignPackagePopupModal = async function (destKey) {
                     <div class="review-row"><div class="review-label">Travel Date:</div><div class="review-value" id="foreignReviewDate">-</div></div>
                     <div class="review-row"><div class="review-label">Travelers:</div><div class="review-value" id="foreignReviewTravelers">-</div></div>
                     <div class="review-row"><div class="review-label">Special Requests:</div><div class="review-value" id="foreignReviewRequests">-</div></div>
+                    <div class="review-row" id="foreignReviewHotelRow" style="display:none;"><div class="review-label">Hotel:</div><div class="review-value" id="foreignReviewHotel">-</div></div>
                 </div>
                 <div class="review-section"><h4>Price Summary</h4>
                     <div class="review-row"><div class="review-label">Price per Person:</div><div class="review-value">${destination.currency || '₱'}${formatNumber(destination.price)}</div></div>
+                    <div class="review-row" id="foreignReviewHotelPriceRow" style="display:none;"><div class="review-label">Hotel Add-on:</div><div class="review-value" id="foreignReviewHotelPrice">-</div></div>
                     <div class="review-row total"><div class="review-label">Total:</div><div class="review-value" id="foreignReviewTotal">${destination.currency || '₱'}${formatNumber(destination.price)}</div></div>
                 </div>
             </div>
@@ -673,6 +684,17 @@ window.showForeignPackagePopupModal = async function (destKey) {
 
     // Store destination data for later use
     window.currentForeignDest = destination;
+
+    // Restore a previously selected hotel (e.g. the modal was just rebuilt
+    // from scratch after a login interruption) so the surcharge and total
+    // don't silently reset to base price.
+    try {
+        const savedHotel = sessionStorage.getItem('foreign_hotel_' + destKey);
+        if (savedHotel) {
+            const h = JSON.parse(savedHotel);
+            window.selectForeignHotel(h.index, h.name, h.stars, h.price, true);
+        }
+    } catch (e) { /* corrupt/unavailable, skip */ }
 
     // ── Flatpickr calendar for travel date ──────────────────────────────────
     const blockedDates = (destination.blocked_dates || '')
@@ -1062,6 +1084,20 @@ function validateForeignStep2() {
     const price = window.currentForeignDest ? window.currentForeignDest.price : 0;
     const hotelSurcharge = window.foreignSelectedHotelSurcharge || 0;
     const rawTotal = (travelers * price) + hotelSurcharge;
+
+    const hotelRow = document.getElementById('foreignReviewHotelRow');
+    const hotelPriceRow = document.getElementById('foreignReviewHotelPriceRow');
+    if (hotelSurcharge > 0) {
+        const hotelNameEl = document.getElementById('foreignSelectedHotelName');
+        document.getElementById('foreignReviewHotel').textContent = hotelNameEl ? hotelNameEl.textContent.replace(/\s*$/, '').trim() : 'Selected';
+        document.getElementById('foreignReviewHotelPrice').textContent = (window.currentForeignDestCurrency || '₱') + formatNumber(hotelSurcharge);
+        if (hotelRow) hotelRow.style.display = '';
+        if (hotelPriceRow) hotelPriceRow.style.display = '';
+    } else {
+        if (hotelRow) hotelRow.style.display = 'none';
+        if (hotelPriceRow) hotelPriceRow.style.display = 'none';
+    }
+
     const appliedVoucher = window._appliedVoucher && window._appliedVoucher['foreign'];
     const finalAmount = appliedVoucher ? appliedVoucher.finalTotal : rawTotal;
 
@@ -1134,7 +1170,11 @@ function validateForeignPayment() {
     const errors = [];
     const price = window.currentForeignDest ? window.currentForeignDest.price : 0;
     const travelers = window.foreignBookingData ? window.foreignBookingData.travelers : 1;
-    const totalAmount = price * travelers;
+    // window.foreignBookingData.totalAmount (set in validateForeignStep2) is
+    // the source of truth -- it already includes the hotel surcharge and any
+    // applied voucher. Recomputing price*travelers here silently dropped
+    // both, undercharging the actual saved booking record.
+    const totalAmount = (window.foreignBookingData && window.foreignBookingData.totalAmount) || (price * travelers);
 
     if (!foreignSelectedPayment) errors.push('Please select a payment method');
 
@@ -1187,6 +1227,10 @@ function validateForeignPayment() {
     const formData = new FormData();
     formData.append('destination_key', window.currentForeignDestKey || '');
     formData.append('destination_name', window.currentForeignDest?.name || window.currentForeignDest?.title || 'Foreign Destination');
+    if (window.currentForeignDest?.id) {
+        formData.append('package_source_id', window.currentForeignDest.id);
+        formData.append('package_source_type', 'foreign');
+    }
     formData.append('package_duration', window.currentForeignDest?.duration || 'N/A');
     formData.append('price_per_person', price);
     formData.append('full_name', window.foreignBookingData.fullName);
@@ -1195,6 +1239,11 @@ function validateForeignPayment() {
     formData.append('number_of_travelers', window.foreignBookingData.travelers);
     formData.append('travel_date', window.foreignBookingData.travelDate);
     formData.append('special_requests', window.foreignBookingData.specialRequests);
+    if (window.foreignSelectedHotelSurcharge > 0) {
+        const hotelNameEl = document.getElementById('foreignSelectedHotelName');
+        formData.append('hotel_name', hotelNameEl ? hotelNameEl.textContent.trim() : '');
+        formData.append('hotel_price', window.foreignSelectedHotelSurcharge);
+    }
     formData.append('total_amount', finalAmount);
     formData.append('payment_method', foreignSelectedPayment);
     if (paymentRef) formData.append('payment_reference', paymentRef);

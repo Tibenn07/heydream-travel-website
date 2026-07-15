@@ -47,10 +47,10 @@ if (session_status() === PHP_SESSION_NONE) {
         if (!$deal && $titleSlug !== '') {
             $fallbackStmt = $pdo->prepare("
                 SELECT * FROM flash_deals
-                WHERE title LIKE ?
+                WHERE title LIKE ? OR ? LIKE CONCAT('%', title, '%')
                 LIMIT 1
             ");
-            $fallbackStmt->execute(['%' . $titleSlug . '%']);
+            $fallbackStmt->execute(['%' . $titleSlug . '%', $titleSlug]);
             $deal = $fallbackStmt->fetch(PDO::FETCH_ASSOC);
         }
 

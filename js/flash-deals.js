@@ -14,7 +14,7 @@ window.toggleFlashHotelSelection = function () {
     const dropdown = document.getElementById('flashHotelDropdown');
     if (dropdown) dropdown.style.display = dropdown.style.display === 'none' ? 'block' : 'none';
 };
-window.selectFlashHotel = function (index, name, stars, price) {
+window.selectFlashHotel = function (index, name, stars, price, skipPersist) {
     const basePrice = window.currentFlashDeal ? window.currentFlashDeal.price : 0;
     const nameEl = document.getElementById('flashSelectedHotelName');
     const starHtml = stars ? ` <span style="font-size:0.8rem;">${'⭐'.repeat(stars)}</span>` : '';
@@ -26,6 +26,15 @@ window.selectFlashHotel = function (index, name, stars, price) {
     document.querySelectorAll('#flashHotelDropdown .hotel-option').forEach((el) => {
         el.style.background = Number(el.dataset.hotelIndex) === index ? '#fff3e0' : 'white';
     });
+    // Persist the pick so it survives the modal being torn down and
+    // rebuilt from scratch -- which happens when login interrupts the
+    // booking flow (resumeFlashBooking rebuilds the whole modal, which
+    // otherwise silently resets the hotel surcharge back to 0).
+    if (!skipPersist && window.currentFlashDealId) {
+        try {
+            sessionStorage.setItem('flash_hotel_' + window.currentFlashDealId, JSON.stringify({ index, name, stars, price }));
+        } catch (e) { /* storage unavailable, skip */ }
+    }
 };
 
 function formatNumberFlash(num) {
@@ -256,6 +265,7 @@ window.showFlashDealPopupModal = async function (dealId) {
 
     // Store current deal for booking
     window.currentFlashDeal = deal;
+    window.currentFlashDealId = dealId;
 
     let html = `
         <div id="flashDetailsView">
@@ -642,6 +652,17 @@ window.showFlashDealPopupModal = async function (dealId) {
     `;
 
     modalBody.innerHTML = html;
+
+    // Restore a previously selected hotel (e.g. the modal was just rebuilt
+    // from scratch after a login interruption) so the surcharge and total
+    // don't silently reset to base price.
+    try {
+        const savedHotel = sessionStorage.getItem('flash_hotel_' + dealId);
+        if (savedHotel) {
+            const h = JSON.parse(savedHotel);
+            window.selectFlashHotel(h.index, h.name, h.stars, h.price, true);
+        }
+    } catch (e) { /* corrupt/unavailable, skip */ }
 
     // ── Flatpickr calendar for travel date ──────────────────────────────────
     // Parse blocked dates from deal data
@@ -1105,7 +1126,10 @@ window.validateFlashPayment = function () {
     const errors = [];
     const price = window.currentFlashDeal ? window.currentFlashDeal.price : 0;
     const travelers = window.flashBookingData ? window.flashBookingData.travelers : 1;
-    const totalAmount = price * travelers;
+    // window.flashBookingData.totalAmount already includes the hotel
+    // surcharge and any applied voucher -- recomputing price*travelers here
+    // would silently drop both and undercharge the saved booking record.
+    const totalAmount = (window.flashBookingData && window.flashBookingData.totalAmount) || (price * travelers);
 
     if (!window.flashSelectedPayment) errors.push('Please select a payment method');
 
@@ -1160,6 +1184,10 @@ window.validateFlashPayment = function () {
     formData.append('package_name', window.currentFlashDeal.title);
     formData.append('package_duration', window.currentFlashDeal.duration || '3D/2N');
     formData.append('price_per_person', window.currentFlashDeal.price);
+    if (window.currentFlashDeal.id) {
+        formData.append('package_source_id', window.currentFlashDeal.id);
+        formData.append('package_source_type', 'flash');
+    }
     // Attribute this booking to the partner who owns the flash deal (if any),
     // the same way home-packages.js / foreign-packages.js do for their types --
     // otherwise the booking never links back to the partner's dashboard table.
@@ -1178,6 +1206,11 @@ window.validateFlashPayment = function () {
     formData.append('travelers', window.flashBookingData.travelers);
     formData.append('travel_date', window.flashBookingData.travelDate);
     formData.append('special_requests', window.flashBookingData.specialRequests);
+    if (window.flashSelectedHotelSurcharge > 0) {
+        const hotelNameEl = document.getElementById('flashSelectedHotelName');
+        formData.append('hotel_name', hotelNameEl ? hotelNameEl.textContent.trim() : '');
+        formData.append('hotel_price', window.flashSelectedHotelSurcharge);
+    }
     formData.append('total_amount', finalAmount);
     formData.append('payment_method', window.flashSelectedPayment);
     if (paymentRef) formData.append('payment_reference', paymentRef);

@@ -38,7 +38,7 @@ try {
             FROM destinations d
             LEFT JOIN partner_applications p ON d.partner_id = p.id
             LEFT JOIN partner_profiles pr ON pr.partner_id = d.partner_id
-            WHERE (d.name = :name OR REPLACE(LOWER(d.name), ' ', '_') = :name OR d.name LIKE :name_like)
+            WHERE (d.name = :name OR REPLACE(LOWER(d.name), ' ', '_') = :name OR d.name LIKE :name_like OR :name LIKE CONCAT('%', d.name, '%'))
             AND d.type = 'local'
             LIMIT 1
         ");

@@ -1119,6 +1119,49 @@ $unreadMessagesCount = $stmtMessagesCount ? $stmtMessagesCount->fetchColumn() : 
             position: relative;
             box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
             animation: slideUp 0.4s cubic-bezier(0.165, 0.84, 0.44, 1);
+            scrollbar-width: thin;
+            scrollbar-color: #94a3b8 #f1f5f9;
+        }
+
+        .modal-content::-webkit-scrollbar { width: 10px; }
+        .modal-content::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 0 24px 24px 0; }
+        .modal-content::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 10px; border: 2px solid #f1f5f9; }
+        .modal-content::-webkit-scrollbar-thumb:hover { background: #64748b; }
+
+        /* Sits inside the scrollable modal, pinned to the bottom, and only
+           shows while there's more content below the fold -- otherwise a
+           long modal (Payment Info, Travel Documents, Partner Details, etc.
+           all stacked below the visible area) can look "finished" right
+           where the viewport happens to cut off, with no hint to scroll. */
+        .modal-scroll-hint {
+            position: sticky;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 40px;
+            margin-top: -40px;
+            pointer-events: none;
+            background: linear-gradient(to bottom, rgba(255,255,255,0), rgba(255,255,255,0.97) 70%);
+            display: flex;
+            align-items: flex-end;
+            justify-content: center;
+            padding-bottom: 6px;
+            opacity: 1;
+            transition: opacity 0.2s ease;
+            z-index: 5;
+        }
+
+        .modal-scroll-hint.hidden { opacity: 0; }
+
+        .modal-scroll-hint i {
+            color: #94a3b8;
+            font-size: 0.9rem;
+            animation: modalScrollBounce 1.4s ease-in-out infinite;
+        }
+
+        @keyframes modalScrollBounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(4px); }
         }
 
         .modal-header {
@@ -3502,6 +3545,7 @@ $unreadMessagesCount = $stmtMessagesCount ? $stmtMessagesCount->fetchColumn() : 
                     <button type="submit" class="save-btn">Save Changes</button>
                 </form>
             </div>
+            <div class="modal-scroll-hint hidden" id="editModalScrollHint"><i class="fas fa-chevron-down"></i></div>
         </div>
     </div>
 
@@ -4838,8 +4882,15 @@ $unreadMessagesCount = $stmtMessagesCount ? $stmtMessagesCount->fetchColumn() : 
             body.innerHTML = `<div style="text-align:center; padding:60px 20px;"><i class="fas fa-spinner fa-spin" style="font-size:2rem; color:#003580;"></i><p style="margin-top:15px; color:#64748b;">Loading package details...</p></div>`;
             modal.classList.add('active');
 
-            const type = ADMIN_PKG_PARTNER_SOURCE_TYPE[booking.partner_source] || ADMIN_PKG_DESTINATION_NAME_TYPE[booking.destination_name] || null;
-            const identifier = booking.partner_package_id || booking.package_name;
+            const type = booking.package_source_type || ADMIN_PKG_PARTNER_SOURCE_TYPE[booking.partner_source] || ADMIN_PKG_DESTINATION_NAME_TYPE[booking.destination_name] || null;
+            // package_source_id is the real foreign key captured at booking
+            // time -- immune to renames. Older bookings made before that
+            // column existed fall back to partner_package_id, and only as a
+            // last resort to package_name, which has a suffix/prefix baked
+            // in (e.g. "Test 1 Tour Package") that never matches the
+            // destination's actual name/dest_key and was wrongly reported
+            // as "deleted".
+            const identifier = booking.package_source_id || booking.partner_package_id || booking.package_name;
             const endpointFn = type ? ADMIN_PKG_TYPE_ENDPOINT[type] : null;
 
             if (!endpointFn || !identifier) {
@@ -5077,7 +5128,6 @@ $unreadMessagesCount = $stmtMessagesCount ? $stmtMessagesCount->fetchColumn() : 
                         <div class="admin-pkg-tab active" data-tab="overview" onclick="switchAdminPkgTab('overview')">Overview</div>
                         <div class="admin-pkg-tab" data-tab="itinerary" onclick="switchAdminPkgTab('itinerary')">Itinerary</div>
                         <div class="admin-pkg-tab" data-tab="inclusions" onclick="switchAdminPkgTab('inclusions')">Inclusions</div>
-                        ${dest.partner_id ? `<div class="admin-pkg-tab" data-tab="partner" onclick="switchAdminPkgTab('partner')">Partner</div>` : ''}
                     </div>
                     <div id="admin-pkg-pane-overview" class="admin-pkg-pane active">
                         <div class="admin-pkg-details-grid">
@@ -5089,7 +5139,6 @@ $unreadMessagesCount = $stmtMessagesCount ? $stmtMessagesCount->fetchColumn() : 
                     </div>
                     <div id="admin-pkg-pane-itinerary" class="admin-pkg-pane">${itineraryHtml}</div>
                     <div id="admin-pkg-pane-inclusions" class="admin-pkg-pane">${inclusionsHtml}${exclusionsHtml}</div>
-                    ${dest.partner_id ? `<div id="admin-pkg-pane-partner" class="admin-pkg-pane"><div style="text-align:center; padding:20px;"><i class="fas fa-handshake" style="font-size:2.5rem; color:#ff9800; margin-bottom:12px; display:block;"></i><h3 style="color:#003580;">${escapeHtml(dest.partner_company || 'Partner Provider')}</h3><a href="Partnership/partner-profile.php?id=${dest.partner_id}" target="_blank" style="display:inline-block; margin-top:12px; background:#003580; color:white; padding:10px 20px; border-radius:20px; text-decoration:none; font-weight:600;">View Partner Profile <i class="fas fa-external-link-alt"></i></a></div></div>` : ''}
                     <div class="admin-pkg-footer">
                         <div><span class="price-label">Price starting from</span><span class="price-value">${currency}${price.toLocaleString()}</span></div>
                     </div>
@@ -5134,7 +5183,13 @@ $unreadMessagesCount = $stmtMessagesCount ? $stmtMessagesCount->fetchColumn() : 
             const meta = statusMeta[status];
             if (!meta) return;
 
-            const actorName = meta.name || null;
+            // A partner confirming their own booking never touches
+            // confirmed_by (that column is admin-only) -- it just sets
+            // partner_approved=1. Without this, every partner-confirmed
+            // booking wrongly showed "no record of who did it".
+            const confirmedByPartner = status === 'confirmed' && !meta.name && Number(booking.partner_approved) === 1 && booking.partner_id;
+
+            const actorName = meta.name || (confirmedByPartner ? (booking.partner_business_name || booking.partner_company || 'Partner') : null);
             const actorAt = formatBookingActorDate(meta.at);
 
             Swal.fire({
@@ -5142,9 +5197,9 @@ $unreadMessagesCount = $stmtMessagesCount ? $stmtMessagesCount->fetchColumn() : 
                 html: actorName
                     ? `
                         <div style="margin-top: 10px;">
-                            <i class="fas ${meta.icon}" style="font-size: 3rem; color: ${meta.color}; margin-bottom: 16px; display: block;"></i>
+                            <i class="fas ${confirmedByPartner ? 'fa-handshake' : meta.icon}" style="font-size: 3rem; color: ${meta.color}; margin-bottom: 16px; display: block;"></i>
                             <p style="font-size: 1.15rem; font-weight: 700; color: #0f172a; margin-bottom: 4px;">${escapeHtml(actorName)}</p>
-                            <p style="font-size: 0.85rem; color: #64748b;">${meta.verb} on ${actorAt || 'an unknown date'}</p>
+                            <p style="font-size: 0.85rem; color: #64748b;">${confirmedByPartner ? 'Partner confirmed this booking' : meta.verb + ' on ' + (actorAt || 'an unknown date')}</p>
                         </div>
                     `
                     : `
@@ -5187,7 +5242,18 @@ $unreadMessagesCount = $stmtMessagesCount ? $stmtMessagesCount->fetchColumn() : 
                     </div>
                 `;
             } else {
-                bodyHtml = `
+                // A partner marking a booking paid/confirmed never involves a
+                // receipt upload step -- "No Payment Yet" is misleading there
+                // since it *is* paid, there's just no file attached.
+                const paidByPartner = booking.payment_status === 'paid' && Number(booking.partner_approved) === 1 && booking.partner_id;
+                bodyHtml = paidByPartner
+                    ? `
+                    <div style="margin-top: 10px;">
+                        <i class="fas fa-handshake" style="font-size: 3rem; color: #a855f7; margin-bottom: 16px; display: block;"></i>
+                        <p style="font-size: 1rem; color: #334155; margin-bottom: 4px;">Marked paid by <strong>${escapeHtml(booking.partner_business_name || booking.partner_company || 'the partner')}</strong> -- no receipt file was attached.</p>
+                    </div>
+                    `
+                    : `
                     <div style="margin-top: 10px;">
                         <i class="fas fa-hourglass-half" style="font-size: 3rem; color: #cbd5e1; margin-bottom: 16px; display: block;"></i>
                         <p style="font-size: 1rem; color: #64748b; margin-bottom: 0;">No payment proof uploaded yet.</p>
@@ -5211,6 +5277,65 @@ $unreadMessagesCount = $stmtMessagesCount ? $stmtMessagesCount->fetchColumn() : 
                 hideClass: {
                     popup: 'animate__animated animate__fadeOut animate__faster'
                 }
+            });
+        }
+
+        async function showTravelDocumentsAlert(id, bookingNumber) {
+            let bodyHtml;
+            try {
+                const docRes = await fetch(`../User%20Account/api/upload-api.php?action=list&booking_number=${bookingNumber}`);
+                const docData = await docRes.json();
+                const docs = docData.success ? docData.documents : [];
+
+                if (docs.length === 0) {
+                    bodyHtml = `
+                        <div style="margin-top: 10px;">
+                            <i class="fas fa-hourglass-half" style="font-size: 3rem; color: #cbd5e1; margin-bottom: 16px; display: block;"></i>
+                            <p style="font-size: 1rem; color: #64748b; margin-bottom: 0;">No travel documents uploaded yet.</p>
+                        </div>
+                    `;
+                } else {
+                    bodyHtml = `
+                        <div style="margin-top: 10px; text-align: left; display: flex; flex-direction: column; gap: 10px;">
+                            ${docs.map(doc => {
+                        const isImage = /\.(jpg|jpeg|png|gif|webp)$/i.test(doc.file_path);
+                        const isPdf = /\.pdf$/i.test(doc.file_path);
+                        return `
+                                <div style="background: #f8fafc; padding: 10px 14px; border-radius: 10px; border: 1px solid #e2e8f0;">
+                                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                                        <span style="font-size: 0.9rem; color: #334155; font-weight: 500; overflow-wrap: anywhere;"><i class="fas ${isPdf ? 'fa-file-pdf' : 'fa-file-image'}" style="color: ${isPdf ? '#ef4444' : '#64748b'}; margin-right: 8px;"></i> ${escapeHtml(doc.file_name)}</span>
+                                        <a href="../${doc.file_path}" target="_blank" class="view-btn" style="padding: 6px 12px; font-size: 0.8rem; text-decoration: none; display: flex; align-items: center; gap: 4px; flex-shrink: 0; margin-left: 10px;">
+                                            <i class="fas ${isPdf ? 'fa-up-right-and-down-left-from-center' : 'fa-magnifying-glass-plus'}"></i> ${isPdf ? 'Open' : 'Zoom'}
+                                        </a>
+                                    </div>
+                                    ${isImage ? `
+                                    <a href="../${doc.file_path}" target="_blank" title="Click to view full size" style="display:block; margin-top:10px;">
+                                        <img src="../${doc.file_path}" alt="${escapeHtml(doc.file_name)}" style="max-width:100%; max-height:220px; border-radius:8px; border:1px solid #e2e8f0; cursor:zoom-in; object-fit:contain; display:block; margin:0 auto; background:white;">
+                                    </a>` : ''}
+                                </div>
+                            `;
+                    }).join('')}
+                        </div>
+                    `;
+                }
+            } catch (e) {
+                bodyHtml = `
+                    <div style="margin-top: 10px;">
+                        <i class="fas fa-triangle-exclamation" style="font-size: 3rem; color: #f59e0b; margin-bottom: 16px; display: block;"></i>
+                        <p style="font-size: 1rem; color: #64748b; margin-bottom: 0;">Could not load travel documents. Please try again.</p>
+                    </div>
+                `;
+            }
+
+            Swal.fire({
+                title: '<span style="color: #a21caf;">Travel Documents</span>',
+                html: bodyHtml,
+                showConfirmButton: true,
+                confirmButtonColor: '#4f46e5',
+                confirmButtonText: 'CLOSE',
+                customClass: { popup: 'glass-modal', confirmButton: 'swal-custom-confirm' },
+                showClass: { popup: 'animate__animated animate__zoomIn animate__faster' },
+                hideClass: { popup: 'animate__animated animate__fadeOut animate__faster' }
             });
         }
 
@@ -5243,7 +5368,7 @@ $unreadMessagesCount = $stmtMessagesCount ? $stmtMessagesCount->fetchColumn() : 
                     let packageLocation = null;
                     if (booking.package_name) {
                         try {
-                            const pkgRes = await fetch(`admin-api.php?action=get_package_info&package_name=${encodeURIComponent(booking.package_name)}`);
+                            const pkgRes = await fetch(`admin-api.php?action=get_package_info&package_name=${encodeURIComponent(booking.package_name)}&package_source_id=${encodeURIComponent(booking.package_source_id || '')}&package_source_type=${encodeURIComponent(booking.package_source_type || '')}`);
                             const pkgData = await pkgRes.json();
                             if (pkgData.success) {
                                 const info = pkgData.data;
@@ -5285,15 +5410,25 @@ $unreadMessagesCount = $stmtMessagesCount ? $stmtMessagesCount->fetchColumn() : 
                                 <h5 style="margin: 0 0 12px; color: #a21caf; font-weight: 700; font-size: 0.95rem;">
                                     <i class="fas fa-folder-open" style="color: #c026d3; margin-right: 6px;"></i> Travel Documents
                                 </h5>
-                                <div style="display: flex; flex-direction: column; gap: 8px;">
-                                    ${bookingDocs.map(doc => `
-                                        <div style="display: flex; justify-content: space-between; align-items: center; background: white; padding: 10px 14px; border-radius: 10px; border: 1px solid #e2e8f0;">
-                                            <span style="font-size: 0.9rem; color: #334155; font-weight: 500;"><i class="fas fa-file-alt" style="color: #64748b; margin-right: 8px;"></i> ${escapeHtml(doc.file_name)}</span>
-                                            <a href="../${doc.file_path}" target="_blank" class="view-btn" style="padding: 6px 12px; font-size: 0.8rem; text-decoration: none; display: flex; align-items: center; gap: 4px;">
-                                                <i class="fas fa-eye"></i> View
-                                            </a>
+                                <div style="display: flex; flex-direction: column; gap: 10px;">
+                                    ${bookingDocs.map(doc => {
+                    const isImage = /\.(jpg|jpeg|png|gif|webp)$/i.test(doc.file_path);
+                    const isPdf = /\.pdf$/i.test(doc.file_path);
+                    return `
+                                        <div style="background: white; padding: 10px 14px; border-radius: 10px; border: 1px solid #e2e8f0;">
+                                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                                <span style="font-size: 0.9rem; color: #334155; font-weight: 500; overflow-wrap: anywhere;"><i class="fas ${isPdf ? 'fa-file-pdf' : 'fa-file-image'}" style="color: ${isPdf ? '#ef4444' : '#64748b'}; margin-right: 8px;"></i> ${escapeHtml(doc.file_name)}</span>
+                                                <a href="../${doc.file_path}" target="_blank" title="${isPdf ? 'PDFs open in a new tab with your browser’s own viewer and zoom controls' : 'Click to view full size'}" class="view-btn" style="padding: 6px 12px; font-size: 0.8rem; text-decoration: none; display: flex; align-items: center; gap: 4px; flex-shrink: 0; margin-left: 10px;">
+                                                    <i class="fas ${isPdf ? 'fa-up-right-and-down-left-from-center' : 'fa-magnifying-glass-plus'}"></i> ${isPdf ? 'Open' : 'Zoom'}
+                                                </a>
+                                            </div>
+                                            ${isImage ? `
+                                            <a href="../${doc.file_path}" target="_blank" title="Click to view full size" style="display:block; margin-top:10px;">
+                                                <img src="../${doc.file_path}" alt="${escapeHtml(doc.file_name)}" style="max-width:100%; max-height:180px; border-radius:8px; border:1px solid #e2e8f0; cursor:zoom-in; object-fit:contain; display:block; margin:0 auto; background:#f8fafc;">
+                                            </a>` : ''}
                                         </div>
-                                    `).join('')}
+                                    `;
+                }).join('')}
                                 </div>
                             </div>
                         `;
@@ -5394,7 +5529,10 @@ $unreadMessagesCount = $stmtMessagesCount ? $stmtMessagesCount->fetchColumn() : 
                                                 <i class="fas fa-file-download"></i> Download / View Receipt
                                             </a>
                                             `}
-                                        </div>` : ''}
+                                        </div>` : `
+                                        <div style="margin-top: 8px; display:flex; align-items:center; gap:8px; color:#94a3b8; font-size:0.85rem; font-style:italic;">
+                                            <i class="fas fa-circle-info"></i> No receipt file was attached${Number(booking.partner_approved) === 1 && booking.partner_id ? ' (partner-confirmed booking)' : ''}.
+                                        </div>`}
                                     </div>
                                 </div>` : ''}
 
@@ -5487,7 +5625,7 @@ $unreadMessagesCount = $stmtMessagesCount ? $stmtMessagesCount->fetchColumn() : 
                     let packageInfoHtml = '';
                     if (booking.package_name) {
                         try {
-                            const pkgRes = await fetch(`admin-api.php?action=get_package_info&package_name=${encodeURIComponent(booking.package_name)}`);
+                            const pkgRes = await fetch(`admin-api.php?action=get_package_info&package_name=${encodeURIComponent(booking.package_name)}&package_source_id=${encodeURIComponent(booking.package_source_id || '')}&package_source_type=${encodeURIComponent(booking.package_source_type || '')}`);
                             const pkgData = await pkgRes.json();
                             if (pkgData.success) {
                                 const info = pkgData.data;
@@ -6297,11 +6435,13 @@ $unreadMessagesCount = $stmtMessagesCount ? $stmtMessagesCount->fetchColumn() : 
         // --- Advanced Bookings Dashboard Logic ---
         let bookings = <?php
         $stmt = $pdo->prepare("
-            SELECT b.*, au.full_name AS confirmed_by_name, cu.full_name AS completed_by_name, xu.full_name AS cancelled_by_name
+            SELECT b.*, au.full_name AS confirmed_by_name, cu.full_name AS completed_by_name, xu.full_name AS cancelled_by_name,
+                   pp.business_display_name AS partner_business_name
             FROM bookings b
             LEFT JOIN admin_users au ON b.confirmed_by = au.id
             LEFT JOIN admin_users cu ON b.completed_by = cu.id
             LEFT JOIN admin_users xu ON b.cancelled_by = xu.id
+            LEFT JOIN partner_profiles pp ON b.partner_id = pp.partner_id
             WHERE ({$activeBookingCondition}) AND b.partner_approved = 1
             ORDER BY b.created_at DESC
         ");
@@ -6410,7 +6550,7 @@ $unreadMessagesCount = $stmtMessagesCount ? $stmtMessagesCount->fetchColumn() : 
                         </div>
                     </td>
                     <td style="vertical-align: top; text-align: center; display: ${isInquiryView ? 'none' : 'table-cell'};">
-                        <span class="status-badge ${Number(booking.travel_documents) === 1 ? 'status-confirmed' : (Number(booking.travel_documents) === 2 ? 'status-incomplete' : 'status-pending')}">
+                        <span class="status-badge ${Number(booking.travel_documents) === 1 ? 'status-confirmed' : (Number(booking.travel_documents) === 2 ? 'status-incomplete' : 'status-pending')}" onclick="showTravelDocumentsAlert(${booking.id}, '${booking.booking_number}')" style="cursor: pointer;">
                             <i class="fas ${Number(booking.travel_documents) === 1 ? 'fa-check-circle' : (Number(booking.travel_documents) === 2 ? 'fa-ban' : 'fa-clock')}"></i>
                             ${Number(booking.travel_documents) === 1 ? 'PREPARED' : (Number(booking.travel_documents) === 2 ? 'N/A' : 'PENDING')}
                         </span>
@@ -7958,6 +8098,32 @@ $unreadMessagesCount = $stmtMessagesCount ? $stmtMessagesCount->fetchColumn() : 
                     dragged = false;
                 }
             }, true);
+        });
+
+        // Long booking-detail modals (Payment Info, Travel Documents, Partner
+        // Details, etc. all stacked below the fold) can look "finished" right
+        // where the viewport cuts off, since the default scrollbar is easy to
+        // miss. Show a bouncing down-chevron hint whenever there's more
+        // content below, and hide it once scrolled to the bottom.
+        document.addEventListener('DOMContentLoaded', function () {
+            const modalContent = document.querySelector('#editModal .modal-content');
+            const hint = document.getElementById('editModalScrollHint');
+            if (!modalContent || !hint) return;
+
+            function updateScrollHint() {
+                const hasOverflow = modalContent.scrollHeight > modalContent.clientHeight + 4;
+                const atBottom = modalContent.scrollTop + modalContent.clientHeight >= modalContent.scrollHeight - 4;
+                hint.classList.toggle('hidden', !hasOverflow || atBottom);
+            }
+
+            modalContent.addEventListener('scroll', updateScrollHint);
+            new MutationObserver(updateScrollHint).observe(document.getElementById('form-fields'), { childList: true, subtree: true });
+            new MutationObserver(function () {
+                if (document.getElementById('editModal').classList.contains('active')) {
+                    modalContent.scrollTop = 0;
+                    updateScrollHint();
+                }
+            }).observe(document.getElementById('editModal'), { attributes: true, attributeFilter: ['class'] });
         });
     </script>
 </body>

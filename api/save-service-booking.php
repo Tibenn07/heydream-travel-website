@@ -33,12 +33,18 @@ if (!$input) {
 }
 
 // Required fields for any booking
-$required = ['service_type', 'package_name', 'full_name', 'phone', 'total_amount'];
+$required = ['service_type', 'package_name', 'full_name', 'phone'];
 foreach ($required as $field) {
     if (empty($input[$field])) {
         echo json_encode(['success' => false, 'message' => "Missing required field: $field"]);
         exit;
     }
+}
+// total_amount is checked separately -- empty() treats a legitimate 0 (e.g.
+// a free visa processing fee) as "missing", incorrectly blocking submission.
+if (!isset($input['total_amount']) || $input['total_amount'] === '') {
+    echo json_encode(['success' => false, 'message' => 'Missing required field: total_amount']);
+    exit;
 }
 
 // Handle Payment Proof File Upload
@@ -116,17 +122,21 @@ try {
         destination_name, 
         package_name, 
         package_duration,
-        price_per_person, 
-        full_name, 
-        email, 
-        phone, 
+        price_per_person,
+        full_name,
+        email,
+        phone,
         travel_date,
-        number_of_travelers, 
-        special_requests, 
-        total_amount, 
-        booking_status, 
-        payment_status, 
-        payment_method, 
+        number_of_travelers,
+        special_requests,
+        hotel_name,
+        hotel_price,
+        package_source_id,
+        package_source_type,
+        total_amount,
+        booking_status,
+        payment_status,
+        payment_method,
         payment_reference,
         payment_proof,
         currency,
@@ -137,10 +147,10 @@ try {
         partner_source,
         partner_approved
     ) VALUES (
-        :user_id, 
-        :booking_number, 
-        :destination_name, 
-        :package_name, 
+        :user_id,
+        :booking_number,
+        :destination_name,
+        :package_name,
         :package_duration,
         :price_per_person, 
         :full_name, 
@@ -178,6 +188,10 @@ try {
         ':travel_date' => !empty($input['travel_date']) ? $input['travel_date'] : (!empty($input['travel_dates']) ? $input['travel_dates'] : date('Y-m-d')),
         ':number_of_travelers' => $input['number_of_travelers'] ?? $input['travelers'] ?? 1,
         ':special_requests' => $input['special_requests'] ?? null,
+        ':hotel_name' => $input['hotel_name'] ?? null,
+        ':hotel_price' => $input['hotel_price'] ?? 0,
+        ':package_source_id' => !empty($input['package_source_id']) ? intval($input['package_source_id']) : null,
+        ':package_source_type' => !empty($input['package_source_type']) ? $input['package_source_type'] : null,
         ':total_amount' => $input['total_amount'],
         ':payment_status' => $payment_status,
         ':payment_method' => $payment_method,

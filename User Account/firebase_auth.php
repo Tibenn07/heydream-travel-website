@@ -12,6 +12,12 @@ if (!$idToken) {
     exit;
 }
 
+$redirect = $input['redirect'] ?? '../index.php';
+// Simple validation to prevent open redirect vulnerabilities (mirrors login.php)
+if (strpos($redirect, 'http') === 0 && strpos($redirect, $_SERVER['HTTP_HOST']) === false) {
+    $redirect = '../index.php';
+}
+
 // Verify ID token via Google's tokeninfo endpoint using cURL
 $tokenInfoUrl = 'https://oauth2.googleapis.com/tokeninfo?id_token=' . urlencode($idToken);
 $ch = curl_init($tokenInfoUrl);
@@ -77,7 +83,10 @@ if ($result['success']) {
         // EXISTING user — already in the database, go straight to homepage
         $user = $result['user'];
         sendLoginNotifications($user['id'], 'google');
-        $redirect = '../index.php';
+        // If profile is incomplete, force them to complete-profile page (mirrors login.php)
+        if (empty($user['country']) && empty($user['dob']) && empty($user['title'])) {
+            $redirect = 'complete-profile.php';
+        }
         echo json_encode(['success' => true, 'redirect' => $redirect, 'name' => $user['full_name'] ?? $name, 'first_name' => $user['first_name'] ?? $first_name, 'is_new' => false]);
         exit;
     }
@@ -98,7 +107,7 @@ if ($result['success']) {
     }
 
     // Fallback for existing user via session already created
-    echo json_encode(['success' => true, 'redirect' => '../index.php', 'name' => $name, 'first_name' => $first_name, 'is_new' => false]);
+    echo json_encode(['success' => true, 'redirect' => $redirect, 'name' => $name, 'first_name' => $first_name, 'is_new' => false]);
     exit;
 }
 

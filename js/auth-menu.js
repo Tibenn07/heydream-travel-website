@@ -377,10 +377,25 @@ function handlePendingAction() {
 function goToSaved() { window.location.href = getBasePath() + 'saved.php'; }
 function goToProfile() { window.location.href = getBasePath() + 'User Account/profile.php'; }
 
+// The sidebar/nav "Sign In" links are static HTML with no redirect target,
+// so login always dropped the user back on index.php regardless of which
+// page they clicked "Sign In" from. Stamp the current page onto every such
+// link so login.php's ?redirect= sends them back to where they actually were.
+function fixLoginLinksRedirect() {
+    const here = encodeURIComponent(window.location.href);
+    document.querySelectorAll('a[href*="login.php"]').forEach(function (a) {
+        const href = a.getAttribute('href');
+        if (!href || href.indexOf('redirect=') !== -1 || href.indexOf('login.php?logout') !== -1) return;
+        const sep = href.indexOf('?') === -1 ? '?' : '&';
+        a.setAttribute('href', href + sep + 'redirect=' + here);
+    });
+}
+
 // Initialize when DOM is ready
 document.addEventListener('DOMContentLoaded', function () {
     initSidePanelWithAuth();
     handlePendingAction();
+    fixLoginLinksRedirect();
 
     // If there's an existing menu toggle, make sure auth updates when menu opens
     const menuToggle = document.getElementById('menuToggle');

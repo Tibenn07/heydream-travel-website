@@ -1480,12 +1480,12 @@ $bookings = array_filter($all_bookings, function ($b) {
                 ${pendingFiles.map((file, idx) => {
                 const blobUrl = URL.createObjectURL(file);
                 return `
-                        <div class="file-item" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; background: #f8fafc; padding: 8px 12px; border-radius: 8px; border: 1px dashed #cbd5e1;">
-                            <div style="display: flex; align-items: center; gap: 10px; overflow: hidden;">
-                                <i class="fas fa-file-alt" style="color: #64748b; flex-shrink: 0;"></i> 
-                                <span class="file-name" style="font-size: 0.85rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${file.name}</span>
+                        <div class="file-item" style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 6px 10px; margin-bottom: 8px; background: #f8fafc; padding: 8px 12px; border-radius: 8px; border: 1px dashed #cbd5e1;">
+                            <div style="display: flex; align-items: center; gap: 10px; overflow: hidden; min-width: 0; flex: 1 1 140px;">
+                                <i class="fas fa-file-alt" style="color: #64748b; flex-shrink: 0;"></i>
+                                <span class="file-name" style="font-size: 0.85rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0;">${file.name}</span>
                             </div>
-                            <div style="display: flex; align-items: center; gap: 12px; flex-shrink: 0;">
+                            <div style="display: flex; align-items: center; gap: 12px; flex-shrink: 0; margin-left: auto;">
                                 <a href="${blobUrl}" target="_blank" class="view-link" style="color: #0284c7; font-size: 0.8rem; font-weight: 600; text-decoration: none;">View</a>
                                 <span style="color: #94a3b8; font-size: 0.75rem; cursor:pointer;" onclick="removePendingFile(${idx})"><i class="fas fa-times"></i></span>
                             </div>
@@ -1576,16 +1576,16 @@ $bookings = array_filter($all_bookings, function ($b) {
                                 </span>
                             </div>
                             ${data.documents.map(doc => `
-                                <div id="doc-item-${doc.id}" style="display:flex; justify-content:space-between; align-items:center;
+                                <div id="doc-item-${doc.id}" style="display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:6px 8px;
                                      margin-bottom:8px; background:#f0fdf4; padding:10px 12px; border-radius:10px; border:1px solid #bbf7d0;
                                      transition: all 0.2s;">
-                                    <div style="display:flex; align-items:center; gap:10px; overflow:hidden; flex:1;">
+                                    <div style="display:flex; align-items:center; gap:10px; overflow:hidden; min-width:0; flex:1 1 140px;">
                                         <i class="fas fa-${doc.file_name.match(/\.(pdf)$/i) ? 'file-pdf' : 'file-image'}"
                                            style="color:${doc.file_name.match(/\.(pdf)$/i) ? '#ef4444' : '#22c55e'}; flex-shrink:0;"></i>
                                         <span style="font-size:0.85rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
-                                              color:#166534; font-weight:500;">${doc.file_name}</span>
+                                              color:#166534; font-weight:500; min-width:0;">${doc.file_name}</span>
                                     </div>
-                                    <div style="display:flex; align-items:center; gap:8px; flex-shrink:0; margin-left:8px;">
+                                    <div style="display:flex; align-items:center; gap:8px; flex-shrink:0; margin-left:auto;">
                                         <a href="../${doc.file_path}" target="_blank"
                                            style="color:#15803d; font-size:0.78rem; font-weight:600; text-decoration:none;
                                                   background:white; padding:4px 10px; border-radius:6px; border:1px solid #bbf7d0;

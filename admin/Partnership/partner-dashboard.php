@@ -197,11 +197,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     $description = trim($_POST['description'] ?? '');
 
     $imageUpload = uploadPartnerPackageAsset($_FILES['package_image'] ?? null);
+    $hasImageFile = isset($_FILES['package_image']) && ($_FILES['package_image']['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_OK;
+
+    $missingFields = [];
+    if ($packageName === '') $missingFields[] = 'Package Name';
+    if ($destinationName === '') $missingFields[] = 'Destination';
+    if ($price <= 0) $missingFields[] = 'Price';
+    if (!$hasImageFile) $missingFields[] = 'Package Cover Image';
 
     if (!$imageUpload['success']) {
         $errorMessage = $imageUpload['message'];
-    } elseif ($packageName === '') {
-        $errorMessage = 'Please enter a package name before uploading.';
+    } elseif (!empty($missingFields)) {
+        $errorMessage = 'Please complete the following before submitting: ' . implode(', ', $missingFields) . '.';
     } else {
         $imagePath = $imageUpload['path'] ?? null;
         $stmt = $pdo->prepare("
@@ -670,7 +677,7 @@ if (($section ?? 'dashboard') === 'bookings') {
     $paginatedBookingsStmt = $pdo->prepare(
         "SELECT id, booking_number, package_name, partner_package_name, full_name, email, phone, number_of_travelers, travel_date, created_at, total_amount, payment_status, booking_status, payment_method,
                 address, destination_name, package_duration, special_requests, visa_status, price_per_person,
-                payment_reference, payment_proof, admin_notes, flight_details, travel_documents, ready_for_travel
+                payment_reference, payment_proof, admin_notes, flight_details, travel_documents, ready_for_travel, hotel_name, hotel_price
          FROM bookings
          WHERE {$whereClause}
          ORDER BY created_at DESC
@@ -1361,6 +1368,45 @@ if (($section ?? 'dashboard') === 'bookings') {
             color: white;
             font-weight: 700;
             cursor: pointer;
+        }
+
+        /* ---- Upload Package step wizard ---- */
+        .pkgwiz-progress { display: flex; justify-content: center; padding: 6px 0 26px; margin-bottom: 20px; border-bottom: 1px solid var(--border); }
+        .pkgwiz-step { flex: 1; max-width: 170px; text-align: center; position: relative; }
+        .pkgwiz-circle { width: 34px; height: 34px; border-radius: 50%; background: #e2e8f0; color: var(--muted); display: flex; align-items: center; justify-content: center; margin: 0 auto 8px; font-weight: 800; font-size: 0.85rem; position: relative; z-index: 2; transition: 0.25s; }
+        .pkgwiz-step.active .pkgwiz-circle { background: var(--accent); color: #fff; box-shadow: 0 0 0 5px rgba(245,158,11,0.18); }
+        .pkgwiz-step.done .pkgwiz-circle { background: var(--success); color: #fff; font-size: 0; }
+        .pkgwiz-step.done .pkgwiz-circle::before { content: '\f00c'; font-family: 'Font Awesome 6 Free'; font-weight: 900; font-size: 0.8rem; }
+        .pkgwiz-connector { position: absolute; top: 17px; left: -50%; width: 100%; height: 2px; background: var(--border); z-index: 1; }
+        .pkgwiz-step.done .pkgwiz-connector, .pkgwiz-step.active .pkgwiz-connector { background: var(--success); }
+        .pkgwiz-step:first-child .pkgwiz-connector { display: none; }
+        .pkgwiz-label { font-size: 0.78rem; font-weight: 700; color: var(--muted); }
+        .pkgwiz-step.active .pkgwiz-label { color: var(--accent); }
+        .pkgwiz-step.done .pkgwiz-label { color: var(--success); }
+
+        .pkgwiz-panel { display: none; }
+        .pkgwiz-panel.active { display: block; animation: pkgwizFade 0.25s ease; }
+        @keyframes pkgwizFade { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+        .pkgwiz-error { display: none; background: #fef2f2; border-left: 3px solid var(--danger); color: #b91c1c; padding: 10px 14px; border-radius: 8px; font-size: 0.85rem; margin-bottom: 16px; }
+        .pkgwiz-error ul { margin: 6px 0 0; padding-left: 18px; }
+
+        .pkgwiz-nav { display: flex; justify-content: space-between; align-items: center; margin-top: 22px; gap: 12px; }
+        .pkgwiz-btn-back { border: 1.5px solid var(--border); background: #fff; color: var(--muted); border-radius: 12px; padding: 11px 20px; font-weight: 700; cursor: pointer; font: inherit; }
+        .pkgwiz-btn-back:hover { background: #f8fafc; }
+        .pkgwiz-btn-next { border: none; background: var(--primary); color: #fff; border-radius: 12px; padding: 11px 24px; font-weight: 700; cursor: pointer; font: inherit; display: inline-flex; align-items: center; gap: 8px; margin-left: auto; }
+        .pkgwiz-btn-next:hover { opacity: 0.92; }
+        .pkgwiz-btn-next.pkgwiz-btn-save { background: linear-gradient(135deg, var(--accent), #d97706); }
+
+        .pkgwiz-review-row { display: flex; justify-content: space-between; padding: 9px 0; border-bottom: 1px solid var(--border); font-size: 0.88rem; gap: 12px; }
+        .pkgwiz-review-row:last-child { border-bottom: none; }
+        .pkgwiz-review-row span:first-child { color: var(--muted); font-weight: 600; flex-shrink: 0; }
+        .pkgwiz-review-row span:last-child { text-align: right; color: #0f172a; }
+        .pkgwiz-review-photo { max-width: 220px; border-radius: 12px; margin-top: 12px; display: none; }
+
+        @media (max-width: 560px) {
+            .pkgwiz-label { font-size: 0.68rem; }
+            .pkgwiz-step { max-width: 100px; }
         }
 
         .table-wrap { overflow-x: auto; }
@@ -2635,6 +2681,7 @@ if (($section ?? 'dashboard') === 'bookings') {
                                         <div><strong style="color:#64748b;display:block;font-size:0.8rem;text-transform:uppercase;letter-spacing:0.5px;">Travel Date</strong> <span style="color:#0f172a;font-weight:600;" id="bm_travel">—</span></div>
                                         <div><strong style="color:#64748b;display:block;font-size:0.8rem;text-transform:uppercase;letter-spacing:0.5px;">Travelers</strong> <span style="color:#0f172a;font-weight:600;" id="bm_travelers">—</span></div>
                                         <div><strong style="color:#64748b;display:block;font-size:0.8rem;text-transform:uppercase;letter-spacing:0.5px;">Price per Person</strong> <span style="color:#0f172a;font-weight:600;" id="bm_price_per_person">—</span></div>
+                                        <div id="bm_hotel_row" style="display:none;"><strong style="color:#64748b;display:block;font-size:0.8rem;text-transform:uppercase;letter-spacing:0.5px;">Hotel Add-on</strong> <span style="color:#0f172a;font-weight:600;" id="bm_hotel">—</span></div>
                                         <!-- Total Amount — full-width row -->
                                         <div style="grid-column:1/-1;background:#f8fafc;padding:12px;border-radius:8px;display:flex;justify-content:space-between;align-items:center;border:1px solid #e2e8f0;margin-top:5px;">
                                             <strong style="color:#1e293b;font-size:1rem;">Total Amount</strong>
@@ -2740,6 +2787,15 @@ if (($section ?? 'dashboard') === 'bookings') {
                         document.getElementById('bm_travelers').textContent = b.number_of_travelers || '—';
                         document.getElementById('bm_price_per_person').textContent = fmtMoney(b.price_per_person || 0);
                         document.getElementById('bm_amount').textContent = fmtMoney(b.total_amount);
+
+                        // Hotel add-on -- only shown when the traveler picked one
+                        const hotelRow = document.getElementById('bm_hotel_row');
+                        if (b.hotel_name) {
+                            document.getElementById('bm_hotel').textContent = b.hotel_name + (b.hotel_price > 0 ? ' (+' + fmtMoney(b.hotel_price) + ')' : '');
+                            hotelRow.style.display = '';
+                        } else {
+                            hotelRow.style.display = 'none';
+                        }
 
                         // Booking status badge — matching admin style
                         const bStatus = (b.booking_status || 'pending').toLowerCase();
@@ -3081,37 +3137,190 @@ if (($section ?? 'dashboard') === 'bookings') {
                         <h3>Upload New Package</h3>
                         <span class="status-badge pending">Pending review</span>
                     </div>
-                    <form method="post" enctype="multipart/form-data">
+                    <form method="post" enctype="multipart/form-data" id="uploadPackageForm" novalidate>
                         <input type="hidden" name="action" value="upload_package">
-                        <div class="form-grid">
-                            <div class="form-group">
-                                <label for="package_name">Package Name</label>
-                                <input type="text" id="package_name" name="package_name" placeholder="Example: Bali Escape Tour" required>
+
+                        <div class="pkgwiz-progress">
+                            <div class="pkgwiz-step active" data-step="1">
+                                <div class="pkgwiz-circle">1</div>
+                                <div class="pkgwiz-label">Basic Info</div>
                             </div>
-                            <div class="form-group">
-                                <label for="destination_name">Destination</label>
-                                <input type="text" id="destination_name" name="destination_name" placeholder="Example: Bali, Indonesia">
+                            <div class="pkgwiz-step" data-step="2">
+                                <div class="pkgwiz-connector"></div>
+                                <div class="pkgwiz-circle">2</div>
+                                <div class="pkgwiz-label">Trip Details</div>
                             </div>
-                            <div class="form-group">
-                                <label for="duration">Duration</label>
-                                <input type="text" id="duration" name="duration" placeholder="5D/4N">
+                            <div class="pkgwiz-step" data-step="3">
+                                <div class="pkgwiz-connector"></div>
+                                <div class="pkgwiz-circle">3</div>
+                                <div class="pkgwiz-label">Cover Photo</div>
                             </div>
-                            <div class="form-group">
-                                <label for="price">Price</label>
-                                <input type="number" step="0.01" id="price" name="price" placeholder="0.00">
+                            <div class="pkgwiz-step" data-step="4">
+                                <div class="pkgwiz-connector"></div>
+                                <div class="pkgwiz-circle">4</div>
+                                <div class="pkgwiz-label">Review</div>
                             </div>
                         </div>
-                        <div class="form-group" style="margin-top: 14px;">
-                            <label for="description">Description</label>
-                            <textarea id="description" name="description" placeholder="Describe the package highlights, inclusions, and notes."></textarea>
+
+                        <div class="pkgwiz-error" id="pkgwizError"></div>
+
+                        <div class="pkgwiz-panel active" data-panel="1">
+                            <div class="form-grid">
+                                <div class="form-group">
+                                    <label for="package_name">Package Name *</label>
+                                    <input type="text" id="package_name" name="package_name" placeholder="Example: Bali Escape Tour" required>
+                                </div>
+                                <div class="form-group">
+                                    <label for="destination_name">Destination *</label>
+                                    <input type="text" id="destination_name" name="destination_name" placeholder="Example: Bali, Indonesia" required>
+                                </div>
+                            </div>
                         </div>
-                        <div class="form-group" style="margin-top: 14px;">
-                            <label for="package_image">Package Cover Image</label>
-                            <input type="file" id="package_image" name="package_image" accept="image/*">
-                            <div class="muted" style="margin-top: 6px; font-size: 0.9rem;">Recommended: JPG, PNG, WEBP. This image will appear on the partner package listing.</div>
+
+                        <div class="pkgwiz-panel" data-panel="2">
+                            <div class="form-grid">
+                                <div class="form-group">
+                                    <label for="duration">Duration</label>
+                                    <input type="text" id="duration" name="duration" placeholder="5D/4N">
+                                </div>
+                                <div class="form-group">
+                                    <label for="price">Price *</label>
+                                    <input type="number" step="0.01" id="price" name="price" placeholder="0.00" required>
+                                </div>
+                            </div>
+                            <div class="form-group" style="margin-top: 14px;">
+                                <label for="description">Description</label>
+                                <textarea id="description" name="description" placeholder="Describe the package highlights, inclusions, and notes."></textarea>
+                            </div>
                         </div>
-                        <div style="margin-top: 16px;"><button class="submit-btn" type="submit"><i class="fas fa-upload"></i> Upload Package</button></div>
+
+                        <div class="pkgwiz-panel" data-panel="3">
+                            <div class="form-group">
+                                <label for="package_image">Package Cover Image *</label>
+                                <input type="file" id="package_image" name="package_image" accept="image/*" required>
+                                <div class="muted" style="margin-top: 6px; font-size: 0.9rem;">Recommended: JPG, PNG, WEBP. This image will appear on the partner package listing.</div>
+                                <img id="pkgwizImagePreview" class="pkgwiz-review-photo" alt="Cover preview">
+                            </div>
+                        </div>
+
+                        <div class="pkgwiz-panel" data-panel="4">
+                            <p class="muted" style="margin-bottom: 10px;">Review everything before submitting for admin approval.</p>
+                            <div id="pkgwizReview"></div>
+                        </div>
+
+                        <div class="pkgwiz-nav">
+                            <button type="button" class="pkgwiz-btn-back" id="pkgwizBackBtn" onclick="pkgwizGoTo(pkgwizCurrentStep - 1)" style="visibility:hidden;"><i class="fas fa-arrow-left"></i> Back</button>
+                            <button type="submit" class="pkgwiz-btn-next" id="pkgwizNextBtn">Next <i class="fas fa-arrow-right"></i></button>
+                        </div>
                     </form>
+                    <script>
+                        (function () {
+                            let pkgwizCurrentStep = 1;
+                            window.pkgwizCurrentStep = 1;
+                            const pkgwizTotalSteps = 4;
+                            const pkgwizRequiredByStep = {
+                                1: [{ id: 'package_name', label: 'Package Name' }, { id: 'destination_name', label: 'Destination' }],
+                                2: [{ id: 'price', label: 'Price' }],
+                                3: [{ id: 'package_image', label: 'Package Cover Image' }],
+                            };
+
+                            function pkgwizValidateStep(step) {
+                                const fields = pkgwizRequiredByStep[step] || [];
+                                const missing = [];
+                                fields.forEach(function (f) {
+                                    const el = document.getElementById(f.id);
+                                    if (!el) return;
+                                    const empty = el.type === 'file' ? el.files.length === 0 : !el.value.trim();
+                                    if (empty) missing.push(f.label);
+                                });
+                                return missing;
+                            }
+
+                            function pkgwizShowError(missing) {
+                                const box = document.getElementById('pkgwizError');
+                                if (!missing.length) { box.style.display = 'none'; box.innerHTML = ''; return; }
+                                box.innerHTML = '<i class="fas fa-exclamation-circle"></i> Please complete the following before continuing:<ul>' +
+                                    missing.map(function (m) { return '<li>' + m + '</li>'; }).join('') + '</ul>';
+                                box.style.display = 'block';
+                                box.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                            }
+
+                            function pkgwizRenderReview() {
+                                const val = function (id) {
+                                    const el = document.getElementById(id);
+                                    return (el && el.value.trim()) || '—';
+                                };
+                                const priceVal = document.getElementById('price').value;
+                                const priceDisplay = priceVal ? '₱' + Number(priceVal).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—';
+                                const fileInput = document.getElementById('package_image');
+                                const hasImage = fileInput.files.length > 0;
+                                document.getElementById('pkgwizReview').innerHTML =
+                                    '<div class="pkgwiz-review-row"><span>Package Name</span><span>' + val('package_name') + '</span></div>' +
+                                    '<div class="pkgwiz-review-row"><span>Destination</span><span>' + val('destination_name') + '</span></div>' +
+                                    '<div class="pkgwiz-review-row"><span>Duration</span><span>' + val('duration') + '</span></div>' +
+                                    '<div class="pkgwiz-review-row"><span>Price</span><span>' + priceDisplay + '</span></div>' +
+                                    '<div class="pkgwiz-review-row"><span>Description</span><span>' + val('description') + '</span></div>' +
+                                    '<div class="pkgwiz-review-row"><span>Cover Image</span><span>' + (hasImage ? fileInput.files[0].name : '—') + '</span></div>';
+                            }
+
+                            window.pkgwizGoTo = function (step) {
+                                if (step < 1 || step > pkgwizTotalSteps) return;
+                                document.querySelectorAll('#uploadPackageForm .pkgwiz-panel').forEach(function (p) {
+                                    p.classList.toggle('active', parseInt(p.dataset.panel) === step);
+                                });
+                                document.querySelectorAll('#uploadPackageForm .pkgwiz-step').forEach(function (s) {
+                                    const n = parseInt(s.dataset.step);
+                                    s.classList.toggle('active', n === step);
+                                    s.classList.toggle('done', n < step);
+                                });
+                                pkgwizCurrentStep = step;
+                                window.pkgwizCurrentStep = step;
+                                document.getElementById('pkgwizBackBtn').style.visibility = step === 1 ? 'hidden' : 'visible';
+                                const nextBtn = document.getElementById('pkgwizNextBtn');
+                                if (step === pkgwizTotalSteps) {
+                                    nextBtn.innerHTML = '<i class="fas fa-upload"></i> Save &amp; Upload Package';
+                                    nextBtn.classList.add('pkgwiz-btn-save');
+                                    pkgwizRenderReview();
+                                } else {
+                                    nextBtn.innerHTML = 'Next <i class="fas fa-arrow-right"></i>';
+                                    nextBtn.classList.remove('pkgwiz-btn-save');
+                                }
+                                pkgwizShowError([]);
+                            };
+
+                            const imageInput = document.getElementById('package_image');
+                            if (imageInput) {
+                                imageInput.addEventListener('change', function (e) {
+                                    const preview = document.getElementById('pkgwizImagePreview');
+                                    const file = e.target.files[0];
+                                    if (!file) { preview.style.display = 'none'; return; }
+                                    const reader = new FileReader();
+                                    reader.onload = function (ev) { preview.src = ev.target.result; preview.style.display = 'block'; };
+                                    reader.readAsDataURL(file);
+                                });
+                            }
+
+                            const form = document.getElementById('uploadPackageForm');
+                            if (form) {
+                                form.addEventListener('submit', function (e) {
+                                    if (pkgwizCurrentStep < pkgwizTotalSteps) {
+                                        e.preventDefault();
+                                        const missing = pkgwizValidateStep(pkgwizCurrentStep);
+                                        if (missing.length) { pkgwizShowError(missing); return; }
+                                        pkgwizGoTo(pkgwizCurrentStep + 1);
+                                        return;
+                                    }
+                                    // Final step: re-validate everything before letting the real submit through.
+                                    const allMissing = [1, 2, 3].reduce(function (acc, s) { return acc.concat(pkgwizValidateStep(s)); }, []);
+                                    if (allMissing.length) {
+                                        e.preventDefault();
+                                        pkgwizGoTo(1);
+                                        pkgwizShowError(allMissing);
+                                    }
+                                });
+                            }
+                        })();
+                    </script>
                 </section>
 
                 <section class="panel">

@@ -27,9 +27,17 @@ if (!$input) {
 }
 
 // Validate required fields (email no longer required from frontend)
-$required = ['deal_id', 'deal_title', 'price_per_person', 'full_name', 'phone', 'travel_date', 'number_of_travelers', 'total_amount', 'currency'];
+$required = ['deal_id', 'deal_title', 'full_name', 'phone', 'travel_date', 'number_of_travelers', 'currency'];
 foreach ($required as $field) {
     if (empty($input[$field])) {
+        echo json_encode(['success' => false, 'message' => "Missing required field: $field"]);
+        exit;
+    }
+}
+// price_per_person/total_amount are checked separately -- empty() treats a
+// legitimate 0 (e.g. a free/promo deal) as "missing".
+foreach (['price_per_person', 'total_amount'] as $field) {
+    if (!isset($input[$field]) || $input[$field] === '') {
         echo json_encode(['success' => false, 'message' => "Missing required field: $field"]);
         exit;
     }
@@ -89,12 +97,14 @@ try {
         email, 
         phone, 
         travel_date,
-        number_of_travelers, 
-        special_requests, 
-        total_amount, 
-        booking_status, 
-        payment_status, 
-        payment_method, 
+        number_of_travelers,
+        special_requests,
+        hotel_name,
+        hotel_price,
+        total_amount,
+        booking_status,
+        payment_status,
+        payment_method,
         payment_reference,
         currency,
         partner_id,
@@ -104,22 +114,24 @@ try {
         partner_source,
         partner_approved
     ) VALUES (
-        :user_id, 
-        :booking_number, 
-        :destination_name, 
-        :package_name, 
+        :user_id,
+        :booking_number,
+        :destination_name,
+        :package_name,
         :package_duration,
-        :price_per_person, 
-        :full_name, 
-        :email, 
-        :phone, 
+        :price_per_person,
+        :full_name,
+        :email,
+        :phone,
         :travel_date,
-        :number_of_travelers, 
-        :special_requests, 
-        :total_amount, 
-        'pending', 
-        :payment_status, 
-        :payment_method, 
+        :number_of_travelers,
+        :special_requests,
+        :hotel_name,
+        :hotel_price,
+        :total_amount,
+        'pending',
+        :payment_status,
+        :payment_method,
         :payment_reference,
         :currency,
         :partner_id,
@@ -129,7 +141,7 @@ try {
         :partner_source,
         :partner_approved
     )";
-    
+
     $stmt = $pdo->prepare($sql);
     $result = $stmt->execute([
         ':user_id' => $user_id,
@@ -143,6 +155,8 @@ try {
         ':phone' => $input['phone'],
         ':travel_date' => $input['travel_date'],
         ':number_of_travelers' => $input['number_of_travelers'],
+        ':hotel_name' => $input['hotel_name'] ?? null,
+        ':hotel_price' => $input['hotel_price'] ?? 0,
         ':special_requests' => $input['special_requests'] ?? null,
         ':total_amount' => $input['total_amount'],
         ':payment_status' => $payment_status,

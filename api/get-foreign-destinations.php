@@ -44,7 +44,7 @@ try {
                 FROM foreign_destinations fd
                 LEFT JOIN partner_applications p ON fd.partner_id = p.id
                 LEFT JOIN partner_profiles pr ON pr.partner_id = fd.partner_id
-                WHERE (fd.name = :name OR REPLACE(LOWER(fd.name), ' ', '_') = :name OR fd.name LIKE :name_like)
+                WHERE (fd.name = :name OR REPLACE(LOWER(fd.name), ' ', '_') = :name OR fd.name LIKE :name_like OR :name LIKE CONCAT('%', fd.name, '%'))
                 LIMIT 1
             ");
             $fallbackStmt->execute(['name' => $key, 'name_like' => '%' . $key . '%']);

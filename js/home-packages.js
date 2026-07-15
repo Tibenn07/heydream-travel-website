@@ -12,7 +12,7 @@ window.toggleHomeHotelSelection = function () {
     const dropdown = document.getElementById('homeHotelDropdown');
     if (dropdown) dropdown.style.display = dropdown.style.display === 'none' ? 'block' : 'none';
 };
-window.selectHomeHotel = function (index, name, stars, price) {
+window.selectHomeHotel = function (index, name, stars, price, skipPersist) {
     const basePrice = window.currentHomeDest ? window.currentHomeDest.price : 0;
     const nameEl = document.getElementById('homeSelectedHotelName');
     const starHtml = stars ? ` <span style="font-size:0.8rem;">${'⭐'.repeat(stars)}</span>` : '';
@@ -24,6 +24,15 @@ window.selectHomeHotel = function (index, name, stars, price) {
     document.querySelectorAll('#homeHotelDropdown .hotel-option').forEach((el) => {
         el.style.background = Number(el.dataset.hotelIndex) === index ? '#e3f2fd' : 'white';
     });
+    // Persist the pick so it survives the modal being torn down and
+    // rebuilt from scratch -- which happens when login interrupts the
+    // booking flow (resumeHomeBooking rebuilds the whole modal, which
+    // otherwise silently resets the hotel surcharge back to 0).
+    if (!skipPersist && window.currentHomeDestKey) {
+        try {
+            sessionStorage.setItem('home_hotel_' + window.currentHomeDestKey, JSON.stringify({ index, name, stars, price }));
+        } catch (e) { /* storage unavailable, skip */ }
+    }
 };
 
 // Global variable to store ONLY local destinations
@@ -348,6 +357,7 @@ window.showLocalPackagePopupModal = async function (identifier) {
 
     // Update modal content
     window.currentHomeDest = destination; // Store for booking
+    window.currentHomeDestKey = identifier;
     window.homeSelectedHotelSurcharge = 0; // Initialize surcharge
     document.getElementById('homeModalDestName').textContent = destination.name;
     document.getElementById('homeModalDestLocation').innerHTML = `<i class="fas fa-map-marker-alt"></i> ${destination.location}, Philippines`;
@@ -640,9 +650,11 @@ window.showLocalPackagePopupModal = async function (identifier) {
                     <div class="review-row"><div class="review-label">Travel Date:</div><div class="review-value" id="homeReviewDate">-</div></div>
                     <div class="review-row"><div class="review-label">Travelers:</div><div class="review-value" id="homeReviewTravelers">-</div></div>
                     <div class="review-row"><div class="review-label">Special Requests:</div><div class="review-value" id="homeReviewRequests">-</div></div>
+                    <div class="review-row" id="homeReviewHotelRow" style="display:none;"><div class="review-label">Hotel:</div><div class="review-value" id="homeReviewHotel">-</div></div>
                 </div>
                 <div class="review-section"><h4>Price Summary</h4>
                     <div class="review-row"><div class="review-label">Price per Person:</div><div class="review-value">${destination.currency || '₱'}${formatNumber(destination.price)}</div></div>
+                    <div class="review-row" id="homeReviewHotelPriceRow" style="display:none;"><div class="review-label">Hotel Add-on:</div><div class="review-value" id="homeReviewHotelPrice">-</div></div>
                     <div class="review-row total"><div class="review-label">Total:</div><div class="review-value" id="homeReviewTotal">${destination.currency || '₱'}${formatNumber(destination.price)}</div></div>
                 </div>
             </div>
@@ -805,6 +817,17 @@ window.showLocalPackagePopupModal = async function (identifier) {
 
     modalBody.innerHTML = html;
     modal.classList.add('active');
+
+    // Restore a previously selected hotel (e.g. the modal was just rebuilt
+    // from scratch after a login interruption) so the surcharge and total
+    // don't silently reset to base price.
+    try {
+        const savedHotel = sessionStorage.getItem('home_hotel_' + identifier);
+        if (savedHotel) {
+            const h = JSON.parse(savedHotel);
+            window.selectHomeHotel(h.index, h.name, h.stars, h.price, true);
+        }
+    } catch (e) { /* corrupt/unavailable, skip */ }
 
     // ── Flatpickr calendar for travel date ──────────────────────────────────
     const blockedDates = (destination.blocked_months_specific || destination.blocked_dates || '')
@@ -1212,8 +1235,22 @@ function validateHomeStep2(destinationId, price, destinationName, duration) {
     }
 
     const appliedVoucher = window._appliedVoucher && window._appliedVoucher['home'];
-    const rawTotal = (price * parseInt(travelers)) + (window.homeSelectedHotelSurcharge || 0);
+    const hotelSurcharge = window.homeSelectedHotelSurcharge || 0;
+    const rawTotal = (price * parseInt(travelers)) + hotelSurcharge;
     const finalAmount = appliedVoucher ? appliedVoucher.finalTotal : rawTotal;
+
+    const hotelRow = document.getElementById('homeReviewHotelRow');
+    const hotelPriceRow = document.getElementById('homeReviewHotelPriceRow');
+    if (hotelSurcharge > 0) {
+        const hotelNameEl = document.getElementById('homeSelectedHotelName');
+        document.getElementById('homeReviewHotel').textContent = hotelNameEl ? hotelNameEl.textContent.trim() : 'Selected';
+        document.getElementById('homeReviewHotelPrice').textContent = (window.currentHomeDestCurrency || '₱') + formatNumber(hotelSurcharge);
+        if (hotelRow) hotelRow.style.display = '';
+        if (hotelPriceRow) hotelPriceRow.style.display = '';
+    } else {
+        if (hotelRow) hotelRow.style.display = 'none';
+        if (hotelPriceRow) hotelPriceRow.style.display = 'none';
+    }
 
     homeBookingData = {
         destinationId: destinationId,
@@ -1375,6 +1412,11 @@ function sendHomeBookingToServer(btn, originalText, paymentMethodName, paymentRe
     formData.append('travel_date', homeBookingData.travelDate);
     formData.append('number_of_travelers', homeBookingData.travelers);
     formData.append('special_requests', homeBookingData.specialRequests);
+    if (window.homeSelectedHotelSurcharge > 0) {
+        const hotelNameEl = document.getElementById('homeSelectedHotelName');
+        formData.append('hotel_name', hotelNameEl ? hotelNameEl.textContent.trim() : '');
+        formData.append('hotel_price', window.homeSelectedHotelSurcharge);
+    }
     formData.append('total_amount', finalAmount);
     formData.append('currency', window.currentHomeDestCurrency || '₱');
     formData.append('payment_method', homeSelectedPayment);
